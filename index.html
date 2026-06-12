@@ -3,136 +3,44 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>吉祥物首頁</title>
+  <title>首頁</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="page-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">福</div>
-        <div class="brand-text">
-          <strong>吉祥物</strong>
-          <span>Lucky Buddies</span>
-        </div>
-      </div>
+    <section class="topbar">
+      <a class="logo" href="./index.html">
+        <span class="logo-mark">福</span>
+        <span class="logo-text">Lucky Buddies</span>
+      </a>
 
-      <nav class="topnav">
-        <a href="./index.html">首頁</a>
-        <a href="./wanted.html">許願池</a>
-        <a href="./gift.html">好運兌換</a>
-        <a href="./qa.html">FAQ</a>
-      </nav>
-    </header>
+      <form class="searchbar" action="#" method="get">
+        <input type="search" placeholder="搜尋" aria-label="搜尋" />
+        <button type="submit">搜尋</button>
+      </form>
+    </section>
+
+    <section class="entry-grid">
+      <a class="entry-card" href="./index.html">
+        <span class="entry-label">首頁</span>
+      </a>
+
+      <a class="entry-card" href="./index07.html">
+        <span class="entry-label">立即抽取</span>
+      </a>
+
+      <a class="entry-card" href="./gift.html">
+        <span class="entry-label">好運兌換</span>
+      </a>
+
+      <a class="entry-card" href="./qa.html">
+        <span class="entry-label">FAQ</span>
+      </a>
+    </section>
 
     <section class="hero-panel">
-      <div class="hero-copy">
-        <p class="hero-tag">開運招福</p>
-        <h1>抽吉祥物<br />帶來好運</h1>
-        <p class="hero-desc">
-          每一次抽取，都是好運的開始。想抽角色、許願找物、兌換活動，
-          都可以從這裡開始。
-        </p>
-        <div class="hero-actions">
-          <a class="hero-button primary" href="./index07.html">立即抽取</a>
-          <a class="hero-button secondary" href="./wanted.html">前往許願池</a>
-        </div>
-      </div>
-
-      <div class="hero-art">
-        <img src="images/image_center.jpg" alt="主視覺" />
-      </div>
+      <img src="images/image_center.jpg" alt="主視覺" />
     </section>
-
-    <section class="fortune-strip">
-      <a class="fortune-card" href="./index07.html">
-        <span class="fortune-badge">抽</span>
-        <h2>抽吉祥物</h2>
-        <p>進入遊戲頁，試試今天的好運手氣。</p>
-      </a>
-
-      <a class="fortune-card" href="./wanted.html">
-        <span class="fortune-badge">願</span>
-        <h2>許願池</h2>
-        <p>看看分類內容，找到你想許願的方向。</p>
-      </a>
-
-      <a class="fortune-card" href="./gift.html">
-        <span class="fortune-badge">換</span>
-        <h2>好運兌換</h2>
-        <p>查看活動與兌換內容，把喜歡的祝福帶回家。</p>
-      </a>
-    </section>
-
-    <section class="section-panel">
-      <div class="section-title">熱門入口</div>
-
-      <div class="mascot-grid">
-        <a class="mascot-card" href="./index07.html">
-          <div class="mascot-thumb">
-            <img src="images/mascot.jpg" alt="抽吉祥物" />
-          </div>
-          <h3>抽吉祥物</h3>
-          <p>開始遊戲</p>
-          <span>立即前往</span>
-        </a>
-
-        <a class="mascot-card" href="./wanted.html">
-          <div class="mascot-thumb">
-            <img src="images/wish.jpg" alt="許願池" />
-          </div>
-          <h3>許願池</h3>
-          <p>分類入口</p>
-          <span>查看內容</span>
-        </a>
-
-        <a class="mascot-card" href="./wanted-form.html">
-          <div class="mascot-thumb">
-            <img src="images/image1.jpg" alt="送出願望" />
-          </div>
-          <h3>送出願望</h3>
-          <p>正式填單</p>
-          <span>立即填寫</span>
-        </a>
-
-        <a class="mascot-card" href="./gift.html">
-          <div class="mascot-thumb">
-            <img src="images/redeem.jpg" alt="好運兌換" />
-          </div>
-          <h3>好運兌換</h3>
-          <p>活動專區</p>
-          <span>查看活動</span>
-        </a>
-      </div>
-    </section>
-
-    <section class="promo-grid">
-      <a class="promo-card promo-large" href="./wanted-form.html">
-        <div>
-          <small>願望登記</small>
-          <h2>我要許願</h2>
-          <p>如果你想找特定款式、特定角色或特定需求，直接送出表單。</p>
-        </div>
-      </a>
-
-      <a class="promo-card" href="./qa.html">
-        <div>
-          <small>常見問題</small>
-          <h2>FAQ</h2>
-          <p>整理常見使用問題，第一次來也能快速看懂。</p>
-        </div>
-      </a>
-    </section>
-
-    <footer class="footer">
-      <div class="footer-links">
-        <a href="./index.html">首頁</a>
-        <a href="./wanted.html">許願池</a>
-        <a href="./gift.html">好運兌換</a>
-        <a href="./qa.html">FAQ</a>
-      </div>
-      <p>© Lucky Buddies. All Rights Reserved.</p>
-    </footer>
   </main>
 
   <script src="main.js"></script>
