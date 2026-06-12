@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>抽吉祥物｜復古首頁</title>
+  <style>
+    :root{
+      --bg:#f2e1c5;
+      --paper:#f8efe0;
+      --ink:#5a3c2f;
+      --muted:#866955;
+      --line:#7b5a44;
+      --accent:#c55f3d;
+      --accent2:#6f8b5e;
+      --shadow:0 10px 30px rgba(90,60,47,.14);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:"Noto Serif TC","PingFang TC",serif;
+      background:
+        radial-gradient(circle at top, rgba(255,255,255,.45), transparent 35%),
+        linear-gradient(180deg, #f6e7d0 0%, var(--bg) 100%);
+      color:var(--ink);
+    }
+    .wrap{max-width:1280px;margin:0 auto;padding:24px}
+    .frame{
+      border:4px solid var(--line);
+      background:rgba(248,239,224,.88);
+      box-shadow:var(--shadow);
+      padding:18px;
+    }
+    .top{
+      display:flex;justify-content:space-between;align-items:center;
+      border-bottom:3px solid var(--line);
+      padding-bottom:12px;margin-bottom:18px;
+      font-size:14px;letter-spacing:.08em;
+    }
+    .brand{font-weight:900;font-size:18px}
+    .nav{display:flex;gap:18px;color:var(--muted)}
+    .hero{
+      display:grid;grid-template-columns:1.1fr .9fr;gap:18px;
+      min-height:620px;
+    }
+    .left,.right{
+      border:3px solid var(--line);
+      background:rgba(255,250,242,.8);
+      position:relative;
+      overflow:hidden;
+    }
+    .left{
+      padding:42px 38px 34px;
+      display:flex;flex-direction:column;justify-content:space-between;
+    }
+    .tag{
+      display:inline-block;
+      border:2px solid var(--line);
+      padding:8px 14px;
+      border-radius:999px;
+      font-size:14px;
+      background:#fff6e8;
+      width:fit-content;
+    }
+    h1{
+      margin:18px 0 12px;
+      font-size:72px;
+      line-height:1.02;
+      letter-spacing:.06em;
+    }
+    .desc{
+      max-width:580px;
+      font-size:20px;
+      line-height:1.8;
+      color:var(--muted);
+    }
+    .btns{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px}
+    .btn{
+      padding:14px 24px;
+      border:2px solid var(--line);
+      border-radius:999px;
+      font-weight:700;
+      font-size:16px;
+      background:#fff7eb;
+      color:var(--ink);
+    }
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .stats{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;
+    }
+    .stat{
+      border:2px solid var(--line);
+      background:#fffaf2;
+      padding:16px;
+      text-align:center;
+    }
+    .stat b{display:block;font-size:28px;color:var(--accent);margin-bottom:6px}
+    .right{
+      display:flex;flex-direction:column;justify-content:space-between;
+      padding:20px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(197,95,61,.12), transparent 22%),
+        radial-gradient(circle at 80% 75%, rgba(111,139,94,.12), transparent 20%),
+        rgba(255,250,242,.8);
+    }
+    .poster{
+      flex:1;
+      border:3px solid var(--line);
+      background:
+        linear-gradient(135deg, rgba(197,95,61,.08), transparent 40%),
+        #f4e1bd;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      min-height:430px;
+    }
+    .mascot{
+      width:320px;height:320px;border-radius:50%;
+      background:
+        radial-gradient(circle at 40% 38%, #fff 0 7%, transparent 7.5%),
+        radial-gradient(circle at 60% 38%, #fff 0 7%, transparent 7.5%),
+        radial-gradient(circle at 50% 58%, #c55f3d 0 6%, transparent 6.5%),
+        radial-gradient(circle at 50% 52%, #f7e7c9 0 42%, #e7c08b 42% 100%);
+      border:3px solid var(--line);
+      position:relative;
+      box-shadow:inset 0 0 0 8px rgba(255,255,255,.25);
+    }
+    .mascot:before,.mascot:after{
+      content:"";position:absolute;bottom:62px;width:52px;height:52px;
+      border-radius:50%;background:#5a3c2f;
+    }
+    .mascot:before{left:82px}
+    .mascot:after{right:82px}
+    .stamp{
+      position:absolute;left:18px;top:18px;
+      border:2px dashed var(--accent);
+      color:var(--accent);
+      background:#fff8f0;
+      padding:8px 12px;
+      font-size:13px;
+      transform:rotate(-8deg);
+    }
+    .footer{
+      margin-top:18px;
+      display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+    }
+    .card{
+      border:3px solid var(--line);
+      background:#fffaf2;
+      padding:16px;
+      min-height:118px;
+    }
+    .card h3{margin:0 0 8px;font-size:18px}
+    .card p{margin:0;color:var(--muted);line-height:1.7;font-size:14px}
+    @media (max-width: 900px){
+      .hero,.footer,.stats{grid-template-columns:1fr}
+      h1{font-size:46px}
+      .nav{display:none}
+      .left{padding:28px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="frame">
+      <header class="top">
+        <div class="brand">抽吉祥物 / Retro Lucky Drop</div>
+        <nav class="nav">
+          <span>首頁</span>
+          <span>玩法</span>
+          <span>獎項</span>
+          <span>規則</span>
+        </nav>
+      </header>
+
+      <main class="hero">
+        <section class="left">
+          <div>
+            <div class="tag">Vintage Poster UI · 抽吉祥物</div>
+            <h1>抽吉祥物<br>抽到今天的好運</h1>
+            <p class="desc">
+              把復古、驚喜和小小療癒感，做成一個讓人想停下來互動的抽選首頁。
+              一眼看懂、一次就會、看完就想點。
+            </p>
+            <div class="btns">
+              <button class="btn primary">開始抽選</button>
+              <button class="btn">查看活動規則</button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><b>01</b>抽吉祥物</div>
+            <div class="stat"><b>02</b>復古感</div>
+            <div class="stat"><b>03</b>好操作</div>
+          </div>
+        </section>
+
+        <aside class="right">
+          <div class="stamp">LIMITED EVENT</div>
+          <div class="poster">
+            <div class="mascot"></div>
+          </div>
+          <div class="footer">
+            <div class="card">
+              <h3>主視覺</h3>
+              <p>暖色海報感、粗邊框、紙張紋理、老招牌字體。</p>
+            </div>
+            <div class="card">
+              <h3>互動</h3>
+              <p>抽選、結果揭曉、狀態回饋，做出遊戲感。</p>
+            </div>
+            <div class="card">
+              <h3>資訊</h3>
+              <p>玩法、獎項、規則分區，閱讀路徑清楚。</p>
+            </div>
+            <div class="card">
+              <h3>CTA</h3>
+              <p>首頁只放一個主動作：開始抽選。</p>
+            </div>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
