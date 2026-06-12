@@ -1,19 +1,11 @@
 :root {
-  --bg: #7b4b2a;
-  --panel: #d9bb84;
-  --panel-soft: #ecd9af;
   --ink: #4f2c1a;
   --line: rgba(92, 52, 28, 0.45);
   --green: #355347;
   --green-dark: #274037;
-  --gold: #f3e0b6;
-  --gold-deep: #c99d4c;
-  --brown: #7a3f22;
-  --brown-dark: #5b2d19;
   --shadow: 0 10px 24px rgba(54, 28, 14, 0.18);
   --radius-lg: 22px;
   --radius-md: 16px;
-  --radius-sm: 12px;
 }
 
 * {
@@ -45,7 +37,7 @@ a {
 
 button,
 input {
-font: inherit;
+  font: inherit;
 }
 
 .page-shell {
@@ -96,7 +88,7 @@ font: inherit;
 }
 
 .searchbar {
-  display: grid;
+display: grid;
   grid-template-columns: 28px 1fr auto;
   align-items: center;
   gap: 8px;
@@ -137,7 +129,6 @@ font: inherit;
   color: #f7e8c5;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(39, 64, 55, 0.2);
 }
 
 .entry-grid {
@@ -159,7 +150,6 @@ font: inherit;
   border: 2px solid rgba(92, 52, 28, 0.48);
   border-radius: 18px;
   box-shadow: var(--shadow);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .entry-card::before {
@@ -169,10 +159,6 @@ font: inherit;
   border: 1px solid rgba(122, 63, 34, 0.22);
   border-radius: 12px;
   pointer-events: none;
-}
-
-.entry-card:active {
-  transform: scale(0.975);
 }
 
 .entry-label {
@@ -196,10 +182,12 @@ font: inherit;
 
 .slider-track {
   position: relative;
+  width: 100%;
 }
 
 .slide {
   display: none;
+  width: 100%;
 }
 
 .slide.is-active {
@@ -207,13 +195,14 @@ font: inherit;
 }
 
 .slide img {
+  width: 100%;
   aspect-ratio: 4 / 5;
   object-fit: cover;
 }
 
 .slider-arrow {
   position: absolute;
-  top: 46%;
+  top: calc(50% - 24px);
   transform: translateY(-50%);
   width: 42px;
   height: 42px;
@@ -226,6 +215,7 @@ font: inherit;
   display: grid;
   place-items: center;
   cursor: pointer;
+  z-index: 3;
 }
 
 .slider-arrow.prev {
@@ -239,10 +229,11 @@ font: inherit;
 .slider-dots {
   position: absolute;
   left: 50%;
-  bottom: 52px;
+  bottom: 58px;
   transform: translateX(-50%);
   display: flex;
   gap: 8px;
+  z-index: 3;
 }
 
 .dot {
@@ -265,7 +256,7 @@ font: inherit;
   min-height: 48px;
   padding: 10px 16px;
   background: linear-gradient(180deg, #7a3f22 0%, #5b2d19 100%);
-color: #f5dfaf;
+  color: #f5dfaf;
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.06em;
