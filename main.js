@@ -4,7 +4,7 @@ const prevBtn = document.querySelector('.slider-arrow.prev');
 const nextBtn = document.querySelector('.slider-arrow.next');
 
 let currentIndex = 0;
-let autoPlay;
+let autoPlay = null;
 
 function showSlide(index) {
   slides.forEach((slide, i) => {
@@ -19,7 +19,7 @@ function showSlide(index) {
 }
 
 function nextSlide() {
-  const nextIndex = (currentIndex + 1) % slides.length;
+const nextIndex = (currentIndex + 1) % slides.length;
   showSlide(nextIndex);
 }
 
@@ -29,30 +29,32 @@ function prevSlide() {
 }
 
 function startAutoPlay() {
+  stopAutoPlay();
   autoPlay = setInterval(nextSlide, 3500);
 }
 
 function stopAutoPlay() {
-  clearInterval(autoPlay);
+  if (autoPlay) {
+    clearInterval(autoPlay);
+  }
 }
 
-if (slides.length && dots.length) {
+if (slides.length > 0 && dots.length > 0) {
+  showSlide(0);
+
   prevBtn?.addEventListener('click', () => {
     prevSlide();
-    stopAutoPlay();
     startAutoPlay();
   });
 
   nextBtn?.addEventListener('click', () => {
     nextSlide();
-    stopAutoPlay();
     startAutoPlay();
   });
 
   dots.forEach((dot, index) => {
     dot.addEventListener('click', () => {
       showSlide(index);
-      stopAutoPlay();
       startAutoPlay();
     });
   });
