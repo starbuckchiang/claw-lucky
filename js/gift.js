@@ -88,8 +88,7 @@ function createGiftCard(item) {
       <button
         class="gift-item-thumb"
         type="button"
-        data-gift-id="${item.id}"
-        ${canRedeem ? '' : 'disabled'}
+        ${canRedeem ? `onclick="redeemGift('${item.id}')"` : 'disabled'}
         aria-label="兌換 ${item.name}"
         title="${canRedeem ? `兌換 ${item.name}` : '資源不足'}"
       >
@@ -135,6 +134,7 @@ function renderHistory() {
 
   const history = getHistory();
   historyListEl.innerHTML = '';
+
   if (!history.length) {
     historyEmptyEl.style.display = 'block';
     return;
@@ -159,7 +159,7 @@ function renderHistory() {
     });
 }
 
-function redeemGift(giftId) {
+window.redeemGift = function (giftId) {
   const item = giftItems.find((gift) => gift.id === giftId);
   if (!item) return;
 
@@ -195,27 +195,12 @@ function redeemGift(giftId) {
   renderHistory();
 
   alert(`已成功兌換：${item.name}`);
-}
-
-function bindGiftGridEvents() {
-  if (!giftGridEl) return;
-
-  giftGridEl.addEventListener('click', (event) => {
-    const thumb = event.target.closest('.gift-item-thumb');
-    if (!thumb) return;
-
-    const giftId = thumb.dataset.giftId;
-    if (!giftId) return;
-
-    redeemGift(giftId);
-  });
-}
+};
 
 function initGiftPage() {
   renderWallet();
   renderGiftGrid();
   renderHistory();
-  bindGiftGridEvents();
 }
 
 if (document.readyState === 'loading') {
