@@ -167,6 +167,8 @@ function renderHistory() {
 }
 
 window.redeemGift = function (giftId) {
+  alert('有點到：' + giftId);
+  
   const item = giftItems.find((gift) => gift.id === giftId);
   if (!item) return;
 
