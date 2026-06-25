@@ -1,7 +1,6 @@
 document.documentElement.classList.add('page-ready');
-console.log('gift.js loaded');
 
-const fallbackImage = './image/image.png';
+const fallbackImage = './images/yushou.jpg';
 
 const giftItems = [
   {
@@ -9,28 +8,28 @@ const giftItems = [
     name: '招財小福袋',
     points: 300,
     tickets: 0,
-    image: './image/image.png'
+    image: './images/redeem.jpg'
   },
   {
     id: 'gift-002',
     name: '好運御守',
     points: 500,
     tickets: 1,
-    image: './image/image.png'
+    image: './images/mascot.jpg'
   },
   {
     id: 'gift-003',
     name: '限定吉祥物',
     points: 900,
     tickets: 2,
-    image: './image/image.png'
+    image: './images/image1.jpg'
   },
   {
     id: 'gift-004',
     name: '神秘加碼禮',
     points: 1200,
     tickets: 1,
-    image: './image/image.png'
+    image: './images/wish.jpg'
   }
 ];
 
@@ -73,11 +72,8 @@ function saveHistory(history) {
 }
 
 function renderWallet() {
-  const points = getPoints();
-  const tickets = getTickets();
-
-  if (pointsEl) pointsEl.textContent = points;
-  if (ticketsEl) ticketsEl.textContent = tickets;
+  if (pointsEl) pointsEl.textContent = getPoints();
+  if (ticketsEl) ticketsEl.textContent = getTickets();
 }
 
 function createGiftCard(item) {
@@ -124,12 +120,9 @@ function createGiftCard(item) {
 }
 
 function renderGiftGrid() {
-  if (!giftGridEl) {
-    alert('giftGrid 沒抓到');
-    return;
-  }
+  if (!giftGridEl) return;
 
-  giftGridEl.innerHTML = '<div style="padding:12px;background:#fff3cd;border:1px solid #d4a017;">giftGrid 有抓到，準備渲染商品卡</div>';
+  giftGridEl.innerHTML = '';
 
   giftItems.forEach((item) => {
     const card = createGiftCard(item);
@@ -137,21 +130,11 @@ function renderGiftGrid() {
   });
 }
 
-
-  giftGridEl.querySelectorAll('.gift-item-thumb').forEach((button) => {
-    button.addEventListener('click', () => {
-      alert('你有點到縮圖');
-      redeemGift(button.dataset.giftId);
-    });
-  });
-
-
 function renderHistory() {
   if (!historyListEl || !historyEmptyEl) return;
 
   const history = getHistory();
   historyListEl.innerHTML = '';
-
   if (!history.length) {
     historyEmptyEl.style.display = 'block';
     return;
@@ -162,7 +145,7 @@ function renderHistory() {
   history
     .slice()
     .reverse()
-.forEach((item) => {
+  .forEach((item) => {
       const block = document.createElement('article');
       block.className = 'history-item';
       block.innerHTML = `
@@ -214,10 +197,25 @@ function redeemGift(giftId) {
   alert(`已成功兌換：${item.name}`);
 }
 
+function bindGiftGridEvents() {
+  if (!giftGridEl) return;
+
+  giftGridEl.addEventListener('click', (event) => {
+    const thumb = event.target.closest('.gift-item-thumb');
+    if (!thumb) return;
+
+    const giftId = thumb.dataset.giftId;
+    if (!giftId) return;
+
+    redeemGift(giftId);
+  });
+}
+
 function initGiftPage() {
   renderWallet();
   renderGiftGrid();
   renderHistory();
+  bindGiftGridEvents();
 }
 
 if (document.readyState === 'loading') {
@@ -225,4 +223,4 @@ if (document.readyState === 'loading') {
 } else {
   initGiftPage();
 }
-alert('gift.js 已載入');
+
