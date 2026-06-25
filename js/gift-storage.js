@@ -71,3 +71,5 @@ window.GiftStorage = {
   getRedeemHistory: loadGiftRedeemHistory,
   setRedeemHistory: saveGiftRedeemHistory
 };
+localStorage.setItem('giftPoints', '5000');
+localStorage.setItem('giftTickets', '10');
