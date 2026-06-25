@@ -85,15 +85,21 @@ function createGiftCard(item) {
   card.className = 'gift-item';
   card.innerHTML = `
     <div class="gift-item-image">
-      <button
-        class="gift-item-thumb"
-        type="button"
-        ${canRedeem ? `onclick="redeemGift('${item.id}')"` : 'disabled'}
-        aria-label="兌換 ${item.name}"
-        title="${canRedeem ? `兌換 ${item.name}` : '資源不足'}"
-      >
-        <img src="${item.image}" alt="${item.name}" />
-      </button>
+      ${
+        canRedeem
+          ? `<a
+              class="gift-item-thumb"
+              href="javascript:void(0)"
+              onclick="redeemGift('${item.id}')"
+              aria-label="兌換 ${item.name}"
+              title="兌換 ${item.name}"
+            >
+              <img src="${item.image}" alt="${item.name}" />
+            </a>`
+          : `<div class="gift-item-thumb is-disabled" aria-disabled="true">
+              <img src="${item.image}" alt="${item.name}" />
+            </div>`
+      }
     </div>
 
     <div class="gift-item-body">
@@ -117,6 +123,7 @@ function createGiftCard(item) {
 
   return card;
 }
+
 
 function renderGiftGrid() {
   if (!giftGridEl) return;
