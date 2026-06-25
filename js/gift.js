@@ -169,41 +169,7 @@ function renderHistory() {
 window.redeemGift = function (giftId) {
   alert('有點到：' + giftId);
   
-  const item = giftItems.find((gift) => gift.id === giftId);
-  if (!item) return;
-
-  const currentPoints = getPoints();
-  const currentTickets = getTickets();
-
-  if (currentPoints < item.points || currentTickets < item.tickets) {
-    alert('目前點數或兌換券不足喔。');
-    return;
-  }
-
-  const confirmed = window.confirm(`確認兌換「${item.name}」？`);
-  if (!confirmed) return;
-
-  const nextPoints = currentPoints - item.points;
-  const nextTickets = currentTickets - item.tickets;
-
-  setPoints(nextPoints);
-  setTickets(nextTickets);
-
-  const history = getHistory();
-  history.push({
-    id: item.id,
-    name: item.name,
-    points: item.points,
-    tickets: item.tickets,
-    time: new Date().toLocaleString('zh-TW', { hour12: false })
-  });
-  saveHistory(history);
-
-  renderWallet();
-  renderGiftGrid();
-  renderHistory();
-
-  alert(`已成功兌換：${item.name}`);
+  
 };
 
 function initGiftPage() {
