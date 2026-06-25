@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>甜心許願送出｜Wanted Form</title>
+
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/layout.css" />
+  <link rel="stylesheet" href="./css/components.css" />
+  <link rel="stylesheet" href="./css/pages/wanted-form.css" />
+</head>
+<body>
+  <main class="page-wrap">
+    <section class="section">
+      <div class="hero-card wanted-form-hero">
+        <div class="center">
+          <div class="wanted-form-kicker">Submit Your Wish</div>
+
+         <div class="wanted-form-badges">
+           <span class="badge">Wish Form</span>
+           <span class="badge">Google Form</span>
+           <span class="badge">Direct Submit</span>
+        </div>
+          <h1 class="wanted-form-title">把你的願望，正式送出去。</h1>
+
+          <p class="wanted-form-desc">
+            如果你已經想好想要的商品、品牌、尺寸、風格或預算，
+            現在就直接填寫表單送出。<br />
+            我們會整理這些內容，作為後續商品徵集、活動規劃與上架參考。
+          </p>
+
+          <div class="wanted-form-subnote">
+            建議盡量提供品牌、尺寸、顏色、預算或喜歡的款式方向。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-lg">
+      <div class="panel">
+        <div class="section-header">
+          <h2 class="section-title wanted-form-section-title">許願表單</h2>
+          <p class="section-desc">
+            內容越完整，後續整理就越有效率。
+          </p>
+        </div>
+
+        <form id="wantedForm" class="stack" novalidate>
+          <div class="grid-2">
+            <div class="soft-card">
+              <label for="category"><strong>商品分類</strong></label><br />
+              <select id="category" name="category" class="form-control">
+                <option value="">請選擇</option>
+                <option value="冰刀鞋">冰刀鞋</option>
+                <option value="鞋套 / 配件">鞋套 / 配件</option>
+                <option value="旋轉板 / 練習用品">旋轉板 / 練習用品</option>
+                <option value="冰場服飾">冰場服飾</option>
+                <option value="娃娃 / 小物">娃娃 / 小物</option>
+                <option value="限定 / 特別企劃商品">限定 / 特別企劃商品</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+
+            <div class="soft-card">
+              <label for="itemName"><strong>想要的商品名稱 / 類型</strong></label><br />
+              <input id="itemName" name="itemName" type="text" class="form-control" placeholder="例如：冰刀鞋、可愛娃娃、練習外套" />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="soft-card">
+              <label for="brand"><strong>品牌</strong></label><br />
+              <input id="brand" name="brand" type="text" class="form-control" placeholder="例如：Edea / Jackson / 不限" />
+            </div>
+
+            <div class="soft-card">
+              <label for="size"><strong>尺寸 / 規格</strong></label><br />
+              <input id="size" name="size" type="text" class="form-control" placeholder="例如：23.5、M、成人用、初學者款" />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="soft-card">
+              <label for="budget"><strong>預算</strong></label><br />
+              <input id="budget" name="budget" type="text" class="form-control" placeholder="例如：2000 內、300-500、可討論" />
+            </div>
+
+            <div class="soft-card">
+              <label for="style"><strong>風格 / 顏色 / 補充條件</strong></label><br />
+              <input id="style" name="style" type="text" class="form-control" placeholder="例如：粉色、可愛風、全新、二手可" />
+            </div>
+          </div>
+
+          <div class="soft-card">
+            <label for="note"><strong>其他備註</strong></label><br />
+            <textarea id="note" name="note" rows="5" class="form-control" placeholder="可補充用途、想要原因、參考商品、希望上架形式等"></textarea>
+          </div>
+
+          <div class="grid-2">
+            <div class="soft-card">
+              <label for="contact"><strong>聯絡方式 / 帳號</strong></label><br />
+              <input id="contact" name="contact" type="text" class="form-control" placeholder="例如：Telegram @username / IG / 留空也可" />
+            </div>
+
+            <div class="soft-card">
+              <label for="nickname"><strong>暱稱</strong></label><br />
+              <input id="nickname" name="nickname" type="text" class="form-control" placeholder="例如：甜心玩家 / 匿名可留空" />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="soft-card">
+            <label for="date"><strong>日期</strong></label><br />
+            <input id="date" name="date" type="date" class="form-control" />
+          </div>
+
+         <div class="soft-card">
+            <label for="time"><strong>時間</strong></label><br />
+            <input id="time" name="time" type="time" class="form-control" />
+         </div>
+        </div>
+
+          <div class="button-row wanted-form-actions">
+            <button type="submit" class="btn btn-start" id="submitWantedBtn">送出願望</button>
+            <a class="btn btn-secondary" href="./wanted.html" data-entry-link>回許願池分類頁</a>
+            <a class="btn btn-gift" href="./index.html" data-entry-link>回首頁</a>
+          </div>
+
+          <div id="wantedFormStatus" class="notice-box wanted-form-note" style="margin-top: 0;">
+            填好後按「送出願望」，資料會送到許願池系統中。
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="section section-lg">
+      <div class="wanted-form-tip-list">
+        <div class="wanted-form-tip">
+          <h3 class="wanted-form-tip-title">可以填商品名稱，也可以填類型</h3>
+          <p class="wanted-form-tip-text">
+            如果你知道確切商品，可以直接填商品名；如果還不確定，也可以只填類型，例如冰刀鞋、服飾、配件、練習用品或可愛小物。
+          </p>
+        </div>
+
+        <div class="wanted-form-tip">
+          <h3 class="wanted-form-tip-title">越完整越容易整理</h3>
+          <p class="wanted-form-tip-text">
+            品牌、尺寸、風格、預算、新品或二手接受度，這些都會幫助後續整理與評估。
+          </p>
+        </div>
+
+        <div class="wanted-form-tip">
+          <h3 class="wanted-form-tip-title">送出後不代表一定立即上架</h3>
+          <p class="wanted-form-tip-text">
+            我們會依照人氣、可取得性、活動規劃與整體安排綜合評估，但你的需求都會成為很重要的參考。
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/pages/wanted-form.js"></script>
+</body>
+</html>
