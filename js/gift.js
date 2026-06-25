@@ -85,21 +85,9 @@ function createGiftCard(item) {
   card.className = 'gift-item';
   card.innerHTML = `
     <div class="gift-item-image">
-      ${
-        canRedeem
-          ? `<a
-              class="gift-item-thumb"
-              href="javascript:void(0)"
-              onclick="redeemGift('${item.id}')"
-              aria-label="兌換 ${item.name}"
-              title="兌換 ${item.name}"
-            >
-              <img src="${item.image}" alt="${item.name}" />
-            </a>`
-          : `<div class="gift-item-thumb is-disabled" aria-disabled="true">
-              <img src="${item.image}" alt="${item.name}" />
-            </div>`
-      }
+      <div class="gift-item-thumb">
+        <img src="${item.image}" alt="${item.name}" />
+      </div>
     </div>
 
     <div class="gift-item-body">
@@ -109,6 +97,12 @@ function createGiftCard(item) {
         <span class="gift-badge">💎 所需點數：${item.points}</span>
         <span class="gift-badge">🎟 所需兌換券：${item.tickets}</span>
       </div>
+
+      ${
+        canRedeem
+          ? `<button class="gift-test-btn" type="button" onclick="redeemGift('${item.id}')">測試兌換</button>`
+          : `<button class="gift-test-btn" type="button" disabled>資源不足</button>`
+      }
     </div>
   `;
 
@@ -168,8 +162,6 @@ function renderHistory() {
 
 window.redeemGift = function (giftId) {
   alert('有點到：' + giftId);
-  
-  
 };
 
 function initGiftPage() {
