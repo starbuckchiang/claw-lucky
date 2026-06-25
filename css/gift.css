@@ -225,24 +225,24 @@ body {
 }
 
 .gift-thumb {
-  width: 84px;
-  height: 84px;
-  min-width: 84px;
-  border-radius: 16px;
+  width: 72px;
+  height: 72px;
+  min-width: 72px;
+  border-radius: 14px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.08) 40%, transparent 41%),
-    linear-gradient(180deg, #f9efdc 0%, #ead0a0 100%);
+  background: #f8f1e4;
   border: 1px solid rgba(92, 52, 28, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 4px;
 }
 
 .gift-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  display: block;
 }
 
 .gift-info {
