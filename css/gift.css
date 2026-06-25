@@ -303,9 +303,9 @@ img {
   }
 }
 
-.gift-test-btn {
+.gift-redeem-btn {
   width: 100%;
-  min-height: 40px;
+  min-height: 42px;
   margin-top: 12px;
   border: 0;
   border-radius: 999px;
@@ -314,10 +314,12 @@ img {
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
+  box-shadow: 0 6px 14px rgba(91, 45, 25, 0.18);
 }
 
-.gift-test-btn:disabled {
+.gift-redeem-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
 
