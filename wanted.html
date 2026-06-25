@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>甜心許願池｜甜心選物 × 冰場好物小舖</title>
+
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/layout.css" />
+  <link rel="stylesheet" href="./css/components.css" />
+  <link rel="stylesheet" href="./css/pages/wanted.css" />
+</head>
+<body>
+  <main class="page-wrap">
+    <section class="section">
+      <div class="hero-card wanted-hero">
+        <div class="center">
+          <div class="wanted-kicker">Wanted Station</div>
+
+          <div class="wanted-badges">
+            <span class="badge">Wanted</span>
+            <span class="badge">Google Form</span>
+            <span class="badge">Direct Submit</span>
+          </div>
+
+          <h1 class="wanted-title">甜心許願池</h1>
+
+          <p class="wanted-desc">
+            如果你正在找冰刀鞋、鞋套、旋轉板、服飾、娃娃或裝備，<br />
+            歡迎把需求填在下面，我們一起幫你找找看。
+          </p>
+
+          <div class="wanted-subnote">
+            想找特定尺寸、品牌、風格或二手狀況，也都可以寫清楚。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-lg">
+      <div class="panel">
+        <div class="section-header">
+          <h2 class="section-title wanted-section-title">熱門徵求分類</h2>
+          <p class="section-desc">
+            先看看目前常見需求，也可以直接進分類頁查看現有徵求內容。
+          </p>
+        </div>
+
+        <div class="wanted-list">
+          <a class="wanted-item-link" href="./wanted.html?category=skates" data-entry-link>
+            <div class="wanted-item-title">⛸ 冰刀鞋</div>
+            <div class="wanted-item-text">希望找到尺寸合適、保存良好的二手冰刀鞋。</div>
+          </a>
+
+          <a class="wanted-item-link" href="./wanted.html?category=shoe-covers" data-entry-link>
+            <div class="wanted-item-title">🧦 鞋套</div>
+            <div class="wanted-item-text">徵求乾淨、耐用、適合日常訓練使用的鞋套。</div>
+          </a>
+
+          <a class="wanted-item-link" href="./wanted.html?category=spinner" data-entry-link>
+            <div class="wanted-item-title">🌀 旋轉板</div>
+            <div class="wanted-item-text">希望找到狀況良好、適合初學或練習使用的旋轉板。</div>
+          </a>
+
+          <a class="wanted-item-link" href="./wanted.html?category=clothes" data-entry-link>
+            <div class="wanted-item-title">👕 服飾 / T-shirt / 夾克</div>
+            <div class="wanted-item-text">想找適合冰場穿搭或日常使用的服飾好物。</div>
+          </a>
+
+          <a class="wanted-item-link" href="./wanted.html?category=plush" data-entry-link>
+            <div class="wanted-item-title">🧸 絨毛娃娃 / 可愛小物</div>
+            <div class="wanted-item-text">歡迎分享保存良好、可愛療癒的小物或娃娃。</div>
+          </a>
+
+          <a class="wanted-item-link" href="./wanted.html?category=hockey" data-entry-link>
+            <div class="wanted-item-title">🏒 Hockey 球鞋與裝備</div>
+            <div class="wanted-item-text">希望找到實用、狀況良好的 hockey 相關用品。</div>
+          </a>
+        </div>
+
+        <div class="button-row wanted-nav-row">
+          <a class="btn btn-secondary" href="./index.html" data-entry-link>回首頁</a>
+          <a class="btn btn-gift" href="./qa.html" data-entry-link>看圖片連結教學</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-lg">
+      <div class="panel">
+        <div class="section-header">
+          <h2 class="section-title wanted-section-title">留下你的需求</h2>
+          <p class="section-desc">
+            這份表單會直接送進 Google Form，資料越完整越方便後續整理。
+          </p>
+        </div>
+
+        <form
+          id="wantedForm"
+          class="stack wanted-form"
+          action="https://docs.google.com/forms/d/e/1FAIpQLScKLkUyuTR-5kYBmE6f52bGD7I3jivZ5ah8HSFgaGxA6Q7U4w/formResponse"
+          method="POST"
+          target="_blank"
+          novalidate
+        >
+          <div class="grid-2">
+            <div class="soft-card">
+              <label for="wanted-category"><strong>物品分類</strong></label>
+              <select id="wanted-category" name="entry.811115215" class="form-control" required>
+                <option value="">請選擇分類</option>
+                <option value="冰刀鞋">冰刀鞋</option>
+                <option value="鞋套">鞋套</option>
+                <option value="旋轉板">旋轉板</option>
+                <option value="服飾 / T-shirt / 夾克">服飾 / T-shirt / 夾克</option>
+                <option value="絨毛娃娃 / 可愛小物">絨毛娃娃 / 可愛小物</option>
+                <option value="Hockey 球鞋與裝備">Hockey 球鞋與裝備</option>
+              </select>
+            </div>
+
+            <div class="soft-card">
+              <label for="wanted-desc"><strong>徵求物品敘述</strong></label>
+              <textarea
+                id="wanted-desc"
+                name="entry.973854663"
+                rows="5"
+                class="form-control"
+                placeholder="例如：想徵求 23cm 冰刀鞋，保存良好、顏色不限。"
+                required
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="soft-card">
+            <label for="wanted-image"><strong>圖片連結（可不填）</strong></label>
+            <input
+              id="wanted-image"
+              type="text"
+              name="entry.936283346"
+              class="form-control"
+              placeholder="可選填：如果有參考圖片再貼上圖片網址"
+            />
+            <div class="form-note">
+              🔗 不知道怎麼放圖？點這裡看教學 ☞
+              <a href="./qa.html" target="_blank" rel="noopener noreferrer">常見問題</a><br />
+              沒有圖片也可以直接送出；若貼 Yahoo、蝦皮等商品頁，分類頁會顯示為「查看原始連結」。
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="soft-card">
+              <label for="wanted-nickname"><strong>暱稱 或 呼號</strong></label>
+              <input
+                id="wanted-nickname"
+                type="text"
+                name="entry.24028156"
+                class="form-control"
+                placeholder="請輸入暱稱或呼號"
+                required
+              />
+            </div>
+
+            <div class="soft-card">
+              <label for="wanted-contact"><strong>手機 或 通訊軟體帳號</strong></label>
+              <input
+                id="wanted-contact"
+                type="text"
+                name="entry.244490545"
+                class="form-control"
+                placeholder="例如：LINE / 電話 / IG"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="soft-card">
+              <label for="wanted-date"><strong>日期</strong></label>
+              <input
+                id="wanted-date"
+                type="date"
+                class="form-control"
+                required
+              />
+              <input type="hidden" name="entry.1533264183_year" id="gf-date-year" />
+              <input type="hidden" name="entry.1533264183_month" id="gf-date-month" />
+              <input type="hidden" name="entry.1533264183_day" id="gf-date-day" />
+            </div>
+
+            <div class="soft-card">
+              <label for="wanted-time"><strong>時間</strong></label>
+              <input
+                id="wanted-time"
+                type="time"
+                class="form-control"
+                required
+              />
+              <input type="hidden" name="entry.1943315019_hour" id="gf-time-hour" />
+              <input type="hidden" name="entry.1943315019_minute" id="gf-time-minute" />
+            </div>
+          </div>
+
+          <div class="button-row wanted-form-actions">
+            <button type="submit" class="btn btn-start" id="submitWantedBtn">送出徵求</button>
+            <a class="btn btn-secondary" href="./wanted.html" data-entry-link>回分類首頁</a>
+            <a class="btn btn-gift" href="./index.html" data-entry-link>回首頁</a>
+          </div>
+
+          <div id="wantedFormStatus" class="notice-box wanted-form-note">
+            填好後按「送出徵求」，資料會開新分頁送到 Google Form。
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/pages/wanted.js"></script>
+</body>
+</html>
