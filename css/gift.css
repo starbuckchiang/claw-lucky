@@ -179,12 +179,23 @@ img {
   height: 88px;
   border-radius: 16px;
   overflow: hidden;
-background: #d8b679;
+  background: #d8b679;
   border: 2px solid rgba(92, 52, 28, 0.16);
   box-shadow: 0 6px 12px rgba(77, 44, 29, 0.08);
-  cursor: pointer;
-  transition: transform 0.18s ease;
+  display: block;
+  margin: 0 auto;
 }
+
+.gift-item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gift-item-thumb.is-disabled {
+  opacity: 0.55;
+}
+
 
 .gift-item-thumb:active {
   transform: scale(0.96);
