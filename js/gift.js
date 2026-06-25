@@ -1,6 +1,8 @@
-document.documentElement.classList.add('page-ready');
-
-const fallbackImage = './images/redeem.jpg';
+const giftGridEl = document.getElementById('giftGrid');
+const pointsEl = document.getElementById('points');
+const ticketsEl = document.getElementById('tickets');
+const historyListEl = document.getElementById('historyList');
+const historyEmptyEl = document.getElementById('historyEmpty');
 
 const giftItems = [
   {
@@ -33,12 +35,6 @@ const giftItems = [
   }
 ];
 
-const pointsEl = document.getElementById('points');
-const ticketsEl = document.getElementById('tickets');
-const giftGridEl = document.getElementById('giftGrid');
-const historyListEl = document.getElementById('historyList');
-const historyEmptyEl = document.getElementById('historyEmpty');
-
 function getPoints() {
   return window.GiftStorage?.getPoints ? window.GiftStorage.getPoints() : 0;
 }
@@ -65,7 +61,7 @@ function getHistory() {
     : [];
 }
 
-function saveHistory(history) {
+function setHistory(history) {
   if (window.GiftStorage?.setRedeemHistory) {
     window.GiftStorage.setRedeemHistory(history);
   }
@@ -74,61 +70,6 @@ function saveHistory(history) {
 function renderWallet() {
   if (pointsEl) pointsEl.textContent = getPoints();
   if (ticketsEl) ticketsEl.textContent = getTickets();
-}
-
-function createGiftCard(item) {
-  const points = getPoints();
-  const tickets = getTickets();
-  const canRedeem = points >= item.points && tickets >= item.tickets;
-
-  const card = document.createElement('article');
-  card.className = 'gift-item';
-  card.innerHTML = `
-    <div class="gift-item-image">
-      <div class="gift-item-thumb">
-        <img src="${item.image}" alt="${item.name}" />
-      </div>
-    </div>
-
-    <div class="gift-item-body">
-      <h3 class="gift-item-title">${item.name}</h3>
-
-      <div class="gift-item-costs">
-        <span class="gift-badge">💎 所需點數：${item.points}</span>
-        <span class="gift-badge">🎟 所需兌換券：${item.tickets}</span>
-      </div>
-
-      <button
-        class="gift-redeem-btn"
-        type="button"
-        onclick="redeemGift('${item.id}')"
-        ${canRedeem ? '' : 'disabled'}
-      >
-        ${canRedeem ? '立即兌換' : '資源不足'}
-      </button>
-    </div>
-  `;
-
-  const img = card.querySelector('img');
-  img.addEventListener(
-    'error',
-    () => {
-      img.src = fallbackImage;
-    },
-    { once: true }
-  );
-
-  return card;
-}
-
-function renderGiftGrid() {
-  if (!giftGridEl) return;
-
-  giftGridEl.innerHTML = '';
-
-  giftItems.forEach((item) => {
-    giftGridEl.appendChild(createGiftCard(item));
-  });
 }
 
 function renderHistory() {
@@ -144,21 +85,61 @@ function renderHistory() {
 
   historyEmptyEl.style.display = 'none';
 
-  history
-    .slice()
-    .reverse()
-      .forEach((item) => {
-      const block = document.createElement('article');
-      block.className = 'history-item';
-      block.innerHTML = `
-        <h4 class="history-item-title">${item.name}</h4>
-        <div class="history-item-meta">
-          <div>消耗：💎 ${item.points} 點 / 🎟 ${item.tickets} 券</div>
-          <div>時間：${item.time}</div>
+  history.slice().reverse().forEach((item) => {
+    const row = document.createElement('article');
+    row.className = 'history-item';
+    row.innerHTML = `
+      <h4 class="history-item-title">${item.name}</h4>
+      <div class="history-item-meta">
+        <div>消耗：💎 ${item.points} 點 / 🎟 ${item.tickets} 券</div>
+        <div>時間：${item.time}</div>
+      </div>
+    `;
+    historyListEl.appendChild(row);
+  });
+}
+
+function renderGiftGrid() {
+  if (!giftGridEl) return;
+
+  const currentPoints = getPoints();
+  const currentTickets = getTickets();
+
+  giftGridEl.innerHTML = '';
+  giftItems.forEach((item) => {
+    const canRedeem =
+      currentPoints >= item.points && currentTickets >= item.tickets;
+
+    const card = document.createElement('article');
+    card.className = 'gift-item';
+    card.innerHTML = `
+      <div class="gift-item-image">
+        <div class="gift-item-thumb">
+          <img src="${item.image}" alt="${item.name}">
         </div>
-      `;
-      historyListEl.appendChild(block);
-    });
+      </div>
+
+      <div class="gift-item-body">
+        <h3 class="gift-item-title">${item.name}</h3>
+
+        <div class="gift-item-costs">
+          <span class="gift-badge">💎 所需點數：${item.points}</span>
+          <span class="gift-badge">🎟 所需兌換券：${item.tickets}</span>
+        </div>
+
+        <button
+          class="gift-redeem-btn"
+          type="button"
+          ${canRedeem ? '' : 'disabled'}
+          onclick="redeemGift('${item.id}')"
+        >
+          ${canRedeem ? '立即兌換' : '資源不足'}
+        </button>
+      </div>
+    `;
+
+    giftGridEl.appendChild(card);
+  });
 }
 
 window.redeemGift = function (giftId) {
@@ -166,21 +147,18 @@ window.redeemGift = function (giftId) {
   if (!item) return;
 
   const currentPoints = getPoints();
-  const currentTickets = getTickets();
+const currentTickets = getTickets();
 
   if (currentPoints < item.points || currentTickets < item.tickets) {
     alert('目前點數或兌換券不足喔。');
     return;
   }
 
-  const confirmed = window.confirm(`確認兌換「${item.name}」？`);
+  const confirmed = confirm(`確認兌換「${item.name}」？`);
   if (!confirmed) return;
 
-  const nextPoints = currentPoints - item.points;
-  const nextTickets = currentTickets - item.tickets;
-
-  setPoints(nextPoints);
-  setTickets(nextTickets);
+  setPoints(currentPoints - item.points);
+  setTickets(currentTickets - item.tickets);
 
   const history = getHistory();
   history.push({
@@ -190,7 +168,7 @@ window.redeemGift = function (giftId) {
     tickets: item.tickets,
     time: new Date().toLocaleString('zh-TW', { hour12: false })
   });
-  saveHistory(history);
+  setHistory(history);
 
   renderWallet();
   renderGiftGrid();
@@ -199,16 +177,8 @@ window.redeemGift = function (giftId) {
   alert(`已成功兌換：${item.name}`);
 };
 
-function initGiftPage() {
+document.addEventListener('DOMContentLoaded', () => {
   renderWallet();
   renderGiftGrid();
   renderHistory();
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initGiftPage);
-} else {
-  initGiftPage();
-}
-
-
+});
