@@ -1,6 +1,6 @@
 document.documentElement.classList.add('page-ready');
 
-const fallbackImage = './image/image.png';
+const fallbackImage = './images/image.png';
 
 function applyImageFallback() {
   document.querySelectorAll('img').forEach((img) => {
