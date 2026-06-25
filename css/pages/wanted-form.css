@@ -1,0 +1,297 @@
+:root {
+  --wf-bg-top: #8b5734;
+  --wf-bg-bottom: #6c4024;
+  --wf-shell-top: #dcc18c;
+  --wf-shell-bottom: #cfaf74;
+  --wf-panel: #ead2a1;
+  --wf-panel-soft: #f6ecd7;
+  --wf-ink: #3f2417;
+  --wf-ink-soft: #5a3422;
+  --wf-line: rgba(92, 52, 28, 0.22);
+  --wf-brown: #7a3f22;
+  --wf-brown-dark: #5b2d19;
+  --wf-green: #355347;
+  --wf-green-dark: #274037;
+  --wf-gold: #f7e2b6;
+  --wf-shadow: 0 10px 20px rgba(54, 28, 14, 0.14);
+  --wf-radius-xl: 22px;
+  --wf-radius-lg: 16px;
+  --wf-radius-md: 12px;
+}
+
+body {
+  margin: 0;
+  color: var(--wf-ink);
+  background: linear-gradient(180deg, var(--wf-bg-top) 0%, var(--wf-bg-bottom) 100%);
+  font-family:
+    "Noto Sans TC",
+    "Microsoft JhengHei",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+.page-wanted-form,
+.wrap,
+.wanted-form-page {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 14px;
+  background: linear-gradient(180deg, var(--wf-shell-top) 0%, var(--wf-shell-bottom) 100%);
+  border-left: 3px solid #5d341f;
+  border-right: 3px solid #5d341f;
+  box-shadow: 0 0 0 2px rgba(255, 233, 186, 0.15) inset;
+}
+
+.page-wanted-form .form-hero,
+.wrap .form-hero,
+.wanted-form-page .form-hero,
+.page-wanted-form .form-panel,
+.wrap .form-panel,
+.wanted-form-page .form-panel,
+.page-wanted-form .form-note,
+.wrap .form-note,
+.wanted-form-page .form-note {
+  background: linear-gradient(180deg, #efdcb6 0%, #e3c78f 100%);
+  border: 2px solid var(--wf-line);
+  border-radius: var(--wf-radius-xl);
+  box-shadow: var(--wf-shadow);
+  margin-bottom: 16px;
+}
+
+.page-wanted-form .form-hero,
+.wrap .form-hero,
+.wanted-form-page .form-hero {
+  padding: 18px;
+}
+
+.page-wanted-form .form-kicker,
+.wrap .form-kicker,
+.wanted-form-page .form-kicker,
+.page-wanted-form .form-badges,
+.wrap .form-badges,
+.wanted-form-page .form-badges,
+.page-wanted-form .wanted-badges,
+.wrap .wanted-badges,
+.wanted-form-page .wanted-badges,
+.page-wanted-form .badge,
+.wrap .badge,
+.wanted-form-page .badge {
+  display: none;
+}
+
+.page-wanted-form .form-title,
+.wrap .form-title,
+.wanted-form-page .form-title {
+  margin: 0 0 10px;
+  font-size: 28px;
+  line-height: 1.2;
+  color: var(--wf-brown-dark);
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.page-wanted-form .form-desc,
+.wrap .form-desc,
+.wanted-form-page .form-desc {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--wf-ink-soft);
+}
+
+.page-wanted-form .form-panel,
+.wrap .form-panel,
+.wanted-form-page .form-panel {
+  padding: 16px;
+}
+
+.page-wanted-form .form-grid,
+.wrap .form-grid,
+.wanted-form-page .form-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.page-wanted-form .form-field,
+.wrap .form-field,
+.wanted-form-page .form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.page-wanted-form .form-field label,
+.wrap .form-field label,
+.wanted-form-page .form-field label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--wf-brown-dark);
+}
+
+.page-wanted-form .form-field input,
+.page-wanted-form .form-field select,
+.page-wanted-form .form-field textarea,
+.wrap .form-field input,
+.wrap .form-field select,
+.wrap .form-field textarea,
+.wanted-form-page .form-field input,
+.wanted-form-page .form-field select,
+.wanted-form-page .form-field textarea {
+  width: 100%;
+  border: 1.5px solid rgba(92, 52, 28, 0.16);
+  border-radius: var(--wf-radius-md);
+  background: var(--wf-panel-soft);
+  color: var(--wf-ink);
+  padding: 12px 14px;
+  outline: none;
+  box-shadow: none;
+}
+
+.page-wanted-form .form-field input::placeholder,
+.page-wanted-form .form-field textarea::placeholder,
+.wrap .form-field input::placeholder,
+.wrap .form-field textarea::placeholder,
+.wanted-form-page .form-field input::placeholder,
+.wanted-form-page .form-field textarea::placeholder {
+color: rgba(90, 52, 34, 0.56);
+}
+
+.page-wanted-form .form-field textarea,
+.wrap .form-field textarea,
+.wanted-form-page .form-field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.page-wanted-form .form-actions,
+.wrap .form-actions,
+.wanted-form-page .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.page-wanted-form .form-submit,
+.page-wanted-form .form-link,
+.wrap .form-submit,
+.wrap .form-link,
+.wanted-form-page .form-submit,
+.wanted-form-page .form-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  width: auto;
+  white-space: nowrap;
+  box-shadow: 0 6px 12px rgba(54, 28, 14, 0.12);
+}
+
+.page-wanted-form .form-submit,
+.wrap .form-submit,
+.wanted-form-page .form-submit {
+  background: linear-gradient(180deg, var(--wf-green) 0%, var(--wf-green-dark) 100%);
+  color: var(--wf-gold);
+}
+
+.page-wanted-form .form-link,
+.wrap .form-link,
+.wanted-form-page .form-link {
+  background: linear-gradient(180deg, var(--wf-brown) 0%, var(--wf-brown-dark) 100%);
+  color: var(--wf-gold);
+}
+
+.page-wanted-form .form-submit:disabled,
+.wrap .form-submit:disabled,
+.wanted-form-page .form-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.page-wanted-form .form-status,
+.wrap .form-status,
+.wanted-form-page .form-status {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--wf-radius-md);
+  background: rgba(255, 248, 232, 0.78);
+  border: 1px solid rgba(92, 52, 28, 0.1);
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--wf-ink-soft);
+}
+
+.page-wanted-form .form-note,
+.wrap .form-note,
+.wanted-form-page .form-note {
+  padding: 16px;
+}
+
+.page-wanted-form .form-note h3,
+.wrap .form-note h3,
+.wanted-form-page .form-note h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  line-height: 1.4;
+  color: var(--wf-brown-dark);
+}
+
+.page-wanted-form .form-note p,
+.page-wanted-form .form-note li,
+.wrap .form-note p,
+.wrap .form-note li,
+.wanted-form-page .form-note p,
+.wanted-form-page .form-note li {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--wf-ink-soft);
+}
+
+.page-wanted-form .form-note ul,
+.wrap .form-note ul,
+.wanted-form-page .form-note ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.page-wanted-form .btn,
+.wrap .btn,
+.wanted-form-page .btn {
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .page-wanted-form,
+  .wrap,
+  .wanted-form-page {
+    max-width: 720px;
+    padding: 20px;
+  }
+
+  .page-wanted-form .form-grid.two-cols,
+  .wrap .form-grid.two-cols,
+  .wanted-form-page .form-grid.two-cols {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
