@@ -406,23 +406,5 @@ background: rgba(255, 248, 236, 0.82);
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (max-width: 480px) {
-  .gift-card-inner {
-    gap: 12px;
-  }
 
-  .gift-thumb {
-    width: 72px;
-    height: 72px;
-    min-width: 72px;
-  }
-
-  .gift-name {
-    font-size: 16px;
-  }
-
-  .gift-desc {
-    font-size: 12px;
-  }
-}
 
