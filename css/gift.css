@@ -167,8 +167,7 @@ img {
   text-align: center;
 }
 
-.gift-item-image {
-    width: 100%;
+.gift-item-image {  width: 100%;
   padding-top: 10px;
   display: flex;
   justify-content: center;
@@ -180,7 +179,7 @@ img {
   height: 88px;
   border-radius: 16px;
   overflow: hidden;
-  background: #d8b679;
+background: #d8b679;
   border: 2px solid rgba(92, 52, 28, 0.16);
   box-shadow: 0 6px 12px rgba(77, 44, 29, 0.08);
   cursor: pointer;
@@ -292,3 +291,4 @@ img {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
