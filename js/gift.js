@@ -132,6 +132,7 @@ function renderGiftGrid() {
     const card = createGiftCard(item);
     giftGridEl.appendChild(card);
   });
+}
 
   giftGridEl.querySelectorAll('.gift-item-thumb').forEach((button) => {
     button.addEventListener('click', () => {
@@ -139,7 +140,7 @@ function renderGiftGrid() {
       redeemGift(button.dataset.giftId);
     });
   });
-}
+
 
 function renderHistory() {
   if (!historyListEl || !historyEmptyEl) return;
