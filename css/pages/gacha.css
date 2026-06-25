@@ -444,3 +444,309 @@ background:
     width: 320px;
   }
 }
+/* =========================
+ Gacha UI Polish / 結果卡、膠囊、最近抽到補強
+ 直接貼在 gacha.css 最下面
+ ========================= */
+
+.gacha-machine.is-drawing .gacha-machine-glass {
+  animation: gachaMachineGlow 0.9s ease-in-out infinite alternate;
+}
+
+.gacha-machine.is-drawing .gacha-capsule {
+  animation: gachaCapsuleShake 0.7s ease-in-out infinite;
+}
+
+.gacha-machine.is-drawing .gacha-machine-brand {
+  filter: brightness(1.08);
+}
+
+.gacha-machine.is-drawing .gacha-handle-btn {
+  transform: translateY(1px) scale(0.985);
+}
+
+@keyframes gachaMachineGlow {
+  from {
+    box-shadow:
+      inset 0 10px 24px rgba(255,255,255,0.25),
+      inset 0 -18px 28px rgba(91, 45, 25, 0.2),
+      0 10px 22px rgba(54, 28, 14, 0.16);
+  }
+  to {
+    box-shadow:
+      inset 0 10px 24px rgba(255,255,255,0.32),
+      inset 0 -18px 28px rgba(91, 45, 25, 0.24),
+      0 0 0 6px rgba(247, 226, 182, 0.16),
+      0 14px 28px rgba(54, 28, 14, 0.2);
+  }
+}
+
+@keyframes gachaCapsuleShake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-1px, 1px) rotate(-3deg); }
+  50% { transform: translate(1px, -1px) rotate(2deg); }
+  75% { transform: translate(-1px, 0) rotate(-2deg); }
+  100% { transform: translate(1px, 1px) rotate(3deg); }
+}
+
+/* 結果訊息框 */
+.gacha-result-message {
+  width: 100%;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.gacha-result-message--warning {
+  border-style: dashed;
+}
+
+.gacha-result-message--notice {
+  border-style: solid;
+}
+
+/* 掉落膠囊 */
+.gacha-drop-capsule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.35);
+  animation: gachaDropBounce 0.45s ease-out;
+}
+
+.gacha-drop-capsule-core {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(92, 52, 28, 0.14);
+  box-shadow:
+    inset 0 2px 8px rgba(255,255,255,0.32),
+    0 6px 12px rgba(54, 28, 14, 0.14);
+}
+
+@keyframes gachaDropBounce {
+  0% {
+    transform: translateY(-10px) scale(0.9);
+    opacity: 0.2;
+  }
+  65% {
+    transform: translateY(4px) scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 結果卡 */
+.gacha-result-card {
+  width: 100%;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #fff8ec 0%, #f3dfbb 100%);
+  border: 2px solid rgba(92, 52, 28, 0.14);
+}
+
+.gacha-result-visual {
+  position: relative;
+  padding-top: 8px;
+}
+
+.gacha-result-mascot-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #fffaf0;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 6px 12px rgba(54, 28, 14, 0.12);
+  margin-bottom: 12px;
+}
+
+.gacha-result-mascot {
+  min-height: 140px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.08) 40%, transparent 41%),
+    linear-gradient(180deg, #f9efdc 0%, #ead0a0 100%);
+  border: 2px solid rgba(92, 52, 28, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.gacha-result-mascot-placeholder {
+  text-align: center;
+  color: #6a3f28;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.gacha-result-content {
+  display: grid;
+  gap: 10px;
+}
+
+.gacha-result-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(122, 63, 34, 0.1);
+  color: #7a3f22;
+  border: 1px solid rgba(122, 63, 34, 0.16);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gacha-result-name {
+  margin: 0;
+  color: #4a2416;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.gacha-result-title {
+  margin: 0;
+  color: #7a3f22;
+font-size: 14px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.gacha-result-desc {
+  margin: 0;
+  color: #5a3422;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.gacha-result-rewards {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.gacha-result-reward {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 248, 236, 0.8);
+  border: 1px solid rgba(92, 52, 28, 0.1);
+  color: #5a3422;
+  font-size: 14px;
+}
+
+.gacha-result-reward strong {
+  color: #3f2417;
+  font-size: 16px;
+}
+
+/* 稀有度視覺 */
+.gacha-result-card.rarity-N {
+  border-color: rgba(139, 106, 67, 0.22);
+}
+
+.gacha-result-card.rarity-R {
+  border-color: rgba(79, 122, 140, 0.24);
+}
+
+.gacha-result-card.rarity-SR {
+  border-color: rgba(122, 79, 140, 0.24);
+}
+
+.gacha-result-card.rarity-SSR {
+  border-color: rgba(185, 135, 47, 0.34);
+  background: linear-gradient(180deg, #fff8ec 0%, #f0ddb0 100%);
+}
+
+/* 最近抽到 */
+.gacha-recent-item {
+  display: grid;
+  gap: 10px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff8ec 0%, #f4e2bf 100%);
+  border: 1px solid rgba(92, 52, 28, 0.12);
+}
+
+.gacha-recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gacha-recent-name {
+  color: #4a2416;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.gacha-recent-rarity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #fffaf0;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.gacha-recent-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  color: #5a3422;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.gacha-recent-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 248, 236, 0.72);
+  border: 1px solid rgba(92, 52, 28, 0.08);
+}
+
+/* 桌面版微調 */
+@media (min-width: 768px) {
+  .gacha-result-card {
+    grid-template-columns: 220px 1fr;
+    align-items: start;
+    padding: 18px;
+  }
+
+  .gacha-result-mascot {
+    min-height: 180px;
+  }
+
+  .gacha-result-name {
+    font-size: 26px;
+  }
+}
+
