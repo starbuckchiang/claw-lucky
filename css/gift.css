@@ -208,16 +208,18 @@ body {
   gap: 14px;
   margin-bottom: 16px;
 }
-
 .gift-card {
-  border-radius: var(--gift-radius-xl);
+  border-radius: 20px;
   overflow: hidden;
+  background: linear-gradient(180deg, #efdcb6 0%, #e3c78f 100%);
+  border: 2px solid rgba(92, 52, 28, 0.16);
+  box-shadow: 0 12px 24px rgba(54, 28, 14, 0.16);
 }
+
 .gift-card-inner {
-  display: grid;
-  grid-template-columns: 84px 1fr;
+  display: flex;
+  align-items: flex-start;
   gap: 14px;
-  align-items: start;
   padding: 16px;
   background: linear-gradient(180deg, #fff8ec 0%, #f3dfbb 100%);
 }
@@ -225,6 +227,7 @@ body {
 .gift-thumb {
   width: 84px;
   height: 84px;
+  min-width: 84px;
   border-radius: 16px;
   overflow: hidden;
   background:
@@ -234,7 +237,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 84px;
 }
 
 .gift-thumb img {
@@ -243,9 +245,9 @@ body {
   object-fit: cover;
 }
 
-
-
 .gift-info {
+  flex: 1 1 auto;
+  min-width: 0;
   display: grid;
   gap: 8px;
 }
@@ -253,15 +255,15 @@ body {
 .gift-name {
   margin: 0;
   color: #4a2416;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.35;
 }
 
 .gift-desc {
   margin: 0;
   color: #5a3422;
-  font-size: 14px;
-  line-height: 1.8;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .gift-costs {
@@ -274,13 +276,13 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 30px;
+  min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
   background: rgba(255, 248, 236, 0.85);
   border: 1px solid rgba(92, 52, 28, 0.08);
   color: #5a3422;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -292,11 +294,11 @@ body {
 }
 
 .gift-redeem-btn {
-  min-height: 40px;
-  padding: 0 16px;
+  min-height: 38px;
+  padding: 0 14px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(180deg, var(--gift-brown) 0%, var(--gift-brown-dark) 100%);
+  background: linear-gradient(180deg, #7a3f22 0%, #5b2d19 100%);
   color: #fff8ec;
   font-size: 14px;
   font-weight: 800;
@@ -315,6 +317,7 @@ body {
   font-size: 13px;
   line-height: 1.6;
 }
+
 
 /* =========================
  History
@@ -401,6 +404,25 @@ background: rgba(255, 248, 236, 0.82);
 
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .gift-card-inner {
+    gap: 12px;
+  }
+
+  .gift-thumb {
+    width: 72px;
+    height: 72px;
+    min-width: 72px;
+  }
+
+  .gift-name {
+    font-size: 16px;
+  }
+
+  .gift-desc {
+    font-size: 12px;
   }
 }
 
