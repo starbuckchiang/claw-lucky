@@ -1,0 +1,88 @@
+/* =========================
+   Layout / 全站版面結構
+   ========================= */
+
+.page-wrap {
+  width: min(1180px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.section {
+  margin-top: 20px;
+}
+
+.section-lg {
+  margin-top: 32px;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  margin: 0 0 10px;
+  color: #d45c92;
+  font-size: 28px;
+}
+
+.section-desc {
+  margin: 0;
+  color: #8b6678;
+  line-height: 1.7;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.center {
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .page-wrap {
+    width: min(100% - 20px, 100%);
+    padding: 16px 0 28px;
+  }
+
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .section-title {
+    font-size: 24px;
+    line-height: 1.4;
+  }
+
+  .section-desc {
+    font-size: 14px;
+  }
+}
