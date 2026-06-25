@@ -1,6 +1,6 @@
 document.documentElement.classList.add('page-ready');
 
-const fallbackImage = './images/image.png';
+const fallbackImage = './image/image.png';
 
 const giftItems = [
   {
@@ -33,8 +33,6 @@ const giftItems = [
   }
 ];
 
-const historyKey = 'giftRedeemHistory';
-
 const pointsEl = document.getElementById('points');
 const ticketsEl = document.getElementById('tickets');
 const giftGridEl = document.getElementById('giftGrid');
@@ -42,54 +40,35 @@ const historyListEl = document.getElementById('historyList');
 const historyEmptyEl = document.getElementById('historyEmpty');
 
 function getPoints() {
-  try {
-    if (window.StorageAPI?.getPoints) return Number(window.StorageAPI.getPoints()) || 0;
-    if (window.getPoints) return Number(window.getPoints()) || 0;
-    return Number(localStorage.getItem('points')) || 0;
-  } catch {
-    return 0;
-  }
+  return window.GiftStorage?.getPoints ? window.GiftStorage.getPoints() : 0;
 }
 
 function setPoints(value) {
-  try {
-    if (window.StorageAPI?.setPoints) {
-      window.StorageAPI.setPoints(value);
-      return;
-    }
-    localStorage.setItem('points', String(value));
-  } catch {}
+  if (window.GiftStorage?.setPoints) {
+    window.GiftStorage.setPoints(value);
+  }
 }
 
 function getTickets() {
-  try {
-    if (window.StorageAPI?.getTickets) return Number(window.StorageAPI.getTickets()) || 0;
-    if (window.getTickets) return Number(window.getTickets()) || 0;
-    return Number(localStorage.getItem('tickets')) || 0;
-  } catch {
-    return 0;
-  }
+  return window.GiftStorage?.getTickets ? window.GiftStorage.getTickets() : 0;
 }
 
 function setTickets(value) {
-  try {
-    if (window.StorageAPI?.setTickets) {
-      window.StorageAPI.setTickets(value);
-      return;
-    }
-    localStorage.setItem('tickets', String(value));
-  } catch {}
- } 
-  function getHistory() {
-  try {
-    return JSON.parse(localStorage.getItem(historyKey) || '[]');
-    } catch {
-    return [];
+  if (window.GiftStorage?.setTickets) {
+    window.GiftStorage.setTickets(value);
   }
 }
 
+function getHistory() {
+  return window.GiftStorage?.getRedeemHistory
+    ? window.GiftStorage.getRedeemHistory()
+    : [];
+}
+
 function saveHistory(history) {
-  localStorage.setItem(historyKey, JSON.stringify(history));
+  if (window.GiftStorage?.setRedeemHistory) {
+    window.GiftStorage.setRedeemHistory(history);
+  }
 }
 
 function renderWallet() {
@@ -109,12 +88,21 @@ function createGiftCard(item) {
   card.className = 'gift-item';
   card.innerHTML = `
     <div class="gift-item-image">
-      <button class="gift-item-thumb" type="button" data-gift-id="${item.id}" ${canRedeem ? '' : 'disabled'} aria-label="兌換 ${item.name}">
+      <button
+        class="gift-item-thumb"
+        type="button"
+        data-gift-id="${item.id}"
+        ${canRedeem ? '' : 'disabled'}
+        aria-label="兌換 ${item.name}"
+        title="${canRedeem ? `兌換 ${item.name}` : '資源不足'}"
+      >
         <img src="${item.image}" alt="${item.name}" />
       </button>
     </div>
+
     <div class="gift-item-body">
       <h3 class="gift-item-title">${item.name}</h3>
+
       <div class="gift-item-costs">
         <span class="gift-badge">💎 所需點數：${item.points}</span>
         <span class="gift-badge">🎟 所需兌換券：${item.tickets}</span>
@@ -138,8 +126,10 @@ function renderGiftGrid() {
   if (!giftGridEl) return;
 
   giftGridEl.innerHTML = '';
+
   giftItems.forEach((item) => {
-    giftGridEl.appendChild(createGiftCard(item));
+    const card = createGiftCard(item);
+    giftGridEl.appendChild(card);
   });
 
   giftGridEl.querySelectorAll('.gift-item-thumb').forEach((button) => {
@@ -165,7 +155,7 @@ function renderHistory() {
   history
     .slice()
     .reverse()
-    .forEach((item) => {
+.forEach((item) => {
       const block = document.createElement('article');
       block.className = 'history-item';
       block.innerHTML = `
@@ -228,4 +218,3 @@ if (document.readyState === 'loading') {
 } else {
   initGiftPage();
 }
-
