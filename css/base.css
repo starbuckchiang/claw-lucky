@@ -174,4 +174,45 @@ ol {
 
 /* 金幣 / 補給類按鈕 */
 .btn-coin {
-  background: linear-gradient(180deg, #b9872f 0%, #8d6220 100
+  background: linear-gradient(180deg, #b9872f 0%, #8d6220 100%);
+}
+
+/* 次要功能按鈕 */
+.btn-secondary {
+   background: linear-gradient(180deg, #8f5a3f 0%, #6d412d 100%);
+}
+
+/* 禮物 / 兌換頁導流按鈕 */
+.btn-gift {
+  background: linear-gradient(180deg, #355347 0%, #274037 100%);
+}
+
+/* =========================
+ Section Card / 區塊卡片基礎樣式
+ 可給娃娃機、排行榜、展示櫃等區塊共用
+========================= */
+
+.section-card {
+  background: #fff8ec;
+  border: 2px solid rgba(92, 52, 28, 0.14);
+  border-radius: 24px;
+  box-shadow: 0 14px 30px rgba(92, 52, 28, 0.12);
+  padding: 16px;
+}
+
+/* =========================
+ Mobile Base / 手機版基礎調整
+ ========================= */
+
+@media screen and (max-width: 900px) {
+  .wrap {
+    padding: 14px 10px 28px;
+  }
+
+  .btn,
+  .icon-link {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
