@@ -228,4 +228,4 @@ if (document.readyState === 'loading') {
 } else {
   initGiftPage();
 }
-}
+
