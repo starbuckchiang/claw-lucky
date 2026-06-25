@@ -79,6 +79,7 @@ function setTickets(value) {
     }
     localStorage.setItem('tickets', String(value));
   } catch {}
+ } 
   function getHistory() {
   try {
     return JSON.parse(localStorage.getItem(historyKey) || '[]');
