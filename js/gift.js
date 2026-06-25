@@ -107,8 +107,8 @@ function renderGiftGrid() {
 
   giftGridEl.innerHTML = '';
   giftItems.forEach((item) => {
-    const canRedeem =
-      currentPoints >= item.points && currentTickets >= item.tickets;
+    const canRedeem =true;
+      //currentPoints >= item.points && currentTickets >= item.tickets;
 
     const card = document.createElement('article');
     card.className = 'gift-item';
