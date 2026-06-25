@@ -1,0 +1,191 @@
+/* =========================
+   Base Reset / 全站基礎重置
+   ========================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* =========================
+   Body / 全站字體與背景
+   ========================= */
+
+body {
+  margin: 0;
+  font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+  background: linear-gradient(180deg, #ffe6f2 0%, #fff7fb 100%);
+  color: #5a3d4d;
+}
+
+/* =========================
+   Media / 圖片與影片基礎規則
+   避免超出容器
+   ========================= */
+
+img,
+video {
+  max-width: 100%;
+  display: block;
+}
+
+/* =========================
+   Form Elements / 表單元件字體統一
+   ========================= */
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+}
+
+/* =========================
+   Links / 連結基礎樣式
+   ========================= */
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* =========================
+   Typography Reset / 標題與段落預設間距
+   ========================= */
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+ul,
+ol {
+  margin-top: 0;
+}
+
+/* =========================
+   Utility / 共用工具類
+   ========================= */
+
+.hidden {
+  display: none !important;
+}
+
+/* =========================
+   Layout Container / 頁面主容器
+   ========================= */
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 14px 40px;
+}
+
+/* =========================
+   Base Card / 共用卡片外觀
+   可用於主要容器或文件區塊
+   ========================= */
+
+.card {
+  background: #fff;
+  border: 4px solid #f8bfd8;
+  border-radius: 24px;
+  box-shadow: 0 14px 30px rgba(225, 131, 175, 0.18);
+}
+
+/* =========================
+   Base Typography Helpers / 共用標題與文字
+   ========================= */
+
+.primary-title {
+  margin-bottom: 10px;
+  color: #d45c92;
+  text-align: center;
+}
+
+.page-text {
+  color: #8b6678;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* =========================
+   Buttons / 共用按鈕基礎樣式
+   .btn 與 .icon-link 共用同一套外觀
+   ========================= */
+
+.btn,
+.icon-link {
+  border: none;
+  background: #ff8fbc;
+  color: #fff;
+  font-size: 16px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-width: 96px;
+  box-shadow: 0 6px 14px rgba(236, 113, 164, 0.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* 主要開始按鈕 */
+.btn-start {
+  background: linear-gradient(90deg, #ff93c2, #ffb36c);
+}
+
+/* 金幣 / 補給類按鈕 */
+.btn-coin {
+  background: #ffb347;
+}
+
+/* 次要功能按鈕 */
+.btn-secondary {
+  background: linear-gradient(90deg, #ffb7cf, #ffc9a6);
+}
+
+/* 禮物 / 兌換頁導流按鈕 */
+.btn-gift {
+  background: linear-gradient(90deg, #8ec5ff, #7ea7ff);
+}
+
+/* =========================
+   Section Card / 區塊卡片基礎樣式
+   可給娃娃機、排行榜、展示櫃等區塊共用
+   ========================= */
+
+.section-card {
+  background: #fff;
+  border: 4px solid #f8bfd8;
+  border-radius: 24px;
+  box-shadow: 0 14px 30px rgba(225, 131, 175, 0.18);
+  padding: 16px;
+}
+
+/* =========================
+   Mobile Base / 手機版基礎調整
+   ========================= */
+
+@media screen and (max-width: 900px) {
+  .wrap {
+    padding: 14px 10px 28px;
+  }
+
+  .btn,
+  .icon-link {
+    width: 100%;
+    min-width: 0;
+  }
+}
