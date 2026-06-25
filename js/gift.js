@@ -1,4 +1,5 @@
 document.documentElement.classList.add('page-ready');
+console.log('gift.js loaded');
 
 const fallbackImage = './image/image.png';
 
@@ -134,6 +135,7 @@ function renderGiftGrid() {
 
   giftGridEl.querySelectorAll('.gift-item-thumb').forEach((button) => {
     button.addEventListener('click', () => {
+      alert('你有點到縮圖');
       redeemGift(button.dataset.giftId);
     });
   });
@@ -218,3 +220,4 @@ if (document.readyState === 'loading') {
 } else {
   initGiftPage();
 }
+alert('gift.js 已載入');
