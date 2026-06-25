@@ -1,0 +1,446 @@
+:root {
+  --gacha-bg-top: #8b5734;
+  --gacha-bg-bottom: #6c4024;
+  --gacha-shell-top: #dcc18c;
+  --gacha-shell-bottom: #cfaf74;
+  --gacha-panel: #fff8ec;
+  --gacha-panel-soft: #f6ecd7;
+  --gacha-ink: #3f2417;
+  --gacha-ink-soft: #5a3422;
+  --gacha-line: rgba(92, 52, 28, 0.18);
+  --gacha-brown: #7a3f22;
+  --gacha-brown-dark: #5b2d19;
+  --gacha-green: #355347;
+  --gacha-green-dark: #274037;
+  --gacha-gold: #f7e2b6;
+  --gacha-gold-deep: #b9872f;
+  --gacha-shadow: 0 12px 24px rgba(54, 28, 14, 0.16);
+  --gacha-radius-xl: 24px;
+  --gacha-radius-lg: 18px;
+  --gacha-radius-md: 14px;
+}
+
+body {
+  background: linear-gradient(180deg, var(--gacha-bg-top) 0%, var(--gacha-bg-bottom) 100%);
+  color: var(--gacha-ink);
+}
+
+.gacha-page {
+  max-width: 480px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 14px;
+  background: linear-gradient(180deg, var(--gacha-shell-top) 0%, var(--gacha-shell-bottom) 100%);
+  border-left: 3px solid #5d341f;
+  border-right: 3px solid #5d341f;
+  box-shadow: 0 0 0 2px rgba(255, 233, 186, 0.15) inset;
+}
+
+.gacha-page .section {
+  margin-bottom: 16px;
+}
+
+.gacha-page .panel,
+.gacha-page .hero-card {
+  background: linear-gradient(180deg, #efdcb6 0%, #e3c78f 100%);
+  border: 2px solid var(--gacha-line);
+  box-shadow: var(--gacha-shadow);
+}
+
+/* =========================
+ Topbar / 資源列
+ ========================= */
+
+.gacha-topbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 12px 14px;
+}
+
+.gacha-topbar::-webkit-scrollbar {
+  display: none;
+}
+
+.gacha-stat {
+  flex: 0 0 auto;
+  min-width: max-content;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 248, 236, 0.88);
+  border: 1px solid rgba(92, 52, 28, 0.12);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 14px;
+  color: #4a2416;
+}
+
+.gacha-stat strong {
+  font-size: 15px;
+  color: #3f2417;
+}
+
+.gacha-stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* =========================
+ Hero / 標題區
+ ========================= */
+
+.gacha-hero {
+  padding: 20px 18px;
+  text-align: center;
+}
+
+.gacha-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--gacha-brown);
+  color: var(--gacha-gold);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.gacha-title {
+  margin: 0 0 10px;
+  color: #4a2416;
+  font-size: 30px;
+  line-height: 1.2;
+  word-break: keep-all;
+}
+
+.gacha-desc {
+  margin: 0;
+  color: #5a3422;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+/* =========================
+ Machine / 扭蛋機區
+ ========================= */
+
+.gacha-machine-panel {
+  padding: 16px;
+}
+
+.gacha-machine {
+  display: grid;
+  gap: 0;
+  justify-items: center;
+}
+
+.gacha-machine-head {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: -18px;
+  position: relative;
+  z-index: 2;
+}
+
+.gacha-machine-glass {
+  width: min(290px, 82vw);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  position: relative;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.18) 22%, rgba(255,255,255,0.04) 36%, transparent 37%),
+    radial-gradient(circle at 50% 55%, #f9efdc 0%, #edd4a4 58%, #d4a35e 100%);
+  border: 10px solid #7a4a24;
+  box-shadow:
+    inset 0 10px 24px rgba(255,255,255,0.25),
+    inset 0 -18px 28px rgba(91, 45, 25, 0.2),
+    0 10px 22px rgba(54, 28, 14, 0.16);
+  overflow: hidden;
+}
+
+.gacha-machine-glass::before {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.35);
+  pointer-events: none;
+}
+
+.gacha-capsule-field {
+  position: absolute;
+  inset: 18px;
+}
+
+.gacha-capsule {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+background:
+    linear-gradient(180deg, rgba(255,255,255,0.85) 0 48%, rgba(0,0,0,0.08) 48% 52%, rgba(255,255,255,0.22) 52% 100%);
+  border: 2px solid rgba(92, 52, 28, 0.14);
+  box-shadow: 0 6px 10px rgba(54, 28, 14, 0.14);
+}
+
+.capsule-a {
+  top: 24px;
+  left: 34px;
+  background-color: #f3d06c;
+}
+
+.capsule-b {
+  top: 42px;
+  right: 28px;
+  background-color: #d9896b;
+}
+
+.capsule-c {
+  top: 96px;
+  left: 88px;
+  background-color: #85a89a;
+}
+
+.capsule-d {
+  bottom: 78px;
+  left: 22px;
+  background-color: #c98db2;
+}
+
+.capsule-e {
+  bottom: 58px;
+  right: 44px;
+  background-color: #7ca2d3;
+}
+
+.capsule-f {
+  bottom: 18px;
+  left: 112px;
+  background-color: #e1b85c;
+}
+
+.gacha-machine-body {
+  width: min(320px, 88vw);
+  background: linear-gradient(180deg, #8f5730 0%, #6d4125 100%);
+  border: 3px solid #5a311c;
+  border-radius: 28px;
+  padding: 24px 16px 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    0 14px 26px rgba(54, 28, 14, 0.18);
+  position: relative;
+}
+
+.gacha-machine-brand {
+  margin: 0 auto 16px;
+  width: fit-content;
+  min-width: 180px;
+  padding: 8px 14px;
+  text-align: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f4d38e 0%, #d8a850 100%);
+  color: #4a2416;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+.gacha-machine-slot {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.gacha-drop-zone {
+  width: min(220px, 68vw);
+  min-height: 86px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f8ead0 0%, #ead0a0 100%);
+  border: 2px solid rgba(92, 52, 28, 0.18);
+  box-shadow: inset 0 10px 18px rgba(91, 45, 25, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+.gacha-drop-placeholder {
+  font-size: 14px;
+  color: #6b432f;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.gacha-machine-handle-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.gacha-handle-btn {
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--gacha-green) 0%, var(--gacha-green-dark) 100%);
+  color: var(--gacha-gold);
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 8px 14px rgba(39, 64, 55, 0.18);
+}
+
+/* =========================
+ Controls / 操作區
+ ========================= */
+
+.gacha-controls {
+  padding: 14px;
+}
+
+.gacha-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gacha-action-row .btn {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* =========================
+ Result / 結果區
+ ========================= */
+
+.gacha-result-panel,
+.gacha-recent-panel {
+  padding: 16px;
+}
+
+.gacha-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.gacha-section-title {
+  margin: 0 0 12px;
+  color: #4a2416;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.gacha-panel-head .gacha-section-title {
+  margin-bottom: 0;
+}
+
+.gacha-result {
+  min-height: 180px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff8ec 0%, #f5e5c5 100%);
+  border: 2px solid rgba(92, 52, 28, 0.12);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gacha-result-empty {
+  text-align: center;
+  color: #6b432f;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.gacha-text-link {
+  color: #5b2d19;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* =========================
+ Recent / 最近抽到
+ ========================= */
+
+.gacha-recent-list {
+  display: grid;
+  gap: 10px;
+}
+
+.gacha-empty-inline {
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 248, 236, 0.75);
+  border: 1px solid rgba(92, 52, 28, 0.1);
+  color: #6b432f;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* =========================
+ Mobile
+ ========================= */
+
+@media (max-width: 900px) {
+  .gacha-page {
+    padding: 12px 10px 24px;
+  }
+
+  .gacha-title {
+    font-size: 28px;
+  }
+.gacha-desc {
+    font-size: 14px;
+  }
+
+  .gacha-machine-glass {
+    width: min(276px, 82vw);
+  }
+
+  .gacha-machine-body {
+    width: min(310px, 88vw);
+  }
+
+  .gacha-action-row {
+    flex-direction: column;
+  }
+
+  .gacha-action-row .btn,
+  .gacha-handle-btn {
+    width: 100%;
+  }
+
+  .gacha-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 768px) {
+  .gacha-page {
+    max-width: 720px;
+    padding: 20px;
+  }
+
+  .gacha-machine-body {
+    width: 360px;
+  }
+
+  .gacha-machine-glass {
+    width: 320px;
+  }
+}
