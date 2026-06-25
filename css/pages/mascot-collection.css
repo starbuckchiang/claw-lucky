@@ -411,3 +411,143 @@ background: rgba(255, 248, 236, 0.88);
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* =========================
+  增修JS 新增了一些 detail / image class
+• 讀取 GachaData
+• 讀取 GachaStorage
+• render 收藏進度
+• render summary
+• render 圖鑑格
+• 支援篩選
+• 點卡片顯示詳情
+• 已解鎖 / 未解鎖分開顯示
+ ========================= */
+.collection-card-image-el,
+.collection-detail-image-el {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.collection-card-image-el.is-silhouette,
+.collection-detail-image-el.is-silhouette {
+  filter: grayscale(1) brightness(0.75);
+  opacity: 0.82;
+}
+
+.collection-empty {
+  grid-column: 1 / -1;
+  padding: 20px 16px;
+  border-radius: 16px;
+  background: rgba(255, 248, 236, 0.82);
+  border: 1px solid rgba(92, 52, 28, 0.1);
+  color: #6b432f;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.collection-detail-card {
+  display: grid;
+  gap: 16px;
+}
+
+.collection-detail-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collection-detail-image,
+.collection-detail-image.placeholder {
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1 / 1;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.08) 40%, transparent 41%),
+    linear-gradient(180deg, #f9efdc 0%, #ead0a0 100%);
+  border: 1px solid rgba(92, 52, 28, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6a3f28;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.collection-detail-content {
+  display: grid;
+  gap: 10px;
+}
+.collection-detail-rarity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #fffaf0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.collection-detail-name {
+  margin: 0;
+  color: #4a2416;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.collection-detail-title {
+  margin: 0;
+  color: #7a3f22;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.collection-detail-desc {
+  margin: 0;
+  color: #5a3422;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.collection-detail-meta {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.collection-detail-meta-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 248, 236, 0.8);
+  border: 1px solid rgba(92, 52, 28, 0.1);
+  color: #5a3422;
+  font-size: 14px;
+}
+
+.collection-detail-meta-item strong {
+  color: #3f2417;
+  font-size: 15px;
+}
+
+@media (min-width: 768px) {
+  .collection-detail-card {
+    grid-template-columns: 240px 1fr;
+    align-items: start;
+  }
+}
+
