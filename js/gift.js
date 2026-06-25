@@ -124,15 +124,19 @@ function createGiftCard(item) {
 }
 
 function renderGiftGrid() {
-  if (!giftGridEl) return;
+  if (!giftGridEl) {
+    alert('giftGrid 沒抓到');
+    return;
+  }
 
-  giftGridEl.innerHTML = '';
+  giftGridEl.innerHTML = '<div style="padding:12px;background:#fff3cd;border:1px solid #d4a017;">giftGrid 有抓到，準備渲染商品卡</div>';
 
   giftItems.forEach((item) => {
     const card = createGiftCard(item);
     giftGridEl.appendChild(card);
   });
 }
+
 
   giftGridEl.querySelectorAll('.gift-item-thumb').forEach((button) => {
     button.addEventListener('click', () => {
