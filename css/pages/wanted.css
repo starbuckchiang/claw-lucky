@@ -1,6 +1,6 @@
-.page-wanted,
-.wanted-page,
-.wrap {
+.page-wanted .wanted-title,
+.wanted-page .wanted-title,
+.wrap .wanted-title {
   color: #3f2417;
 }
 
