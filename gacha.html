@@ -11,21 +11,72 @@
   <link rel="stylesheet" href="./css/pages/gacha.css" />
 </head>
 <body>
-  <main class="page-wrap">
+  <main class="page-wrap gacha-page">
+    <section class="section">
+      <div class="panel gacha-topbar">
+        <div class="gacha-stat">
+          <span class="gacha-stat-label">🪙 好運幣</span>
+          <strong id="coinCount">0</strong>
+        </div>
+        <div class="gacha-stat">
+          <span class="gacha-stat-label">💎 點數</span>
+          <strong id="pointCount">0</strong>
+        </div>
+        <div class="gacha-stat">
+          <span class="gacha-stat-label">🎟 兌換券</span>
+          <strong id="ticketCount">0</strong>
+        </div>
+        <div class="gacha-stat">
+          <span class="gacha-stat-label">📘 收藏</span>
+          <strong id="collectionCount">0 / 0</strong>
+        </div>
+      </div>
+    </section>
+
     <section class="section">
       <div class="hero-card gacha-hero">
+        <span class="hero-kicker gacha-kicker">今日好運機台</span>
         <h1 class="gacha-title">好運蛋扭扭樂</h1>
         <p class="gacha-desc">抽一顆今天的好運蛋，看看會遇見哪一隻吉祥物。</p>
       </div>
     </section>
 
     <section class="section section-lg">
-      <div class="panel">
-        <div id="gachaApp"></div>
+      <div class="panel gacha-machine-panel">
+        <div class="gacha-machine" id="gachaMachine">
+          <div class="gacha-machine-head">
+            <div class="gacha-machine-glass">
+              <div class="gacha-capsule-field" id="capsuleField">
+                <span class="gacha-capsule capsule-a"></span>
+                <span class="gacha-capsule capsule-b"></span>
+                <span class="gacha-capsule capsule-c"></span>
+                <span class="gacha-capsule capsule-d"></span>
+                <span class="gacha-capsule capsule-e"></span>
+                <span class="gacha-capsule capsule-f"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="gacha-machine-body">
+            <div class="gacha-machine-brand">好運蛋出貨中</div>
+
+            <div class="gacha-machine-slot">
+              <div class="gacha-drop-zone" id="dropZone">
+                <div class="gacha-drop-placeholder">等待好運蛋掉出來</div>
+              </div>
+            </div>
+
+            <div class="gacha-machine-handle-wrap">
+              <button class="gacha-handle-btn" id="drawBtn" type="button">
+                轉一次
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
-  </main>
 
-  <script type="module" src="./js/pages/gacha.js"></script>
-</body>
-</html>
+    <section class="section">
+      <div class="panel gacha-controls">
+        <div class="button-row gacha-action-row">
+          <button class="btn btn-start" id="drawBtnAlt" type="button">轉一次</button>
