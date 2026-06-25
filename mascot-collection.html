@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>吉祥物收藏圖鑑</title>
+
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/layout.css" />
+  <link rel="stylesheet" href="./css/components.css" />
+  <link rel="stylesheet" href="./css/pages/mascot-collection.css" />
+</head>
+<body>
+  <main class="page-wrap collection-page">
+    <section class="section">
+      <div class="panel collection-topbar">
+        <a class="collection-back-link" href="./gacha.html">← 回好運蛋扭扭樂</a>
+        <div class="collection-progress">
+          <span class="collection-progress-label">收藏進度</span>
+          <strong id="collectionProgressText">0 / 0</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="hero-card collection-hero">
+        <span class="collection-kicker">Lucky Mascot Archive</span>
+        <h1 class="collection-title">吉祥物收藏圖鑑</h1>
+        <p class="collection-desc">
+          這裡會收錄你在好運蛋扭扭樂中遇見的每一隻吉祥物，
+          已解鎖的朋友會亮起來，未相遇的則會靜靜等待你把牠帶回家。
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="panel collection-summary">
+        <article class="collection-summary-card">
+          <span class="collection-summary-label">已收集</span>
+          <strong class="collection-summary-value" id="ownedCount">0</strong>
+        </article>
+
+        <article class="collection-summary-card">
+          <span class="collection-summary-label">未解鎖</span>
+          <strong class="collection-summary-value" id="lockedCount">0</strong>
+        </article>
+
+        <article class="collection-summary-card">
+          <span class="collection-summary-label">SSR 收藏</span>
+          <strong class="collection-summary-value" id="ssrOwnedCount">0</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="panel collection-filters">
+        <div class="collection-filter-row" id="collectionFilterRow">
+          <button class="collection-filter is-active" type="button" data-filter="all">全部</button>
+          <button class="collection-filter" type="button" data-filter="owned">已解鎖</button>
+          <button class="collection-filter" type="button" data-filter="locked">未解鎖</button>
+          <button class="collection-filter" type="button" data-filter="N">N</button>
+          <button class="collection-filter" type="button" data-filter="R">R</button>
+          <button class="collection-filter" type="button" data-filter="SR">SR</button>
+          <button class="collection-filter" type="button" data-filter="SSR">SSR</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-lg">
+      <div class="panel collection-grid-panel">
+        <div class="collection-panel-head">
+          <h2 class="collection-section-title">圖鑑列表</h2>
+          <span class="collection-panel-note">點選卡片查看詳細介紹</span>
+        </div>
+
+        <div class="collection-grid" id="collectionGrid">
+          <article class="collection-card is-locked">
+            <div class="collection-card-visual">
+              <div class="collection-card-image placeholder">???</div>
+            </div>
+            <div class="collection-card-body">
+              <span class="collection-card-rarity">N</span>
+              <h3 class="collection-card-name">尚未遇見</h3>
+              <p class="collection-card-text">等你把這份好運抽出來。</p>
+            </div>
+          </article>
+
+          <article class="collection-card">
+            <div class="collection-card-visual">
+              <div class="collection-card-image">招福小狐</div>
+            </div>
+            <div class="collection-card-body">
+              <span class="collection-card-rarity">R</span>
+<h3 class="collection-card-name">招福小狐</h3>
+              <p class="collection-card-text">把今天的好運叼回來。</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="panel collection-detail-panel">
+        <div class="collection-panel-head">
+          <h2 class="collection-section-title">角色詳情</h2>
+          <span class="collection-panel-note">選取一張圖鑑卡後顯示</span>
+        </div>
+
+        <div class="collection-detail" id="collectionDetail">
+          <div class="collection-detail-empty">
+            請先從上方圖鑑列表選擇一位吉祥物。
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./data/gacha-data.js"></script>
+  <script src="./js/storage/gacha-storage.js"></script>
+  <script type="module" src="./js/pages/mascot-collection.js"></script>
+</body>
+</html>
