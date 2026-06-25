@@ -10,14 +10,14 @@ const giftItems = [
     name: '招財小福袋',
     points: 300,
     tickets: 0,
-    image: './images/redeem.jpg'
+    image: './images/yushou.jpg'
   },
   {
     id: 'gift-002',
     name: '好運御守',
     points: 500,
     tickets: 1,
-    image: './images/mascot.jpg'
+    image: './images/yushou.jpg'
   },
   {
     id: 'gift-003',
