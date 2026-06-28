@@ -1,8 +1,7 @@
 document.documentElement.classList.add('page-ready');
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbx4rw8EjTdp265gei6ke8teYbwD6ESactOT2WtX02wdQsplpDIAF3kr_JDimH_oMd4/exec';
-
-const fallbackImage = './images/redeem.jpg';
+const fallbackImage = './images/mascot.jpg';
 
 const giftItems = [
   {
@@ -60,8 +59,6 @@ function getUserProfile() {
 }
 
 async function postApi(payload) {
-  console.log('postApi payload =', payload);
-
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: {
@@ -70,10 +67,7 @@ async function postApi(payload) {
     body: JSON.stringify(payload)
   });
 
-  console.log('postApi response status =', response.status);
-
   const text = await response.text();
-  console.log('postApi raw response text =', text);
 
   let data;
   try {
@@ -82,14 +76,11 @@ async function postApi(payload) {
     throw new Error(`API 回傳不是有效 JSON：${text}`);
   }
 
-  console.log('postApi parsed response =', data);
   return data;
 }
 
-
 async function ensureRemoteUser() {
   const profile = getUserProfile();
-  console.log('ensureRemoteUser profile =', profile);
 
   if (!profile.userId) {
     throw new Error('找不到 userId');
@@ -103,22 +94,15 @@ async function ensureRemoteUser() {
     note: 'gift_page_init'
   });
 
-  console.log('ensureUser result =', result);
-
   if (!result.ok) {
-    throw new Error(
-      (result.message || 'ensureUser 失敗') +
-      (result.debug ? ` | debug: ${JSON.stringify(result.debug)}` : '')
-    );
+    throw new Error(result.message || 'ensureUser 失敗');
   }
 
   return result.user;
 }
 
-
 async function fetchRemoteUser() {
   const profile = getUserProfile();
-  console.log('fetchRemoteUser profile =', profile);
 
   if (!profile.userId) {
     throw new Error('找不到 userId');
@@ -129,18 +113,12 @@ async function fetchRemoteUser() {
     userId: profile.userId
   });
 
-  console.log('getUser result =', result);
-
   if (!result.ok) {
-    throw new Error(
-      (result.message || 'getUser 失敗') +
-      (result.debug ? ` | debug: ${JSON.stringify(result.debug)}` : '')
-    );
+    throw new Error(result.message || 'getUser 失敗');
   }
 
   return result.user;
 }
-
 
 function getPoints() {
   return Number(remoteUser.points || 0);
@@ -184,15 +162,14 @@ function createGiftCard(item) {
         aria-label="兌換 ${item.name}"
         title="${canRedeem ? `兌換 ${item.name}` : '資源不足'}"
       >
-        <img src="${item.image}" alt="${item.name}" />
+              <img src="${item.image}" alt="${item.name}" />
       </button>
     </div>
 
     <div class="gift-item-body">
       <h3 class="gift-item-title">${item.name}</h3>
-
       <div class="gift-item-costs">
-<span class="gift-badge">💎 所需點數：${item.points}</span>
+        <span class="gift-badge">💎 所需點數：${item.points}</span>
         <span class="gift-badge">🎟 所需兌換券：${item.tickets}</span>
       </div>
     </div>
@@ -306,6 +283,7 @@ async function initRemoteWallet() {
     tickets: Number(user.tickets || 0)
   };
 }
+
 async function initGiftPage() {
   try {
     await initRemoteWallet();
@@ -318,8 +296,6 @@ async function initGiftPage() {
     alert(`目前無法讀取點數資料：${error.message}`);
   }
 }
-
-
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initGiftPage);
