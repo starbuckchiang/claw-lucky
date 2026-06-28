@@ -60,6 +60,8 @@ function getUserProfile() {
 }
 
 async function postApi(payload) {
+  console.log('postApi payload =', payload);
+
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: {
@@ -68,12 +70,26 @@ async function postApi(payload) {
     body: JSON.stringify(payload)
   });
 
-  const data = await response.json();
+  console.log('postApi response status =', response.status);
+
+  const text = await response.text();
+  console.log('postApi raw response text =', text);
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`API 回傳不是有效 JSON：${text}`);
+  }
+
+  console.log('postApi parsed response =', data);
   return data;
 }
 
+
 async function ensureRemoteUser() {
   const profile = getUserProfile();
+  console.log('ensureRemoteUser profile =', profile);
 
   if (!profile.userId) {
     throw new Error('找不到 userId');
@@ -87,15 +103,22 @@ async function ensureRemoteUser() {
     note: 'gift_page_init'
   });
 
+  console.log('ensureUser result =', result);
+
   if (!result.ok) {
-    throw new Error(result.message || 'ensureUser 失敗');
+    throw new Error(
+      (result.message || 'ensureUser 失敗') +
+      (result.debug ? ` | debug: ${JSON.stringify(result.debug)}` : '')
+    );
   }
 
   return result.user;
 }
 
+
 async function fetchRemoteUser() {
   const profile = getUserProfile();
+  console.log('fetchRemoteUser profile =', profile);
 
   if (!profile.userId) {
     throw new Error('找不到 userId');
@@ -106,12 +129,18 @@ async function fetchRemoteUser() {
     userId: profile.userId
   });
 
+  console.log('getUser result =', result);
+
   if (!result.ok) {
-    throw new Error(result.message || 'getUser 失敗');
+    throw new Error(
+      (result.message || 'getUser 失敗') +
+      (result.debug ? ` | debug: ${JSON.stringify(result.debug)}` : '')
+    );
   }
 
   return result.user;
 }
+
 
 function getPoints() {
   return Number(remoteUser.points || 0);
@@ -277,7 +306,6 @@ async function initRemoteWallet() {
     tickets: Number(user.tickets || 0)
   };
 }
-
 async function initGiftPage() {
   try {
     await initRemoteWallet();
@@ -287,9 +315,11 @@ async function initGiftPage() {
     bindGiftGridEvents();
   } catch (error) {
     console.error('gift 頁初始化失敗', error);
-    alert('目前無法讀取點數資料，請稍後再試。');
+    alert(`目前無法讀取點數資料：${error.message}`);
   }
 }
+
+
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initGiftPage);
