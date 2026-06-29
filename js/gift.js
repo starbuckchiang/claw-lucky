@@ -1,6 +1,7 @@
 document.documentElement.classList.add('page-ready');
 
-const fallbackImage = './images/redeem.jpg';
+const API_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const fallbackImage = './images/mascot.jpg';
 
 const giftItems = [
   {
@@ -39,24 +40,120 @@ const giftGridEl = document.getElementById('giftGrid');
 const historyListEl = document.getElementById('historyList');
 const historyEmptyEl = document.getElementById('historyEmpty');
 
-function getPoints() {
-  return window.GiftStorage?.getPoints ? window.GiftStorage.getPoints() : 0;
+let remoteUser = {
+  userId: '',
+  nickname: '',
+  points: 0,
+  tickets: 0
+};
+
+let isRedeeming = false;
+
+function getUserProfile() {
+  if (!window.UserStore?.getUserProfile) {
+    return {
+      userId: '',
+      nickname: ''
+    };
+  }
+
+  return window.UserStore.getUserProfile();
 }
 
-function setPoints(value) {
-  if (window.GiftStorage?.setPoints) {
-    window.GiftStorage.setPoints(value);
+async function postApi(payload) {
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const text = await response.text();
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`API 回傳不是有效 JSON：${text}`);
   }
+
+  return data;
+}
+
+async function ensureRemoteUser() {
+  const profile = getUserProfile();
+
+  if (!profile.userId) {
+    throw new Error('找不到 userId');
+  }
+
+  const result = await postApi({
+    action: 'ensureUser',
+    userId: profile.userId,
+    nickname: profile.nickname || '',
+    contact: '',
+    note: 'gift_page_init'
+  });
+
+  if (!result.ok) {
+    throw new Error(result.message || 'ensureUser 失敗');
+  }
+
+  return result.user;
+}
+
+async function fetchRemoteUser() {
+  const profile = getUserProfile();
+
+  if (!profile.userId) {
+    throw new Error('找不到 userId');
+  }
+
+  const result = await postApi({
+    action: 'getUser',
+    userId: profile.userId
+  });
+
+  if (!result.ok) {
+    throw new Error(result.message || 'getUser 失敗');
+  }
+
+  return result.user;
+}
+
+async function adjustRemoteBalance({ pointsChange, ticketsChange, note }) {
+  const profile = getUserProfile();
+
+  if (!profile.userId) {
+    throw new Error('找不到 userId');
+  }
+
+  const result = await postApi({
+    action: 'adjustBalance',
+    userId: profile.userId,
+    nickname: profile.nickname || '',
+    pointsChange,
+    ticketsChange,
+    reason: 'gift_redeem',
+    source: 'gift_page',
+    operator: 'system',
+    note: note || ''
+  });
+
+  if (!result.ok) {
+    throw new Error(result.message || 'adjustBalance 失敗');
+  }
+
+  return result.user;
+}
+
+function getPoints() {
+  return Number(remoteUser.points || 0);
 }
 
 function getTickets() {
-  return window.GiftStorage?.getTickets ? window.GiftStorage.getTickets() : 0;
-}
-
-function setTickets(value) {
-  if (window.GiftStorage?.setTickets) {
-    window.GiftStorage.setTickets(value);
-  }
+  return Number(remoteUser.tickets || 0);
 }
 
 function getHistory() {
@@ -64,7 +161,6 @@ function getHistory() {
     ? window.GiftStorage.getRedeemHistory()
     : [];
 }
-
 function saveHistory(history) {
   if (window.GiftStorage?.setRedeemHistory) {
     window.GiftStorage.setRedeemHistory(history);
@@ -77,7 +173,7 @@ function renderWallet() {
 }
 
 function createGiftCard(item) {
-  const points = getPoints();
+const points = getPoints();
   const tickets = getTickets();
   const canRedeem = points >= item.points && tickets >= item.tickets;
 
@@ -107,9 +203,10 @@ function createGiftCard(item) {
           class="gift-redeem-btn"
           type="button"
           data-gift-id="${item.id}"
-          ${canRedeem ? '' : 'disabled'}
+          ${canRedeem || isRedeeming ? '' : 'disabled'}
+          ${isRedeeming ? 'disabled' : ''}
         >
-          立即兌換
+          ${isRedeeming ? '處理中...' : '立即兌換'}
         </button>
         <span class="gift-item-status">${canRedeem ? '可兌換' : '資源不足'}</span>
       </div>
@@ -128,8 +225,6 @@ function createGiftCard(item) {
   return card;
 }
 
-
-
 function renderGiftGrid() {
   if (!giftGridEl) return;
 
@@ -146,6 +241,7 @@ function renderHistory() {
 
   const history = getHistory();
   historyListEl.innerHTML = '';
+
   if (!history.length) {
     historyEmptyEl.style.display = 'block';
     return;
@@ -156,7 +252,7 @@ function renderHistory() {
   history
     .slice()
     .reverse()
-.forEach((item) => {
+    .forEach((item) => {
       const block = document.createElement('article');
       block.className = 'history-item';
       block.innerHTML = `
@@ -170,7 +266,20 @@ function renderHistory() {
     });
 }
 
-function redeemGift(giftId) {
+async function refreshRemoteWallet() {
+  const user = await fetchRemoteUser();
+
+  remoteUser = {
+    userId: user.userId || '',
+    nickname: user.nickname || '',
+    points: Number(user.points || 0),
+    tickets: Number(user.tickets || 0)
+  };
+}
+
+async function redeemGift(giftId) {
+  if (isRedeeming) return;
+
   const item = giftItems.find((gift) => gift.id === giftId);
   if (!item) return;
 
@@ -185,33 +294,45 @@ function redeemGift(giftId) {
   const confirmed = window.confirm(`確認兌換「${item.name}」？`);
   if (!confirmed) return;
 
-  const nextPoints = currentPoints - item.points;
-  const nextTickets = currentTickets - item.tickets;
+  try {
+    isRedeeming = true;
+    renderGiftGrid();
 
-  setPoints(nextPoints);
-  setTickets(nextTickets);
+    await adjustRemoteBalance({
+      pointsChange: -item.points,
+      ticketsChange: -item.tickets,
+      note: `${item.id}｜${item.name}`
+    });
 
-  const history = getHistory();
-  history.push({
-    id: item.id,
-    name: item.name,
-    points: item.points,
-    tickets: item.tickets,
-    time: new Date().toLocaleString('zh-TW', { hour12: false })
-  });
-  saveHistory(history);
+    await refreshRemoteWallet();
 
-  renderWallet();
-  renderGiftGrid();
-  renderHistory();
+    const history = getHistory();
+    history.push({
+      id: item.id,
+      name: item.name,
+      points: item.points,
+      tickets: item.tickets,
+      time: new Date().toLocaleString('zh-TW', { hour12: false })
+    });
+    saveHistory(history);
 
-  alert(`已成功兌換：${item.name}`);
+    renderWallet();
+    renderGiftGrid();
+    renderHistory();
+
+    alert(`已成功兌換：${item.name}`);
+  } catch (error) {
+    console.error('兌換失敗', error);
+    alert(`兌換失敗：${error.message}`);
+  } finally {
+    isRedeeming = false;
+    renderGiftGrid();
+  }
 }
 
 function bindGiftGridEvents() {
   if (!giftGridEl) return;
-
-  giftGridEl.addEventListener('click', (event) => {
+giftGridEl.addEventListener('click', (event) => {
     const button = event.target.closest('.gift-redeem-btn');
     if (!button) return;
 
@@ -222,12 +343,22 @@ function bindGiftGridEvents() {
   });
 }
 
+async function initRemoteWallet() {
+  await ensureRemoteUser();
+  await refreshRemoteWallet();
+}
 
-function initGiftPage() {
-  renderWallet();
-  renderGiftGrid();
-  renderHistory();
-  bindGiftGridEvents();
+async function initGiftPage() {
+  try {
+    await initRemoteWallet();
+    renderWallet();
+    renderGiftGrid();
+    renderHistory();
+    bindGiftGridEvents();
+  } catch (error) {
+    console.error('gift 頁初始化失敗', error);
+    alert(`目前無法讀取點數資料：${error.message}`);
+  }
 }
 
 if (document.readyState === 'loading') {
