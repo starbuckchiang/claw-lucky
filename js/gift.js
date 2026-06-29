@@ -204,10 +204,10 @@ function bindGiftGridEvents() {
   if (!giftGridEl) return;
 
   giftGridEl.addEventListener('click', (event) => {
-    const thumb = event.target.closest('.gift-item-thumb');
-    if (!thumb) return;
+    const button = event.target.closest('.gift-redeem-btn');
+    if (!button) return;
 
-    const giftId = thumb.dataset.giftId;
+    const giftId = button.dataset.giftId;
     if (!giftId) return;
 
     redeemGift(giftId);
