@@ -116,6 +116,7 @@ function handleDrawFailure(response) {
 }
 
 function handleDrawSuccess(result) {
+  console.log('handleDrawSuccess result =', result);
   const ui = getUI();
   const storage = getStorage();
   if (!ui || !result) return;
@@ -147,6 +148,8 @@ function handleDrawClick() {
   ui.renderDropZoneLoading(refs.dropZoneEl);
   ui.renderLoadingResult(refs.gachaResultEl);window.setTimeout(() => {
     const response = engine.drawOnce();
+    console.log('draw response =', response);
+
 
     if (!response?.ok) {
       handleDrawFailure(response);
