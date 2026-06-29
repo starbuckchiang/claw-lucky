@@ -85,7 +85,13 @@ function createGiftCard(item) {
   card.className = 'gift-item';
   card.innerHTML = `
     <div class="gift-item-image">
-      <img src="${item.image}" alt="${item.name}" class="gift-item-photo" />
+      <div
+        class="gift-item-thumb ${canRedeem ? '' : 'is-disabled'}"
+        aria-label="商品圖片：${item.name}"
+        title="${canRedeem ? `兌換 ${item.name}` : '資源不足'}"
+      >
+        <img src="${item.image}" alt="${item.name}" class="gift-item-photo" />
+      </div>
     </div>
 
     <div class="gift-item-body">
@@ -102,7 +108,8 @@ function createGiftCard(item) {
           type="button"
           data-gift-id="${item.id}"
           ${canRedeem ? '' : 'disabled'}
-        >立即兌換
+        >
+          立即兌換
         </button>
         <span class="gift-item-status">${canRedeem ? '可兌換' : '資源不足'}</span>
       </div>
@@ -120,6 +127,7 @@ function createGiftCard(item) {
 
   return card;
 }
+
 
 
 function renderGiftGrid() {
@@ -213,6 +221,7 @@ function bindGiftGridEvents() {
     redeemGift(giftId);
   });
 }
+
 
 function initGiftPage() {
   renderWallet();
