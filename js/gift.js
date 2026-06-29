@@ -1,7 +1,6 @@
 document.documentElement.classList.add('page-ready');
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbx4rw8EjTdp265gei6ke8teYbwD6ESactOT2WtX02wdQsplpDIAF3kr_JDimH_oMd4/exec';
-const fallbackImage = './images/mascot.jpg';
+const fallbackImage = './images/redeem.jpg';
 
 const giftItems = [
   {
@@ -40,92 +39,24 @@ const giftGridEl = document.getElementById('giftGrid');
 const historyListEl = document.getElementById('historyList');
 const historyEmptyEl = document.getElementById('historyEmpty');
 
-let remoteUser = {
-  userId: '',
-  nickname: '',
-  points: 0,
-  tickets: 0
-};
-
-function getUserProfile() {
-  if (!window.UserStore?.getUserProfile) {
-    return {
-      userId: '',
-      nickname: ''
-    };
-  }
-
-  return window.UserStore.getUserProfile();
-}
-
-async function postApi(payload) {
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain;charset=utf-8'
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const text = await response.text();
-
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch (error) {
-    throw new Error(`API 回傳不是有效 JSON：${text}`);
-  }
-
-  return data;
-}
-
-async function ensureRemoteUser() {
-  const profile = getUserProfile();
-
-  if (!profile.userId) {
-    throw new Error('找不到 userId');
-  }
-
-  const result = await postApi({
-    action: 'ensureUser',
-    userId: profile.userId,
-    nickname: profile.nickname || '',
-    contact: '',
-    note: 'gift_page_init'
-  });
-
-  if (!result.ok) {
-    throw new Error(result.message || 'ensureUser 失敗');
-  }
-
-  return result.user;
-}
-
-async function fetchRemoteUser() {
-  const profile = getUserProfile();
-
-  if (!profile.userId) {
-    throw new Error('找不到 userId');
-  }
-
-  const result = await postApi({
-    action: 'getUser',
-    userId: profile.userId
-  });
-
-  if (!result.ok) {
-    throw new Error(result.message || 'getUser 失敗');
-  }
-
-  return result.user;
-}
-
 function getPoints() {
-  return Number(remoteUser.points || 0);
+  return window.GiftStorage?.getPoints ? window.GiftStorage.getPoints() : 0;
+}
+
+function setPoints(value) {
+  if (window.GiftStorage?.setPoints) {
+    window.GiftStorage.setPoints(value);
+  }
 }
 
 function getTickets() {
-  return Number(remoteUser.tickets || 0);
+  return window.GiftStorage?.getTickets ? window.GiftStorage.getTickets() : 0;
+}
+
+function setTickets(value) {
+  if (window.GiftStorage?.setTickets) {
+    window.GiftStorage.setTickets(value);
+  }
 }
 
 function getHistory() {
@@ -154,7 +85,16 @@ function createGiftCard(item) {
   card.className = 'gift-item';
   card.innerHTML = `
     <div class="gift-item-image">
-      <img src="${item.image}" alt="${item.name}" class="gift-item-photo" />
+      <button
+        class="gift-item-thumb"
+        type="button"
+        data-gift-id="${item.id}"
+        ${canRedeem ? '' : 'disabled'}
+        aria-label="兌換 ${item.name}"
+        title="${canRedeem ? `兌換 ${item.name}` : '資源不足'}"
+      >
+        <img src="${item.image}" alt="${item.name}" />
+      </button>
     </div>
 
     <div class="gift-item-body">
@@ -164,32 +104,8 @@ function createGiftCard(item) {
         <span class="gift-badge">💎 所需點數：${item.points}</span>
         <span class="gift-badge">🎟 所需兌換券：${item.tickets}</span>
       </div>
-
-      <div class="gift-item-actions">
-        <button
-          class="gift-redeem-btn"
-          type="button"
-          data-gift-id="${item.id}"
-          ${canRedeem ? '' : 'disabled'}
-        >
-          立即兌換
-        </button>
-        <span class="gift-item-status">${canRedeem ? '可兌換' : '資源不足'}</span>
-      </div>
     </div>
   `;
-
-  const img = card.querySelector('.gift-item-photo');
-  img.addEventListener(
-    'error',
-    () => {
-      img.src = fallbackImage;
-    },
-    { once: true }
-  );
-
-  return card;
-}
 
   const img = card.querySelector('img');
   img.addEventListener(
@@ -219,7 +135,6 @@ function renderHistory() {
 
   const history = getHistory();
   historyListEl.innerHTML = '';
-
   if (!history.length) {
     historyEmptyEl.style.display = 'block';
     return;
@@ -230,7 +145,7 @@ function renderHistory() {
   history
     .slice()
     .reverse()
-    .forEach((item) => {
+.forEach((item) => {
       const block = document.createElement('article');
       block.className = 'history-item';
       block.innerHTML = `
@@ -259,6 +174,12 @@ function redeemGift(giftId) {
   const confirmed = window.confirm(`確認兌換「${item.name}」？`);
   if (!confirmed) return;
 
+  const nextPoints = currentPoints - item.points;
+  const nextTickets = currentTickets - item.tickets;
+
+  setPoints(nextPoints);
+  setTickets(nextTickets);
+
   const history = getHistory();
   history.push({
     id: item.id,
@@ -269,48 +190,32 @@ function redeemGift(giftId) {
   });
   saveHistory(history);
 
-  alert(`目前已記錄兌換申請：${item.name}`);
-
+  renderWallet();
+  renderGiftGrid();
   renderHistory();
+
+  alert(`已成功兌換：${item.name}`);
 }
 
 function bindGiftGridEvents() {
   if (!giftGridEl) return;
 
   giftGridEl.addEventListener('click', (event) => {
-    const button = event.target.closest('.gift-redeem-btn');
-    if (!button) return;
+    const thumb = event.target.closest('.gift-item-thumb');
+    if (!thumb) return;
 
-    const giftId = button.dataset.giftId;
+    const giftId = thumb.dataset.giftId;
     if (!giftId) return;
 
     redeemGift(giftId);
   });
 }
 
-async function initRemoteWallet() {
-  await ensureRemoteUser();
-  const user = await fetchRemoteUser();
-
-  remoteUser = {
-    userId: user.userId || '',
-    nickname: user.nickname || '',
-    points: Number(user.points || 0),
-    tickets: Number(user.tickets || 0)
-  };
-}
-
-async function initGiftPage() {
-  try {
-    await initRemoteWallet();
-    renderWallet();
-    renderGiftGrid();
-    renderHistory();
-    bindGiftGridEvents();
-  } catch (error) {
-    console.error('gift 頁初始化失敗', error);
-    alert(`目前無法讀取點數資料：${error.message}`);
-  }
+function initGiftPage() {
+  renderWallet();
+  renderGiftGrid();
+  renderHistory();
+  bindGiftGridEvents();
 }
 
 if (document.readyState === 'loading') {
