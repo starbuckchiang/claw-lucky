@@ -148,8 +148,7 @@
 
   function buildRecentThumb(item) {
     const image = escapeHtml(item?.image || '');
-    const name = escap
-eHtml(item?.name || '未知吉祥物');
+    const name = escapeHtml(item?.name || '未知吉祥物');
 
     if (image) {
       return `
