@@ -85,16 +85,7 @@ function createGiftCard(item) {
   card.className = 'gift-item';
   card.innerHTML = `
     <div class="gift-item-image">
-      <button
-        class="gift-item-thumb"
-        type="button"
-        data-gift-id="${item.id}"
-        ${canRedeem ? '' : 'disabled'}
-        aria-label="兌換 ${item.name}"
-        title="${canRedeem ? `兌換 ${item.name}` : '資源不足'}"
-      >
-        <img src="${item.image}" alt="${item.name}" />
-      </button>
+      <img src="${item.image}" alt="${item.name}" class="gift-item-photo" />
     </div>
 
     <div class="gift-item-body">
@@ -104,10 +95,21 @@ function createGiftCard(item) {
         <span class="gift-badge">💎 所需點數：${item.points}</span>
         <span class="gift-badge">🎟 所需兌換券：${item.tickets}</span>
       </div>
+
+      <div class="gift-item-actions">
+        <button
+          class="gift-redeem-btn"
+          type="button"
+          data-gift-id="${item.id}"
+          ${canRedeem ? '' : 'disabled'}
+        >立即兌換
+        </button>
+        <span class="gift-item-status">${canRedeem ? '可兌換' : '資源不足'}</span>
+      </div>
     </div>
   `;
 
-  const img = card.querySelector('img');
+  const img = card.querySelector('.gift-item-photo');
   img.addEventListener(
     'error',
     () => {
@@ -118,6 +120,7 @@ function createGiftCard(item) {
 
   return card;
 }
+
 
 function renderGiftGrid() {
   if (!giftGridEl) return;
