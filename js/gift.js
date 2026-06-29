@@ -1,6 +1,6 @@
 document.documentElement.classList.add('page-ready');
 
-const API_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbx4rw8EjTdp265gei6ke8teYbwD6ESactOT2WtX02wdQsplpDIAF3kr_JDimH_oMd4/exec';
 const fallbackImage = './images/mascot.jpg';
 
 const giftItems = [
