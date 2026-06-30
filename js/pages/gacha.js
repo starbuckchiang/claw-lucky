@@ -352,7 +352,7 @@ function rewardAdBonus() {
   renderAdRemaining();
 
   alert(
-    `補給成功！獲得 +${config.adRewardCoins} 金幣` +
+    `補給成功！獲得 +${config.adRewardCoins} 好運幣` +
     (config.adRewardBonusPlay ? `、+${config.adRewardBonusPlay} 次免費機會` : '')
   );
 }
