@@ -1,21 +1,3 @@
-/*
-  廣告播放模組（Ad Modal）
-  功能：
-  - 開啟 / 關閉廣告 modal
-  - 播放獎勵影片
-  - 監聽影片播放結束
-  - 播放完成後，允許使用者領取獎勵
-  - 透過 callback 通知 gacha.js 執行實際發獎
-
-  設計分工：
-  - ad-modal.js：只負責 UI / modal / video 流程
-  - gacha.js：負責 coin、免費機會、剩餘次數等實際獎勵邏輯
-
-  注意：
-  - 如果手機瀏覽器阻擋自動播放，會退回手動測試領獎流程
-  - 真正上線時可替換為正式廣告影片或外部廣告 SDK
-*/
-
 (function () {
   let modalEl = null;
   let backdropEl = null;
@@ -173,6 +155,7 @@
 
     if (videoEl) {
       const playPromise = videoEl.play();
+
       if (playPromise && typeof playPromise.catch === 'function') {
         playPromise.catch((error) => {
           console.warn('AdModal: 自動播放失敗，改用手動播放', error);
