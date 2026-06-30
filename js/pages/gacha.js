@@ -10,9 +10,14 @@ const refs = {
   drawBtnAltEl: document.getElementById('drawBtnAlt'),
   dropZoneEl: document.getElementById('dropZone'),
   gachaResultEl: document.getElementById('gachaResult'),
-  recentDrawListEl: document.getElementById('recentDrawList'),
+  recentDrawListEl: document.getElementById('recentDrawList')
+document.getElementById('recentDrawList'),
+  topbarCoinsEl: document.getElementById('topbarCoins'),
   topbarPointsEl: document.getElementById('topbarPoints'),
   topbarTicketsEl: document.getElementById('topbarTickets')
+document.getElementById('topbarTickets'),
+  watchAdBtnEl: document.getElementById('watchAdBtn'),
+  adRemainingEl: document.getElementById('adRemaining')
 };
 
 let isDrawing = false;
@@ -260,6 +265,10 @@ function bindEvents() {
   if (refs.drawBtnAltEl) {
     refs.drawBtnAltEl.addEventListener('click', handleDrawClick);
   }
+  if (refs.watchAdBtnEl) {
+  refs.watchAdBtnEl.addEventListener('click', handleWatchAdClick);
+}
+
 }
 
 async function initGachaPage() {
@@ -284,6 +293,7 @@ async function initGachaPage() {
   }
 
   renderTopbar();
+  renderAdRemaining();
   await refreshTopbarFromRemote();
   bindEvents();
 }
@@ -293,3 +303,106 @@ if (document.readyState === 'loading') {
 } else {
   initGachaPage();
 }
+
+function getAdConfig() {
+  const config = window.APP_CONFIG || {};
+  return {
+    adRewardCoins: Number(config.adRewardCoins || 100),
+    adRewardBonusPlay: Number(config.adRewardBonusPlay || 1),
+    maxDailyAdRewards: Number(config.maxDailyAdRewards || 3)
+  };
+}
+
+function getAdStorageKey() {
+  return 'gachaDailyAdRewards';
+}
+
+function getTodayKey() {
+  return new Date().toLocaleDateString('sv-SE');
+}
+
+function getAdRewardState() {
+  try {
+    const raw = localStorage.getItem(getAdStorageKey());
+    if (!raw) {
+      return {
+        date: getTodayKey(),
+        count: 0
+      };
+    }
+
+    const parsed = JSON.parse(raw);
+    if (parsed.date !== getTodayKey()) {
+      return {
+        date: getTodayKey(),
+        count: 0
+      };
+    }
+
+    return {
+      date: parsed.date,
+      count: Number(parsed.count || 0)
+    };
+  } catch (error) {
+    return {
+      date: getTodayKey(),
+      count: 0
+    };
+  }
+}
+
+function setAdRewardState(state) {
+  localStorage.setItem(getAdStorageKey(), JSON.stringify(state));
+}
+
+function getRemainingAdRewards() {
+  const { maxDailyAdRewards } = getAdConfig();
+  const state = getAdRewardState();
+  return Math.max(0, maxDailyAdRewards - state.count);
+}
+
+function renderAdRemaining() {
+  const remaining = getRemainingAdRewards();
+
+  if (refs.adRemainingEl) {
+    refs.adRemainingEl.textContent = remaining;
+  }
+
+  if (refs.watchAdBtnEl) {
+    refs.watchAdBtnEl.disabled = remaining <= 0;
+    refs.watchAdBtnEl.textContent = remaining <= 0 ? '今日已領完' : '觀看獎勵影片';
+  }
+}
+
+function rewardAdBonus() {
+  const storage = getStorage();
+  const config = getAdConfig();
+  const state = getAdRewardState();
+  const remaining = getRemainingAdRewards();
+
+  if (remaining <= 0) {
+    alert('今日補給次數已用完。');
+    renderAdRemaining();
+    return;
+  }
+
+  if (storage?.getCoins && storage?.setCoins) {
+    const currentCoins = Number(storage.getCoins() || 0);
+    storage.setCoins(currentCoins + config.adRewardCoins);
+  }
+
+  state.count += 1;
+  setAdRewardState(state);
+
+  renderTopbar();
+  renderAdRemaining();
+
+  alert(`補給成功！獲得 +${config.adRewardCoins} 金幣${config.adRewardBonusPlay ? `、+${config.adRewardBonusPlay} 次免費機會` : ''}`);
+}
+
+function handleWatchAdClick() {
+  // 先用假流程測試
+  // 之後如果要串真正影片，再把這裡換成影片播放完成後發獎勵
+  rewardAdBonus();
+}
+
