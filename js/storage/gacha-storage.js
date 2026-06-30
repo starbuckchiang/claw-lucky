@@ -142,6 +142,11 @@
   }
 
   function ensureDefaults(defaults = {}) {
+    console.log('[gacha-storage] ensureDefaults() start', {
+    defaults,
+    currentCoins,
+    rawCoins: localStorage.getItem(STORAGE_KEYS.coins)
+  });
     if (getCoins() === null) {
       setCoins(defaults.coins ?? 20);
     }
