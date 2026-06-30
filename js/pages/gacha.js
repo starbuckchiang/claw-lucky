@@ -108,15 +108,29 @@ async function fetchRemoteUser() {
 function renderTopbar(remoteUser) {
   const storage = getStorage();
 
-  let points = 3000;
-  let tickets = 3;
+  let coins = 0;
+  let points = 0;
+  let tickets = 0;
+
+  if (storage?.getCoins) {
+    coins = Number(storage.getCoins() || 0);
+  }
 
   if (remoteUser) {
     points = Number(remoteUser.points || 0);
     tickets = Number(remoteUser.tickets || 0);
   } else if (storage) {
-    if (storage.getPoints) points = Number(storage.getPoints() || 0);
-    if (storage.getTickets) tickets = Number(storage.getTickets() || 0);
+    if (storage.getPoints) {
+      points = Number(storage.getPoints() || 0);
+    }
+
+    if (storage.getTickets) {
+      tickets = Number(storage.getTickets() || 0);
+    }
+  }
+
+  if (refs.topbarCoinsEl) {
+    refs.topbarCoinsEl.textContent = coins;
   }
 
   if (refs.topbarPointsEl) {
@@ -127,6 +141,7 @@ function renderTopbar(remoteUser) {
     refs.topbarTicketsEl.textContent = tickets;
   }
 }
+
 
 function setDrawingState(drawing) {
   const drawButtons = [refs.drawBtnEl, refs.drawBtnAltEl].filter(Boolean);
