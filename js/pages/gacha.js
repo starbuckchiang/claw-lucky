@@ -1,4 +1,7 @@
 document.documentElement.classList.add('page-ready');
+document.getElementById('watchAdBtn')
+document.getElementById('adRemaining')
+
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbx4rw8EjTdp265gei6ke8teYbwD6ESactOT2WtX02wdQsplpDIAF3kr_JDimH_oMd4/exec';
 
