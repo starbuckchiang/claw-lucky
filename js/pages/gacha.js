@@ -358,8 +358,20 @@ function rewardAdBonus() {
 }
 
 function handleWatchAdClick() {
-  rewardAdBonus();
+  console.log('[gacha] click watchAdBtn');
+
+  if (!window.AdModal?.open) {
+    console.warn('AdModal 尚未載入，改用直接發獎勵流程');
+    rewardAdBonus();
+    return;
+  }
+
+  window.AdModal.open(() => {
+    console.log('[gacha] ad finished, reward bonus now');
+    rewardAdBonus();
+  });
 }
+
 
 function handleDrawClick() {
   const ui = getUI();
