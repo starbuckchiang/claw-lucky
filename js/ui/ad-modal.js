@@ -31,7 +31,7 @@
     const config = window.APP_CONFIG || {};
     return {
       adVideoSrc: config.adVideoSrc || '',
-      adRewardCoins: Number(config.adRewardCoins || 100),
+      adRewardCoins: Number(config.adRewardCoins || 20),
       adRewardBonusPlay: Number(config.adRewardBonusPlay || 1)
     };
   }
