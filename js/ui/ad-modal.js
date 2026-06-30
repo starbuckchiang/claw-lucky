@@ -89,7 +89,7 @@
     if (descEl) {
       const { adRewardCoins, adRewardBonusPlay } = getConfig();
       descEl.textContent =
-        `看完影片可獲得 +${adRewardCoins} 金幣` +
+        `看完影片可獲得 +${adRewardCoins} 好運幣` +
         (adRewardBonusPlay ? `、+${adRewardBonusPlay} 次免費機會` : '');
     }
   }
