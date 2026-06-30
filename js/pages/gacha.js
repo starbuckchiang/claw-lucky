@@ -108,8 +108,8 @@ async function fetchRemoteUser() {
 function renderTopbar(remoteUser) {
   const storage = getStorage();
 
-  let points = 0;
-  let tickets = 0;
+  let points = 3000;
+  let tickets = 3;
 
   if (remoteUser) {
     points = Number(remoteUser.points || 0);
