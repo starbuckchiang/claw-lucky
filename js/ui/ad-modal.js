@@ -16,7 +16,7 @@
   - 真正上線時可替換為正式廣告影片或外部廣告 SDK
 */
 
-(function () {
+function () {
   let modalEl = null;
   let backdropEl = null;
   let closeBtnEl = null;
