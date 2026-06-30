@@ -36,7 +36,7 @@
   }
 
   function getCoins() {
-    return readNumber(STORAGE_KEYS.coins);
+    return readNumber(STORAGE_KEYS.coins,100);
   }
 
   function setCoins(value) {
