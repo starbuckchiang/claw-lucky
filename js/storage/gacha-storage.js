@@ -77,6 +77,13 @@
     writeJson(STORAGE_KEYS.recentDraws, Array.isArray(list) ? list : []);
   }
 
+  function addCoins(amount) {
+    const current = getCoins() ?? 0;
+    const next = Math.max(0, current + (Number(amount) || 0));
+    setCoins(next);
+    return next;
+  }
+
   function addPoints(amount) {
     const current = getPoints() ?? 0;
     const next = Math.max(0, current + (Number(amount) || 0));
@@ -118,6 +125,7 @@
         id: drawItem.id || '',
         name: drawItem.name || '未知吉祥物',
         rarity: drawItem.rarity || 'N',
+        image: drawItem.image || '',
         points: Number(drawItem.points) || 0,
         tickets: Number(drawItem.tickets) || 0,
         isNew: Boolean(drawItem.isNew),
@@ -142,30 +150,40 @@
   }
 
   function ensureDefaults(defaults = {}) {
+    const currentCoins = getCoins();
+    const currentPoints = getPoints();
+    const currentTickets = getTickets();
+    const currentCollection = getCollection();
+    const currentRecentDraws = getRecentDraws();
+
     console.log('[gacha-storage] ensureDefaults() start', {
-    defaults,
-    currentCoins,
-    rawCoins: localStorage.getItem(STORAGE_KEYS.coins)
-  });
-    if (getCoins() === null) {
+      defaults,
+      currentCoins,
+      currentPoints,
+      currentTickets,
+      currentCollection,
+      currentRecentDraws
+    });
+
+    if (currentCoins === null) {
       setCoins(defaults.coins ?? 20);
     }
 
-    if (getPoints() === null) {
-      setPoints(defaults.points ?? 1000);
+    if (currentPoints === null) {
+      setPoints(defaults.points ?? 0);
     }
 
-    if (getTickets() === null) {
-      setTickets(defaults.tickets ?? 3);
+    if (currentTickets === null) {
+      setTickets(defaults.tickets ?? 0);
     }
 
-    if (!Array.isArray(getCollection())) {
+    if (!Array.isArray(currentCollection)) {
       setCollection(defaults.collection ?? []);
     }
 
-    if (!Array.isArray(getRecentDraws())) {
+    if (!Array.isArray(currentRecentDraws)) {
       setRecentDraws(defaults.recentDraws ?? []);
-}
+    }
   }
 
   window.GachaStorage = {
@@ -173,20 +191,23 @@
 
     getCoins,
     setCoins,
+    addCoins,
+
     getPoints,
     setPoints,
+    addPoints,
+
     getTickets,
     setTickets,
+    addTickets,
 
     getCollection,
     setCollection,
-    getRecentDraws,
-    setRecentDraws,
-
-    addPoints,
-    addTickets,
     addToCollection,
     hasInCollection,
+
+    getRecentDraws,
+    setRecentDraws,
     addRecentDraw,
     clearRecentDraws,
 
