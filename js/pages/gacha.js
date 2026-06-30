@@ -1,7 +1,4 @@
 document.documentElement.classList.add('page-ready');
-document.getElementById('watchAdBtn')
-document.getElementById('adRemaining')
-
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbx4rw8EjTdp265gei6ke8teYbwD6ESactOT2WtX02wdQsplpDIAF3kr_JDimH_oMd4/exec';
 
@@ -10,12 +7,10 @@ const refs = {
   drawBtnAltEl: document.getElementById('drawBtnAlt'),
   dropZoneEl: document.getElementById('dropZone'),
   gachaResultEl: document.getElementById('gachaResult'),
-  recentDrawListEl: document.getElementById('recentDrawList')
-document.getElementById('recentDrawList'),
+  recentDrawListEl: document.getElementById('recentDrawList'),
   topbarCoinsEl: document.getElementById('topbarCoins'),
   topbarPointsEl: document.getElementById('topbarPoints'),
-  topbarTicketsEl: document.getElementById('topbarTickets')
-document.getElementById('topbarTickets'),
+  topbarTicketsEl: document.getElementById('topbarTickets'),
   watchAdBtnEl: document.getElementById('watchAdBtn'),
   adRemainingEl: document.getElementById('adRemaining')
 };
@@ -148,8 +143,9 @@ function renderTopbar(remoteUser) {
   if (refs.topbarTicketsEl) {
     refs.topbarTicketsEl.textContent = tickets;
   }
-}
 
+  console.log('[renderTopbar]', { coins, points, tickets });
+}
 
 function setDrawingState(drawing) {
   const drawButtons = [refs.drawBtnEl, refs.drawBtnAltEl].filter(Boolean);
@@ -157,6 +153,10 @@ function setDrawingState(drawing) {
     button.disabled = drawing;
     button.textContent = drawing ? '轉動中...' : '轉一次';
   });
+
+  if (refs.watchAdBtnEl) {
+refs.watchAdBtnEl.disabled = drawing || getRemainingAdRewards() <= 0;
+  }
 }
 
 function handleDrawFailure(response) {
@@ -205,105 +205,6 @@ async function refreshTopbarFromRemote() {
   }
 }
 
-function handleDrawClick() {
-  const ui = getUI();
-  const engine = getEngine();
-
-  if (isDrawing) return;
-
-  if (!ui || !engine?.drawOnce) {
-    console.warn('GachaUI 或 GachaEngine 尚未載入完成');
-    return;
-  }
-
-  isDrawing = true;
-  setDrawingState(true);
-
-  if (ui.renderDropZoneLoading) {
-    ui.renderDropZoneLoading(refs.dropZoneEl);
-  }
-
-  if (ui.renderLoadingResult) {
-    ui.renderLoadingResult(refs.gachaResultEl);
-  }
-
-  window.setTimeout(async () => {
-    try {
-      const response = engine.drawOnce();
-      console.log('draw response =', response);
-
-      if (!response?.ok) {
-        handleDrawFailure(response);
-        return;
-      }
-
-      handleDrawSuccess(response.result);
-
-      try {
-        const rewardResponse = await claimGachaReward(response.result);
-        console.log('claimGachaReward response =', rewardResponse);
-        await refreshTopbarFromRemote();
-      } catch (error) {
-        console.error('寫入 gacha 獎勵失敗', error);
-        alert(`抽卡獎勵寫入失敗：${error.message}`);
-      }
-    } catch (error) {
-      console.error('抽卡流程失敗', error);
-      alert(`抽卡失敗：${error.message}`);
-    } finally {
-      isDrawing = false;
-      setDrawingState(false);
-    }
-  }, 600);
-}
-
-function bindEvents() {
-  if (refs.drawBtnEl) {
-    refs.drawBtnEl.addEventListener('click', handleDrawClick);
-  }
-
-  if (refs.drawBtnAltEl) {
-    refs.drawBtnAltEl.addEventListener('click', handleDrawClick);
-  }
-  if (refs.watchAdBtnEl) {
-  refs.watchAdBtnEl.addEventListener('click', handleWatchAdClick);
-}
-
-}
-
-async function initGachaPage() {
-  const ui = getUI();
-  const storage = getStorage();
-
-  if (!ui) {
-    console.warn('GachaUI 尚未載入完成');
-    return;
-  }
-
-  if (ui.renderIdleDropZone) {
-    ui.renderIdleDropZone(refs.dropZoneEl);
-  }
-
-  if (ui.renderEmptyResult) {
-    ui.renderEmptyResult(refs.gachaResultEl);
-  }
-
-  if (storage?.getRecentDraws && ui.renderRecentDraws) {
-    ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
-  }
-
-  renderTopbar();
-  renderAdRemaining();
-  await refreshTopbarFromRemote();
-  bindEvents();
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initGachaPage);
-} else {
-  initGachaPage();
-}
-
 function getAdConfig() {
   const config = window.APP_CONFIG || {};
   return {
@@ -324,6 +225,7 @@ function getTodayKey() {
 function getAdRewardState() {
   try {
     const raw = localStorage.getItem(getAdStorageKey());
+
     if (!raw) {
       return {
         date: getTodayKey(),
@@ -332,6 +234,7 @@ function getAdRewardState() {
     }
 
     const parsed = JSON.parse(raw);
+
     if (parsed.date !== getTodayKey()) {
       return {
         date: getTodayKey(),
@@ -369,7 +272,7 @@ function renderAdRemaining() {
   }
 
   if (refs.watchAdBtnEl) {
-    refs.watchAdBtnEl.disabled = remaining <= 0;
+    refs.watchAdBtnEl.disabled = isDrawing || remaining <= 0;
     refs.watchAdBtnEl.textContent = remaining <= 0 ? '今日已領完' : '觀看獎勵影片';
   }
 }
@@ -397,12 +300,111 @@ function rewardAdBonus() {
   renderTopbar();
   renderAdRemaining();
 
-  alert(`補給成功！獲得 +${config.adRewardCoins} 金幣${config.adRewardBonusPlay ? `、+${config.adRewardBonusPlay} 次免費機會` : ''}`);
+  alert(
+    `補給成功！獲得 +${config.adRewardCoins} 金幣` +
+      (config.adRewardBonusPlay ? `、+${config.adRewardBonusPlay} 次免費機會` : '')
+  );
 }
 
 function handleWatchAdClick() {
-  // 先用假流程測試
-  // 之後如果要串真正影片，再把這裡換成影片播放完成後發獎勵
   rewardAdBonus();
 }
 
+function handleDrawClick() {
+  const ui = getUI();
+  const engine = getEngine();
+
+  if (isDrawing) return;
+
+  if (!ui || !engine?.drawOnce) {
+    console.warn('GachaUI 或 GachaEngine 尚未載入完成');
+    return;
+  }
+
+  isDrawing = true;
+  setDrawingState(true);
+
+  if (ui.renderDropZoneLoading) {
+    ui.renderDropZoneLoading(refs.dropZoneEl);
+  }
+
+  if (ui.renderLoadingResult) {
+    ui.renderLoadingResult(refs.gachaResultEl);
+  }
+window.setTimeout(async () => {
+    try {
+      const response = engine.drawOnce();
+      console.log('draw response =', response);
+
+      if (!response?.ok) {
+        handleDrawFailure(response);
+        return;
+      }
+
+      handleDrawSuccess(response.result);
+
+      try {
+        const rewardResponse = await claimGachaReward(response.result);
+        console.log('claimGachaReward response =', rewardResponse);
+        await refreshTopbarFromRemote();
+      } catch (error) {
+        console.error('寫入 gacha 獎勵失敗', error);
+        alert(`抽卡獎勵寫入失敗：${error.message}`);
+      }
+    } catch (error) {
+      console.error('抽卡流程失敗', error);
+      alert(`抽卡失敗：${error.message}`);
+    } finally {
+      isDrawing = false;
+      setDrawingState(false);
+      renderAdRemaining();
+    }
+  }, 600);
+}
+
+function bindEvents() {
+  if (refs.drawBtnEl) {
+    refs.drawBtnEl.addEventListener('click', handleDrawClick);
+  }
+
+  if (refs.drawBtnAltEl) {
+    refs.drawBtnAltEl.addEventListener('click', handleDrawClick);
+  }
+
+  if (refs.watchAdBtnEl) {
+    refs.watchAdBtnEl.addEventListener('click', handleWatchAdClick);
+  }
+}
+
+async function initGachaPage() {
+  const ui = getUI();
+  const storage = getStorage();
+
+  if (!ui) {
+    console.warn('GachaUI 尚未載入完成');
+    return;
+  }
+
+  if (ui.renderIdleDropZone) {
+    ui.renderIdleDropZone(refs.dropZoneEl);
+  }
+
+  if (ui.renderEmptyResult) {
+    ui.renderEmptyResult(refs.gachaResultEl);
+  }
+
+  if (storage?.getRecentDraws && ui.renderRecentDraws) {
+    ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
+  }
+
+  renderTopbar();
+  renderAdRemaining();
+  await refreshTopbarFromRemote();
+  bindEvents();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initGachaPage);
+} else {
+  initGachaPage();
+}
