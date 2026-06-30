@@ -1,133 +1,184 @@
-const refs = {
-  coinCountEl: document.getElementById('coinCount'),
-  pointCountEl: document.getElementById('pointCount'),
-  ticketCountEl: document.getElementById('ticketCount'),
-  collectionCountEl: document.getElementById('collectionCount'),
+document.documentElement.classList.add('page-ready');
 
+const API_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+
+const refs = {
   drawBtnEl: document.getElementById('drawBtn'),
   drawBtnAltEl: document.getElementById('drawBtnAlt'),
-
+  dropZoneEl: document.getElementById('dropZone'),
   gachaResultEl: document.getElementById('gachaResult'),
   recentDrawListEl: document.getElementById('recentDrawList'),
-  dropZoneEl: document.getElementById('dropZone'),
-  gachaMachineEl: document.getElementById('gachaMachine')
+  topbarPointsEl: document.getElementById('topbarPoints'),
+  topbarTicketsEl: document.getElementById('topbarTickets')
 };
 
 let isDrawing = false;
 
-function getStorage() {
-  return window.GachaStorage || null;
-}
-
-function getData() {
-  return window.GachaData || null;
+function getUI() {
+  return window.GachaUI || null;
 }
 
 function getEngine() {
   return window.GachaEngine || null;
 }
 
-function getUI() {
-  return window.GachaUI || null;
+function getStorage() {
+  return window.GachaStorage || null;
 }
 
-function getCollectionTotal() {
-  const data = getData();
-  return Array.isArray(data?.mascots) ? data.mascots.length : 0;
+function getUserProfile() {
+  return window.UserStore?.getUserProfile
+    ? window.UserStore.getUserProfile()
+    : { userId: '', nickname: '' };
 }
 
-function getPageState() {
-  const storage = getStorage();
-
-  return {
-    coins: storage?.getCoins ? storage.getCoins() ?? 0 : 0,
-    points: storage?.getPoints ? storage.getPoints() ?? 0 : 0,
-    tickets: storage?.getTickets ? storage.getTickets() ?? 0 : 0,
-    collection: storage?.getCollection ? storage.getCollection() : [],
-    recentDraws: storage?.getRecentDraws ? storage.getRecentDraws() : [],
-    collectionTotal: getCollectionTotal()
-  };
-}
-
-function ensureDefaults() {
-  const storage = getStorage();
-  const data = getData();
-
-  if (!storage?.ensureDefaults) return;
-
-  storage.ensureDefaults({
-    coins: data?.defaults?.coins ?? 10,
-    points: data?.defaults?.points ?? 0,
-    tickets: data?.defaults?.tickets ?? 0,
-    collection: data?.defaults?.collection ?? [],
-    recentDraws: data?.defaults?.recentDraws ?? []
+async function postApi(payload) {
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+    body: JSON.stringify(payload)
   });
+
+  const text = await response.text();
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`API 回傳不是有效 JSON：${text}`);
+  }
+
+  return data;
 }
 
-function renderTopbar() {
-  const ui = getUI();
-  if (!ui?.renderTopbar) return;
+async function claimGachaReward(result) {
+  console.log('claimGachaReward input result =', result);
 
-  ui.renderTopbar(getPageState(), refs);
+  const profile = getUserProfile();
+
+  if (!profile.userId) {
+    throw new Error('找不到 userId');
+  }
+
+  const payload = {
+    action: 'claimGachaReward',
+    userId: profile.userId,
+    nickname: profile.nickname || '',
+    pointsReward: Number(result?.pointsEarned || result?.points || 0),
+    ticketsReward: Number(result?.ticketsEarned || result?.tickets || 0),
+    mascotId: String(result?.id || ''),
+    reason: 'gacha_draw_reward',
+    source: 'gacha_page',
+    operator: 'system',
+    note: String(result?.name || '')
+  };
+
+  console.log('claimGachaReward payload =', payload);
+
+  const response = await postApi(payload);
+
+  if (!response.ok) {
+    throw new Error(response.message || 'claimGachaReward 失敗');
+  }
+
+  return response;
 }
 
-function renderIdleState() {
-  const ui = getUI();
-  if (!ui) return;
+async function fetchRemoteUser() {
+  const profile = getUserProfile();
 
-  ui.renderIdleResult(refs.gachaResultEl);
-  ui.renderDropZoneIdle(refs.dropZoneEl);
+  if (!profile.userId) {
+    throw new Error('找不到 userId');
+  }
+
+  const response = await postApi({
+    action: 'getUser',
+    userId: profile.userId
+  });
+
+  if (!response.ok) {
+    throw new Error(response.message || 'getUser 失敗');
+  }
+
+  return response.user;
 }
 
-function renderRecentDraws() {
-  const ui = getUI();
+function renderTopbar(remoteUser) {
   const storage = getStorage();
-  if (!ui?.renderRecentDraws || !storage?.getRecentDraws) return;
 
-  ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
+  let points = 0;
+  let tickets = 0;
+
+  if (remoteUser) {
+    points = Number(remoteUser.points || 0);
+    tickets = Number(remoteUser.tickets || 0);
+  } else if (storage) {
+    if (storage.getPoints) points = Number(storage.getPoints() || 0);
+    if (storage.getTickets) tickets = Number(storage.getTickets() || 0);
+  }
+
+  if (refs.topbarPointsEl) {
+    refs.topbarPointsEl.textContent = points;
+  }
+
+  if (refs.topbarTicketsEl) {
+    refs.topbarTicketsEl.textContent = tickets;
+  }
 }
 
-function renderAll() {
-  renderTopbar();
-  renderIdleState();
-  renderRecentDraws();
-}
-
-function setDrawingState(active) {
-  const ui = getUI();
-  if (!ui) return;
-
-  ui.setMachineDrawing(refs.gachaMachineEl, active);
-  ui.setDrawButtonsDisabled(refs, active);
+function setDrawingState(drawing) {
+  const drawButtons = [refs.drawBtnEl, refs.drawBtnAltEl].filter(Boolean);
+  drawButtons.forEach((button) => {
+    button.disabled = drawing;
+    button.textContent = drawing ? '轉動中...' : '轉一次';
+  });
 }
 
 function handleDrawFailure(response) {
   const ui = getUI();
-  if (!ui) return;
 
-  renderTopbar();
-  renderRecentDraws();
-  ui.renderDropZoneIdle(refs.dropZoneEl);
-  ui.renderMessageResult(
-    refs.gachaResultEl,
-    response?.message || '目前無法轉蛋，請稍後再試。',
-    'warning'
-  );
+  if (ui?.renderErrorResult) {
+    ui.renderErrorResult(
+      refs.gachaResultEl,
+      response?.message || '目前無法抽取，請稍後再試。'
+    );
+  } else {
+    alert(response?.message || '目前無法抽取，請稍後再試。');
+  }
 }
 
 function handleDrawSuccess(result) {
   console.log('handleDrawSuccess result =', result);
+
   const ui = getUI();
   const storage = getStorage();
+
   if (!ui || !result) return;
 
-  renderTopbar();
+  if (ui.renderDropZoneCapsule) {
+    ui.renderDropZoneCapsule(refs.dropZoneEl, result.rarity);
+  }
 
-  ui.renderDropZoneCapsule(refs.dropZoneEl, result.rarity);
-  ui.renderDrawResult(refs.gachaResultEl, result);
+  if (ui.renderDrawResult) {
+    ui.renderDrawResult(refs.gachaResultEl, result);
+  }
 
-  if (storage?.getRecentDraws) {
+  if (storage?.getRecentDraws && ui.renderRecentDraws) {
     ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
+  }
+
+  renderTopbar();
+}
+
+async function refreshTopbarFromRemote() {
+  try {
+    const remoteUser = await fetchRemoteUser();
+    console.log('remoteUser =', remoteUser);
+    renderTopbar(remoteUser);
+  } catch (error) {
+    console.error('refreshTopbarFromRemote 失敗', error);
   }
 }
 
@@ -145,8 +196,13 @@ function handleDrawClick() {
   isDrawing = true;
   setDrawingState(true);
 
-  ui.renderDropZoneLoading(refs.dropZoneEl);
-  ui.renderLoadingResult(refs.gachaResultEl);
+  if (ui.renderDropZoneLoading) {
+    ui.renderDropZoneLoading(refs.dropZoneEl);
+  }
+
+  if (ui.renderLoadingResult) {
+    ui.renderLoadingResult(refs.gachaResultEl);
+  }
 
   window.setTimeout(async () => {
     try {
@@ -163,17 +219,20 @@ function handleDrawClick() {
       try {
         const rewardResponse = await claimGachaReward(response.result);
         console.log('claimGachaReward response =', rewardResponse);
+        await refreshTopbarFromRemote();
       } catch (error) {
         console.error('寫入 gacha 獎勵失敗', error);
         alert(`抽卡獎勵寫入失敗：${error.message}`);
       }
+    } catch (error) {
+      console.error('抽卡流程失敗', error);
+      alert(`抽卡失敗：${error.message}`);
     } finally {
       isDrawing = false;
       setDrawingState(false);
     }
   }, 600);
 }
-
 
 function bindEvents() {
   if (refs.drawBtnEl) {
@@ -185,32 +244,34 @@ function bindEvents() {
   }
 }
 
-function checkDependencies() {
-  const storage = getStorage();
-  const data = getData();
-  const engine = getEngine();
+async function initGachaPage() {
   const ui = getUI();
+  const storage = getStorage();
 
-  if (!storage || !data || !engine || !ui) {
-    console.warn('Gacha 頁面依賴模組未完整載入', {
-      hasStorage: Boolean(storage),
-      hasData: Boolean(data),
-      hasEngine: Boolean(engine),
-      hasUI: Boolean(ui)
-    });
-    return false;
+  if (!ui) {
+    console.warn('GachaUI 尚未載入完成');
+    return;
   }
 
-  return true;
-}
+  if (ui.renderIdleDropZone) {
+    ui.renderIdleDropZone(refs.dropZoneEl);
+  }
 
-function initGachaPage() {
-  if (!checkDependencies()) return;
+  if (ui.renderEmptyResult) {
+    ui.renderEmptyResult(refs.gachaResultEl);
+  }
 
-  ensureDefaults();
+  if (storage?.getRecentDraws && ui.renderRecentDraws) {
+    ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
+  }
+
+  renderTopbar();
+  await refreshTopbarFromRemote();
   bindEvents();
-  renderAll();
 }
 
-document.addEventListener('DOMContentLoaded', initGachaPage);
-
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initGachaPage);
+} else {
+  initGachaPage();
+}
