@@ -36,7 +36,7 @@
   }
 
   function getCoins() {
-    return readNumber(STORAGE_KEYS.coins,100);
+    return readNumber(STORAGE_KEYS.coins);
   }
 
   function setCoins(value) {
@@ -44,7 +44,7 @@
   }
 
   function getPoints() {
-    return readNumber(STORAGE_KEYS.points,1000);
+    return readNumber(STORAGE_KEYS.points);
   }
 
   function setPoints(value) {
@@ -52,7 +52,7 @@
   }
 
   function getTickets() {
-    return readNumber(STORAGE_KEYS.tickets,3);
+    return readNumber(STORAGE_KEYS.tickets);
   }
 
   function setTickets(value) {
@@ -143,15 +143,15 @@
 
   function ensureDefaults(defaults = {}) {
     if (getCoins() === null) {
-      setCoins(defaults.coins ?? 10);
+      setCoins(defaults.coins ?? 20);
     }
 
     if (getPoints() === null) {
-      setPoints(defaults.points ?? 0);
+      setPoints(defaults.points ?? 1000);
     }
 
     if (getTickets() === null) {
-      setTickets(defaults.tickets ?? 0);
+      setTickets(defaults.tickets ?? 3);
     }
 
     if (!Array.isArray(getCollection())) {
