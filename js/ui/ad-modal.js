@@ -175,11 +175,16 @@
 
       if (playPromise && typeof playPromise.catch === 'function') {
         playPromise.catch((error) => {
-          console.warn('AdModal: 自動播放失敗，改用手動播放', error);
-
-          if (rewardBtnEl) {
-            rewardBtnEl.disabled = false;
-            rewardBtnEl.textContent = '測試領取獎勵';
+          console.warn('AdModal: 自動播放失敗，請使用者手動播放', error);
+      if (titleEl) {
+      titleEl.textContent = '▶️ 請手動播放影片';
+    }       
+      if (descEl) {
+      descEl.textContent = '部分手機瀏覽器會阻擋自動播放，請點擊影片開始播放，播放完成後即可領取獎勵。';
+    }
+     if (rewardBtnEl) {
+      rewardBtnEl.disabled = true;
+      rewardBtnEl.textContent = '請先看完影片';
           }
         });
       }
