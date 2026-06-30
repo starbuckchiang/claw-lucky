@@ -131,5 +131,70 @@
   <script src="./js/ui/gacha-ui.js"></script>
   <script src="./js/pages/gacha.js"></script>
   <script type="module" src="./js/pages/gacha.js"></script>
+
+  <!--
+  廣告播放 Modal 區塊
+  用途：
+  1. 點擊「觀看獎勵影片」後開啟此視窗
+  2. 播放 ad.mp4 獎勵影片
+  3. 影片播放完成後，啟用「領取獎勵」按鈕
+  4. 使用者點擊領獎後，由 gacha.js 執行 coin / 免費次數補給邏輯
+
+  對應 JS：
+  - js/ui/ad-modal.js：控制 modal 開關、影片播放、播放完成判定
+  - js/pages/gacha.js：接收完成 callback，發送廣告獎勵
+
+  重要節點：
+  - #adModal：整個 modal 容器
+  - #adVideo：影片播放器
+  - [data-ad-modal-reward]：領取獎勵按鈕
+-->
+  <div id="adModal" class="ad-modal" hidden aria-hidden="true">
+  <div class="ad-modal-backdrop" data-ad-modal-backdrop>
+    <div class="ad-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="adModalTitle">
+      <button
+        type="button"
+        class="ad-modal-close"
+        data-ad-modal-close
+        aria-label="關閉影片視窗"
+      >
+      </button>
+
+      <div class="ad-modal-head">
+        <h3 id="adModalTitle" class="ad-modal-title" data-ad-modal-title>
+          🎬 今日補給影片
+        </h3>
+        <p class="ad-modal-desc" data-ad-modal-desc>
+          看完影片可獲得 +20 金幣、+1 次免費機會
+        </p>
+      </div>
+
+      <div class="ad-modal-video-wrap">
+        <video
+          id="adVideo"
+          class="ad-modal-video"
+          controls
+          playsinline
+          preload="metadata"
+        >
+          <source src="./video/ad.mp4" type="video/mp4" />
+          你的瀏覽器不支援影片播放。
+        </video>
+      </div>
+
+      <div class="ad-modal-actions">
+        <button
+          type="button"
+          class="btn btn-coin ad-modal-reward-btn"
+          data-ad-modal-reward
+          disabled
+        >
+          請先看完影片
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
