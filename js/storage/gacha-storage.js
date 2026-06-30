@@ -44,7 +44,7 @@
   }
 
   function getPoints() {
-    return readNumber(STORAGE_KEYS.points);
+    return readNumber(STORAGE_KEYS.points,1000);
   }
 
   function setPoints(value) {
@@ -52,7 +52,7 @@
   }
 
   function getTickets() {
-    return readNumber(STORAGE_KEYS.tickets);
+    return readNumber(STORAGE_KEYS.tickets,3);
   }
 
   function setTickets(value) {
