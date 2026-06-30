@@ -121,7 +121,7 @@ async function adjustRemoteBalance({ pointsDelta = 0, ticketsDelta = 0, note = "
   }
 
   const payload = {
-    action: "adjustRemoteBalance",
+    action: "adjustBalance",
     userId: profile.userId,
     nickname: profile.nickname || "",
     pointsDelta: Number(pointsDelta || 0),
