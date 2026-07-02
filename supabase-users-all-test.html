@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supabase users 全表測試</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f0e4;
+      --card: #fffaf1;
+      --border: #d7c3a0;
+      --text: #5f4330;
+      --accent: #8b5a3c;
+      --accent-2: #b9854f;
+      --ok: #2f6b45;
+      --error: #a64632;
+      --shadow: 0 12px 28px rgba(84, 55, 35, 0.12);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top, rgba(255, 248, 234, 0.95), rgba(247, 240, 228, 1)),
+        var(--bg);
+      color: var(--text);
+      font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      line-height: 1.65;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      color: var(--accent);
+    }
+
+    .desc {
+      margin: 0 0 18px;
+      color: #7a5a43;
+      font-size: 14px;
+    }
+
+    .meta {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .meta-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #fff6e8;
+      border: 1px solid rgba(139, 90, 60, 0.12);
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      min-height: 42px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fffaf2;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(117, 74, 43, 0.18);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .status {
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fff7eb;
+      border: 1px solid rgba(139, 90, 60, 0.12);
+      font-size: 14px;
+    }
+
+    .status.ok {
+      color: var(--ok);
+      border-color: rgba(47, 107, 69, 0.2);
+      background: rgba(233, 247, 237, 0.8);
+    }
+
+    .status.error {
+      color: var(--error);
+      border-color: rgba(166, 70, 50, 0.18);
+      background: rgba(254, 240, 237, 0.88);
+    }
+
+    .summary {
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fff8ef;
+      border: 1px dashed rgba(139, 90, 60, 0.16);
+      font-size: 14px;
+      color: #6b4f39;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      border-radius: 14px;
+      background: #2b2119;
+      color: #f8efe4;
+      overflow: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .tips {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #fff7ea;
+      border: 1px dashed rgba(139, 90, 60, 0.22);
+      font-size: 13px;
+      color: #7b5d48;
+    }
+
+    .tips strong {
+      color: var(--accent);
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 16px;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <h1>Supabase users 全表測試</h1>
+      <p class="desc">
+        這頁會直接讀取整張 <code>users</code> 表，方便檢查資料是否重複、欄位是否正確。
+      </p>
+
+      <div class="meta">
+<div class="meta-item">
+          <strong>Supabase URL：</strong>
+          <span id="supabaseUrlText">https://umtqpstacjdwxcvcirbl.supabase.co</span>
+        </div>
+        <div class="meta-item">
+          <strong>目標資料表：</strong>
+          <span>users</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="runTestBtn" type="button">讀取整張 users 表</button>
+      </div>
+
+      <div id="statusBox" class="status">尚未執行測試。</div>
+      <div id="summaryBox" class="summary">尚未讀取資料。</div>
+
+      <pre id="supabaseTestResult">等待測試中...</pre>
+
+      <div class="tips">
+        <strong>提醒：</strong>
+        請先確認你已經把下方 JS 的 <code>SUPABASE_KEY</code> 換成自己的
+        <code>Publishable key</code>。
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://umtqpstacjdwxcvcirbl.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk';
+
+    const refs = {
+      runTestBtn: document.getElementById('runTestBtn'),
+      statusBox: document.getElementById('statusBox'),
+      summaryBox: document.getElementById('summaryBox'),
+      resultEl: document.getElementById('supabaseTestResult'),
+      supabaseUrlText: document.getElementById('supabaseUrlText')
+    };
+
+    refs.supabaseUrlText.textContent = SUPABASE_URL;
+
+    function setStatus(message, type) {
+      refs.statusBox.textContent = message;
+      refs.statusBox.className = 'status';
+
+      if (type) {
+        refs.statusBox.classList.add(type);
+      }
+    }
+
+    function setSummary(message) {
+      refs.summaryBox.textContent = message;
+    }
+
+    function setResult(data) {
+      refs.resultEl.textContent =
+        typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    }
+
+    function buildDuplicateSummary(rows) {
+      const map = new Map();
+
+      rows.forEach((row) => {
+        const key = row.user_id || '(empty)';
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+
+      const duplicates = Array.from(map.entries()).filter(([, count]) => count > 1);
+
+      if (!duplicates.length) {
+        return '沒有發現重複的 user_id。';
+      }
+
+      return '發現重複 user_id：' + duplicates
+        .map(([userId, count]) => `${userId}（${count} 筆）`)
+        .join('、');
+    }
+
+    async function runSupabaseTest() {
+      refs.runTestBtn.disabled = true;
+      setStatus('正在讀取整張 users 表...', '');
+      setSummary('分析中...');
+      setResult('讀取中...');
+
+      try {
+        if (!window.supabase?.createClient) {
+          throw new Error('Supabase client 載入失敗');
+        }
+
+        if (!SUPABASE_KEY || SUPABASE_KEY === 'YOUR_SUPABASE_PUBLISHABLE_KEY') {
+          throw new Error('請先把 SUPABASE_KEY 換成你自己的 Publishable key');
+        }
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        console.log('Supabase users all data =', data);
+        console.log('Supabase users all error =', error);
+
+        if (error) {
+          throw error;
+        }
+
+        const count = Array.isArray(data) ? data.length : 0;
+        const duplicateSummary = buildDuplicateSummary(data || []);
+
+        setStatus('讀取成功，已取得整張 users 表資料。', 'ok');
+        setSummary(`總筆數：${count}。${duplicateSummary}`);
+        setResult(data || []);
+      } catch (error) {
+        console.error('讀取 Supabase users 全表失敗', error);
+        setStatus(`讀取失敗：${error.message}`, 'error');
+        setSummary('目前尚未成功取得 users 資料。');
+        setResult({
+          message: error.message,
+          hint: '請檢查 Publishable key、users 表名稱、以及資料表讀取權限設定'
+        });
+      } finally {
+                refs.runTestBtn.disabled = false;
+      }
+    }
+
+    refs.runTestBtn.addEventListener('click', runSupabaseTest);
+  </script>
+</body>
+</html>
+
