@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Supabase 測試頁</title>
+  <title>Supabase users 全表測試</title>
   <style>
     :root {
       color-scheme: light;
@@ -35,7 +35,7 @@
     }
 
     .wrap {
-      max-width: 860px;
+      max-width: 920px;
       margin: 0 auto;
     }
 
@@ -122,6 +122,16 @@
       background: rgba(254, 240, 237, 0.88);
     }
 
+    .summary {
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fff8ef;
+      border: 1px dashed rgba(139, 90, 60, 0.16);
+      font-size: 14px;
+      color: #6b4f39;
+    }
+
     pre {
       margin: 0;
       padding: 16px;
@@ -171,34 +181,35 @@
 <body>
   <div class="wrap">
     <section class="card">
-      <h1>Supabase 測試頁</h1>
+      <h1>Supabase users 全表測試</h1>
       <p class="desc">
-        這頁是用來測試前端是否能成功連到 Supabase，並讀取 <code>users</code> 表中的測試資料。
+        這頁會直接讀取整張 <code>users</code> 表，方便檢查資料是否重複、欄位是否正確。
       </p>
 
       <div class="meta">
-        <div class="meta-item">
-          <strong>測試 user_id：</strong>
-          <span id="targetUserId">oss_u_test001</span>
+<div class="meta-item">
+          <strong>Supabase URL：</strong>
+          <span id="supabaseUrlText">https://umtqpstacjdwxcvcirbl.supabase.co</span>
         </div>
         <div class="meta-item">
-          <strong>Supabase URL：</strong>
-<span id="supabaseUrlText">https://umtqpstacjdwxcvcirbl.supabase.co</span>
+          <strong>目標資料表：</strong>
+          <span>users</span>
         </div>
       </div>
 
       <div class="btn-row">
-        <button id="runTestBtn" type="button">執行讀取測試</button>
+        <button id="runTestBtn" type="button">讀取整張 users 表</button>
       </div>
 
       <div id="statusBox" class="status">尚未執行測試。</div>
+      <div id="summaryBox" class="summary">尚未讀取資料。</div>
 
       <pre id="supabaseTestResult">等待測試中...</pre>
 
       <div class="tips">
-        <strong>使用前提醒：</strong>
-        請先把下方 JS 裡的 <code>SUPABASE_KEY</code> 換成你自己的
-        <code>Publishable key</code>，不然會讀取失敗。
+        <strong>提醒：</strong>
+        請先確認你已經把下方 JS 的 <code>SUPABASE_KEY</code> 換成自己的
+        <code>Publishable key</code>。
       </div>
     </section>
   </div>
@@ -207,17 +218,15 @@
   <script>
     const SUPABASE_URL = 'https://umtqpstacjdwxcvcirbl.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk';
-    const TEST_USER_ID = 'oss_u_test001';
 
     const refs = {
       runTestBtn: document.getElementById('runTestBtn'),
       statusBox: document.getElementById('statusBox'),
+      summaryBox: document.getElementById('summaryBox'),
       resultEl: document.getElementById('supabaseTestResult'),
-      targetUserId: document.getElementById('targetUserId'),
       supabaseUrlText: document.getElementById('supabaseUrlText')
     };
 
-    refs.targetUserId.textContent = TEST_USER_ID;
     refs.supabaseUrlText.textContent = SUPABASE_URL;
 
     function setStatus(message, type) {
@@ -229,14 +238,38 @@
       }
     }
 
+    function setSummary(message) {
+      refs.summaryBox.textContent = message;
+    }
+
     function setResult(data) {
       refs.resultEl.textContent =
         typeof data === 'string' ? data : JSON.stringify(data, null, 2);
     }
 
+    function buildDuplicateSummary(rows) {
+      const map = new Map();
+
+      rows.forEach((row) => {
+        const key = row.user_id || '(empty)';
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+
+      const duplicates = Array.from(map.entries()).filter(([, count]) => count > 1);
+
+      if (!duplicates.length) {
+        return '沒有發現重複的 user_id。';
+      }
+
+      return '發現重複 user_id：' + duplicates
+        .map(([userId, count]) => `${userId}（${count} 筆）`)
+        .join('、');
+    }
+
     async function runSupabaseTest() {
       refs.runTestBtn.disabled = true;
-      setStatus('正在連線 Supabase 並讀取 users 測試資料...', '');
+      setStatus('正在讀取整張 users 表...', '');
+      setSummary('分析中...');
       setResult('讀取中...');
 
       try {
@@ -253,27 +286,31 @@
         const { data, error } = await supabase
           .from('users')
           .select('*')
-          .eq('user_id', TEST_USER_ID)
-          .single();
+          .order('created_at', { ascending: true });
 
-        console.log('Supabase users test data =', data);
-        console.log('Supabase users test error =', error);
+        console.log('Supabase users all data =', data);
+        console.log('Supabase users all error =', error);
 
         if (error) {
           throw error;
         }
 
-        setStatus('讀取成功，已取得 users 測試資料。', 'ok');
-        setResult(data);
+        const count = Array.isArray(data) ? data.length : 0;
+        const duplicateSummary = buildDuplicateSummary(data || []);
+
+        setStatus('讀取成功，已取得整張 users 表資料。', 'ok');
+        setSummary(`總筆數：${count}。${duplicateSummary}`);
+        setResult(data || []);
       } catch (error) {
-        console.error('讀取 Supabase users 失敗', error);
+        console.error('讀取 Supabase users 全表失敗', error);
         setStatus(`讀取失敗：${error.message}`, 'error');
+        setSummary('目前尚未成功取得 users 資料。');
         setResult({
           message: error.message,
-          hint: '請檢查 Publishable key、users 表資料、以及是否有 user_id = oss_u_test001'
+          hint: '請檢查 Publishable key、users 表名稱、以及資料表讀取權限設定'
         });
       } finally {
-        refs.runTestBtn.disabled = false;
+                refs.runTestBtn.disabled = false;
       }
     }
 
@@ -281,3 +318,4 @@
   </script>
 </body>
 </html>
+
