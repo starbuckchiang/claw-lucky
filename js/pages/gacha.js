@@ -2,7 +2,7 @@ document.documentElement.classList.add('page-ready');
 
 const SUPABASE_URL = 'https://umtqpstacjdwxcvcirbl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const refs = {
   drawBtnEl: document.getElementById('drawBtn'),
@@ -44,7 +44,7 @@ async function fetchSupabaseUser() {
     throw new Error('找不到 userId');
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('users')
     .select('*')
     .eq('user_id', profile.userId)
@@ -154,8 +154,9 @@ async function initGachaPage() {
       'info'
     );
   }
+
   if (storage?.getRecentDraws && ui.renderRecentDraws) {
-ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
+    ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
   }
 
   renderTopbar();
@@ -167,4 +168,3 @@ if (document.readyState === 'loading') {
 } else {
   initGachaPage();
 }
-  
