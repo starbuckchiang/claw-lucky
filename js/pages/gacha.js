@@ -18,7 +18,6 @@ if (!supabaseClient) {
 
 /* =========================
    DOM Refs
-   - 集中管理頁面會用到的節點
    ========================= */
 const refs = {
   drawBtnEl: document.getElementById('drawBtn'),
@@ -37,13 +36,11 @@ const refs = {
 
 /* =========================
    Runtime State
-   - 控制抽卡中狀態，避免重複點擊
    ========================= */
 let isDrawing = false;
 
 /* =========================
    Global Module Accessors
-   - 從 window 讀取已載入的模組
    ========================= */
 function getUI() {
   return window.GachaUI || null;
@@ -69,7 +66,8 @@ function getUserProfile() {
 
 /* =========================
    Supabase User Fetch
-   - 讀取遠端 users 表中的使用者資料
+   - 目前只用來初始化 topbar
+   - 抽卡後暫時不立刻重抓，避免用遠端舊值蓋掉本地新值
    ========================= */
 async function fetchSupabaseUser() {
   const profile = getUserProfile();
@@ -99,7 +97,6 @@ async function fetchSupabaseUser() {
    Topbar State Builder
    - 遠端資料優先
    - 本地 storage 作為 fallback
-   - 收藏數仍以本地 collection 為主
    ========================= */
 function buildTopbarState(remoteUser) {
   const storage = getStorage();
@@ -150,7 +147,6 @@ function buildTopbarState(remoteUser) {
 
 /* =========================
    Topbar Render
-   - 將 state 丟給 UI 模組統一渲染
    ========================= */
 function renderTopbar(remoteUser) {
   const ui = getUI();
@@ -163,7 +159,8 @@ function renderTopbar(remoteUser) {
 
 /* =========================
    Remote Sync
-   - 從 Supabase 抓最新帳戶資料後刷新 topbar
+   - 初始化時抓一次遠端
+   - 失敗時 fallback 本地
    ========================= */
 async function refreshTopbarFromRemote() {
   try {
@@ -178,7 +175,6 @@ async function refreshTopbarFromRemote() {
 
 /* =========================
    Drawing State UI
-   - 控制抽卡按鈕與機台動畫狀態
    ========================= */
 function setDrawingState(drawing) {
   const ui = getUI();
@@ -200,7 +196,6 @@ function setDrawingState(drawing) {
 
 /* =========================
    Draw Failure Handler
-   - 抽卡失敗時顯示錯誤訊息
    ========================= */
 function handleDrawFailure(response) {
   const ui = getUI();
@@ -222,9 +217,8 @@ function handleDrawFailure(response) {
 
 /* =========================
    Draw Success Handler
-   - 更新掉落區、結果卡
-   - 寫入本地 storage
-   - 更新 recent draws / collection / topbar
+   - 注意：本地獎勵寫入已由 gacha-engine.js 的 applyRewards() 處理
+   - 這裡只做 UI render，不重複寫 storage
    ========================= */
 function handleDrawSuccess(result) {
   const ui = getUI();
@@ -232,37 +226,14 @@ function handleDrawSuccess(result) {
 
   if (!ui || !result) return;
 
+  console.log('[handleDrawSuccess result]', result);
+
   if (ui.renderDropZoneCapsule) {
     ui.renderDropZoneCapsule(refs.dropZoneEl, result.rarity);
   }
 
   if (ui.renderDrawResult) {
     ui.renderDrawResult(refs.gachaResultEl, result);
-  }
-
-  if (storage?.addRecentDraw) {
-    storage.addRecentDraw({
-      id: result.id,
-      name: result.name,
-      image: result.image || '',
-      rarity: result.rarity,
-      points: Number(result.pointsEarned || result.points || 0),
-      tickets: Number(result.ticketsEarned || result.tickets || 0),
-      isNew: Boolean(result.isNew),
-      createdAt: Date.now()
-    });
-  }
-
-  if (storage?.addToCollection && result?.isNew && result?.id) {
-    storage.addToCollection(result.id);
-  }
-
-  if (storage?.addPoints) {
-    storage.addPoints(Number(result.pointsEarned || result.points || 0));
-  }
-
-  if (storage?.addTickets) {
-    storage.addTickets(Number(result.ticketsEarned || result.tickets || 0));
   }
 
   if (storage?.getRecentDraws && ui.renderRecentDraws) {
@@ -274,14 +245,13 @@ function handleDrawSuccess(result) {
 
 /* =========================
    Ad Reward Config
-   - 廣告補給相關設定與本地每日次數紀錄
    ========================= */
 function getAdConfig() {
   const config = window.APP_CONFIG || {};
   return {
     adRewardCoins: Number(config.adRewardCoins || 100),
     adRewardBonusPlay: Number(config.adRewardBonusPlay || 1),
-    maxDailyAdRewards: Number(config.maxDailyAdRewards || 5)
+    maxDailyAdRewards: Number(config.maxDailyAdRewards || 999)
   };
 }
 
@@ -350,8 +320,7 @@ function renderAdRemaining() {
 
 /* =========================
    Ad Reward Grant
-   - 本地補給：加好運幣
-   - 更新每日次數與 topbar
+   - 補給加幣仍由本地 storage 處理
    ========================= */
 function rewardAdBonus() {
   const storage = getStorage();
@@ -386,8 +355,6 @@ function rewardAdBonus() {
 
 /* =========================
    Watch Ad Click
-   - 優先用 AdModal 播影片
-   - 若 modal 未載入，直接 fallback 發獎勵
    ========================= */
 function handleWatchAdClick() {
   if (!window.AdModal?.open) {
@@ -403,10 +370,13 @@ function handleWatchAdClick() {
 
 /* =========================
    Draw Click
-   - 啟動抽卡流程
-   - 執行 engine.drawOnce()
-   - 成功後更新 UI / storage / topbar
-   - 最後再同步遠端帳戶資料
+   - engine.drawOnce() 內部已處理：
+   - 扣 coin
+   - 加 points
+   - 加 tickets
+   - 加 collection
+   - 加 recentDraw
+   - 這裡不要再重複做 storage 更新
    ========================= */
 function handleDrawClick() {
   const ui = getUI();
@@ -430,9 +400,10 @@ function handleDrawClick() {
     ui.renderLoadingResult(refs.gachaResultEl);
   }
 
-  window.setTimeout(async () => {
+  window.setTimeout(() => {
     try {
       const response = engine.drawOnce();
+      console.log('[gacha] draw response =', response);
 
       if (!response?.ok) {
         handleDrawFailure(response);
@@ -441,8 +412,8 @@ function handleDrawClick() {
 
       handleDrawSuccess(response.result);
 
-      // 抽卡後重新抓一次遠端帳戶資料
-      await refreshTopbarFromRemote();
+      // 先不要立刻 refreshTopbarFromRemote()
+      // 否則遠端舊值會把本地剛更新的 points / tickets / coins 蓋回去
     } catch (error) {
       console.error('抽卡流程失敗', error);
       alert(`抽卡失敗：${error.message}`);
@@ -456,7 +427,6 @@ function handleDrawClick() {
 
 /* =========================
    Event Binding
-   - 綁定抽卡按鈕 / 廣告補給按鈕
    ========================= */
 function bindEvents() {
   if (refs.drawBtnEl) {
@@ -474,10 +444,6 @@ function bindEvents() {
 
 /* =========================
    Page Init
-   - 初始化 storage 預設值
-   - 初始化掉落區 / 結果區 / 最近抽到
-   - 先 render 本地，再同步遠端
-   - 最後綁定事件
    ========================= */
 async function initGachaPage() {
   const ui = getUI();
@@ -524,7 +490,6 @@ async function initGachaPage() {
 
 /* =========================
    Boot Entry
-   - DOM ready 後啟動頁面初始化
    ========================= */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initGachaPage);
