@@ -167,3 +167,10 @@ if (document.readyState === 'loading') {
 } else {
   initGachaPage();
 }
+  await refreshTopbarFromRemote();
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initGachaPage);
+} else {
+  initGachaPage();
+}
