@@ -2,7 +2,14 @@ document.documentElement.classList.add('page-ready');
 
 const SUPABASE_URL = 'https://umtqpstacjdwxcvcirbl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const supabaseClient = window.supabase?.createClient
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+if (!supabaseClient) {
+  console.warn('Supabase SDK 尚未載入，將使用本地資料 fallback。');
+}
 
 const refs = {
   drawBtnEl: document.getElementById('drawBtn'),
@@ -42,6 +49,10 @@ async function fetchSupabaseUser() {
 
   if (!profile.userId) {
     throw new Error('找不到 userId');
+  }
+
+  if (!supabaseClient) {
+    throw new Error('Supabase SDK 尚未載入');
   }
 
   const { data, error } = await supabaseClient
