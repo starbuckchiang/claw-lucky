@@ -1,6 +1,9 @@
 document.documentElement.classList.add('page-ready');
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbx4rw8EjTdp265gei6ke8teYbwD6ESactOT2WtX02wdQsplpDIAF3kr_JDimH_oMd4/exec';
+const SUPABASE_URL = 'https://umtqpstacjdwxcvcirbl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 
 const refs = {
   drawBtnEl: document.getElementById('drawBtn'),
