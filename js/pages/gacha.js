@@ -120,8 +120,7 @@ function syncRemoteUserToLocal(remoteUser) {
 
 /* =========================
    Local -> Remote Sync
-   - 將本地最新 coins / points / tickets 寫回 Supabase
-   - 使用 maybeSingle() 避免 single() 導致 406
+   - 抽卡後同步 coins / points / tickets
    ========================= */
 async function syncLocalStateToSupabase() {
   const storage = getStorage();
@@ -164,6 +163,54 @@ async function syncLocalStateToSupabase() {
 
   if (error) {
     throw new Error(error.message || '同步 Supabase users 失敗');
+  }
+
+  if (!data) {
+    throw new Error(`找不到要更新的 user：${profile.userId}`);
+  }
+
+  return data;
+}
+
+/* =========================
+   Coins-only Remote Sync
+   - 廣告補給只同步 coins
+   ========================= */
+async function syncCoinsToSupabase() {
+  const storage = getStorage();
+  const profile = getUserProfile();
+
+  if (!storage) {
+    throw new Error('GachaStorage 尚未載入');
+  }
+
+  if (!profile.userId) {
+    throw new Error('找不到 userId');
+  }
+
+  if (!supabaseClient) {
+    throw new Error('Supabase SDK 尚未載入');
+  }
+
+  const nextCoins = Number(storage.getCoins?.() || 0);
+
+  console.log('[syncCoinsToSupabase]', {
+    userId: profile.userId,
+    coins: nextCoins
+  });
+
+  const { data, error } = await supabaseClient
+    .from('users')
+    .update({
+      coins: nextCoins,
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', profile.userId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || '同步 Supabase coins 失敗');
   }
 
   if (!data) {
@@ -323,11 +370,12 @@ function handleDrawSuccess(result) {
 
 /* =========================
    Ad Reward Config
+   - 廣告補給固定 coins +20
    ========================= */
 function getAdConfig() {
   const config = window.APP_CONFIG || {};
   return {
-    adRewardCoins: Number(config.adRewardCoins || 100),
+    adRewardCoins: Number(config.adRewardCoins || 20),
     adRewardBonusPlay: Number(config.adRewardBonusPlay || 1),
     maxDailyAdRewards: Number(config.maxDailyAdRewards || 999)
   };
@@ -398,8 +446,8 @@ function renderAdRemaining() {
 
 /* =========================
    Ad Reward Grant
-   - 本地加幣
-   - 再同步遠端
+   - 本地加 coins +20
+   - 遠端只同步 coins
    ========================= */
 async function rewardAdBonus() {
   const storage = getStorage();
@@ -427,17 +475,14 @@ async function rewardAdBonus() {
   renderAdRemaining();
 
   try {
-    const syncedUser = await syncLocalStateToSupabase();
+    const syncedUser = await syncCoinsToSupabase();
     syncRemoteUserToLocal(syncedUser);
     renderTopbar(syncedUser);
   } catch (error) {
-    console.error('補給後同步 Supabase 失敗', error);
+    console.error('補給後同步 Supabase coins 失敗', error);
   }
 
-  alert(
-    `補給成功！獲得 +${config.adRewardCoins} 好運幣` +
-    (config.adRewardBonusPlay ? `、+${config.adRewardBonusPlay} 次免費機會` : '')
-  );
+  alert(`補給成功！獲得 +${config.adRewardCoins} 好運幣`);
 }
 
 /* =========================
