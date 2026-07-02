@@ -89,7 +89,7 @@
       title: '替願望帶路的小信使',
       description: '飛過水面時會捲起細細金光，據說看見牠的人願望比較容易有回音。',
       image: './images/mascots/mascot.jpg',
-      silhouette: './images/mascots/mascot-shadow.png',
+      silhouette: './images/mascots/mascot-crane.png',
       points: 90,
       tickets: 1,
       duplicateBonus: 40
