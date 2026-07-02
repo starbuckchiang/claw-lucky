@@ -93,6 +93,7 @@ async function fetchSupabaseUser() {
 
 /* =========================
    Remote -> Local Sync
+   - 將遠端帳戶數值同步到本地 storage
    ========================= */
 function syncRemoteUserToLocal(remoteUser) {
   const storage = getStorage();
@@ -120,6 +121,7 @@ function syncRemoteUserToLocal(remoteUser) {
 /* =========================
    Local -> Remote Sync
    - 將本地最新 coins / points / tickets 寫回 Supabase
+   - 使用 maybeSingle() 避免 single() 導致 406
    ========================= */
 async function syncLocalStateToSupabase() {
   const storage = getStorage();
@@ -158,10 +160,14 @@ async function syncLocalStateToSupabase() {
     })
     .eq('user_id', profile.userId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(error.message || '同步 Supabase users 失敗');
+  }
+
+  if (!data) {
+    throw new Error(`找不到要更新的 user：${profile.userId}`);
   }
 
   return data;
