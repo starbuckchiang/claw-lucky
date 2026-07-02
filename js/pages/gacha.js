@@ -66,8 +66,7 @@ function getUserProfile() {
 
 /* =========================
    Supabase User Fetch
-   - 目前只用來初始化 topbar
-   - 抽卡後暫時不立刻重抓，避免用遠端舊值蓋掉本地新值
+   - 讀取遠端帳戶資料
    ========================= */
 async function fetchSupabaseUser() {
   const profile = getUserProfile();
@@ -91,6 +90,34 @@ async function fetchSupabaseUser() {
   }
 
   return data;
+}
+
+/* =========================
+   Remote -> Local Sync
+   - 將遠端帳戶數值同步到本地 storage
+   - 避免抽卡時沿用舊 localStorage 數值
+   ========================= */
+function syncRemoteUserToLocal(remoteUser) {
+  const storage = getStorage();
+  if (!storage || !remoteUser) return;
+
+  if (storage.setCoins) {
+    storage.setCoins(Number(remoteUser.coins || 0));
+  }
+
+  if (storage.setPoints) {
+    storage.setPoints(Number(remoteUser.points || 0));
+  }
+
+  if (storage.setTickets) {
+    storage.setTickets(Number(remoteUser.tickets || 0));
+  }
+
+  console.log('[syncRemoteUserToLocal]', {
+    coins: Number(remoteUser.coins || 0),
+    points: Number(remoteUser.points || 0),
+    tickets: Number(remoteUser.tickets || 0)
+  });
 }
 
 /* =========================
@@ -159,13 +186,16 @@ function renderTopbar(remoteUser) {
 
 /* =========================
    Remote Sync
-   - 初始化時抓一次遠端
-   - 失敗時 fallback 本地
+   - 初始化時抓遠端資料
+   - 抓到後先同步到本地
+   - 再 render topbar
    ========================= */
 async function refreshTopbarFromRemote() {
   try {
     const remoteUser = await fetchSupabaseUser();
     console.log('Supabase remoteUser =', remoteUser);
+
+    syncRemoteUserToLocal(remoteUser);
     renderTopbar(remoteUser);
   } catch (error) {
     console.error('refreshTopbarFromRemote 失敗', error);
@@ -217,8 +247,8 @@ function handleDrawFailure(response) {
 
 /* =========================
    Draw Success Handler
-   - 注意：本地獎勵寫入已由 gacha-engine.js 的 applyRewards() 處理
-   - 這裡只做 UI render，不重複寫 storage
+   - 本地獎勵寫入已由 gacha-engine.js 的 applyRewards() 處理
+   - 這裡只做 UI render
    ========================= */
 function handleDrawSuccess(result) {
   const ui = getUI();
@@ -370,13 +400,8 @@ function handleWatchAdClick() {
 
 /* =========================
    Draw Click
-   - engine.drawOnce() 內部已處理：
-   - 扣 coin
-   - 加 points
-   - 加 tickets
-   - 加 collection
-   - 加 recentDraw
-   - 這裡不要再重複做 storage 更新
+   - engine.drawOnce() 內部已處理本地獎勵寫入
+   - 這裡不立刻抓遠端，避免遠端舊值覆蓋本地新值
    ========================= */
 function handleDrawClick() {
   const ui = getUI();
@@ -411,9 +436,6 @@ function handleDrawClick() {
       }
 
       handleDrawSuccess(response.result);
-
-      // 先不要立刻 refreshTopbarFromRemote()
-      // 否則遠端舊值會把本地剛更新的 points / tickets / coins 蓋回去
     } catch (error) {
       console.error('抽卡流程失敗', error);
       alert(`抽卡失敗：${error.message}`);
@@ -444,6 +466,9 @@ function bindEvents() {
 
 /* =========================
    Page Init
+   - 初始化 storage 預設值
+   - 先 render 本地
+   - 再抓遠端同步到本地
    ========================= */
 async function initGachaPage() {
   const ui = getUI();
