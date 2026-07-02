@@ -377,7 +377,7 @@ function getAdConfig() {
   return {
     adRewardCoins: Number(config.adRewardCoins || 20),
     adRewardBonusPlay: Number(config.adRewardBonusPlay || 1),
-    maxDailyAdRewards: Number(config.maxDailyAdRewards || 999)
+    maxDailyAdRewards: Number(config.maxDailyAdRewards || 3)
   };
 }
 
