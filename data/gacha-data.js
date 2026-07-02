@@ -76,7 +76,7 @@
       title: '把陰天曬成好天氣',
       description: '肚子上藏著小太陽，總能在你需要的時候送來剛剛好的暖意。',
       image: './images/mascots/mascot.jpg',
-      silhouette: './images/mascots/mascot-shadow.png',
+      silhouette: './images/mascots/mascot-.png',
       points: 60,
       tickets: 0,
       duplicateBonus: 20
@@ -88,8 +88,8 @@
       rarity: 'R',
       title: '替願望帶路的小信使',
       description: '飛過水面時會捲起細細金光，據說看見牠的人願望比較容易有回音。',
-      image: './images/mascots/mascot.jpg',
-      silhouette: './images/mascots/mascot-crane.png',
+      image: './images/mascots/mascot-crane.png.jpg',
+      silhouette: './images/mascots/mascot-shadow.png',
       points: 90,
       tickets: 1,
       duplicateBonus: 40
