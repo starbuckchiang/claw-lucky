@@ -62,3 +62,81 @@ async function fetchSupabaseUser() {
 
   return data;
 }
+function buildTopbarState(remoteUser) {
+  const storage = getStorage();
+  const data = getData();
+
+  let coins = 0;
+  let points = 0;
+  let tickets = 0;
+  let collection = [];
+  let collectionTotal = 0;
+
+  if (remoteUser) {
+    coins = Number(remoteUser.coins || 0);
+    points = Number(remoteUser.points || 0);
+    tickets = Number(remoteUser.tickets || 0);
+  } else if (storage) {
+    if (storage.getCoins) {
+      coins = Number(storage.getCoins() || 0);
+    }
+
+    if (storage.getPoints) {
+      points = Number(storage.getPoints() || 0);
+    }
+
+    if (storage.getTickets) {
+tickets = Number(storage.getTickets() || 0);
+    }
+  }
+
+  if (storage?.getCollection) {
+    collection = storage.getCollection() || [];
+  }
+
+  if (data?.mascots?.length) {
+    collectionTotal = data.mascots.length;
+  }
+
+  return {
+    coins,
+    points,
+    tickets,
+    collectionCount: collection.length,
+    collectionTotal
+  };
+}
+
+function renderTopbar(remoteUser) {
+  const state = buildTopbarState(remoteUser);
+
+  if (refs.coinCountEl) {
+    refs.coinCountEl.textContent = state.coins;
+  }
+
+  if (refs.pointCountEl) {
+    refs.pointCountEl.textContent = state.points;
+  }
+
+  if (refs.ticketCountEl) {
+    refs.ticketCountEl.textContent = state.tickets;
+  }
+
+  if (refs.collectionCountEl) {
+    refs.collectionCountEl.textContent = `${state.collectionCount}/${state.collectionTotal}`;
+  }
+
+  console.log('[renderTopbar]', state);
+}
+
+async function refreshTopbarFromRemote() {
+  try {
+    const remoteUser = await fetchSupabaseUser();
+    console.log('Supabase remoteUser =', remoteUser);
+    renderTopbar(remoteUser);
+  } catch (error) {
+    console.error('refreshTopbarFromRemote 失敗', error);
+    renderTopbar();
+  }
+}
+
