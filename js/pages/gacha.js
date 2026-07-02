@@ -1,7 +1,7 @@
 document.documentElement.classList.add('page-ready');
 
 const SUPABASE_URL = 'https://umtqpstacjdwxcvcirbl.supabase.co';
-const SUPABASE_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+const SUPABASE_KEY = 'sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const refs = {
@@ -19,14 +19,8 @@ const refs = {
   machineEl: document.getElementById('gachaMachine')
 };
 
-let isDrawing = false;
-
 function getUI() {
   return window.GachaUI || null;
-}
-
-function getEngine() {
-  return window.GachaEngine || null;
 }
 
 function getStorage() {
@@ -62,7 +56,11 @@ async function fetchSupabaseUser() {
 
   return data;
 }
-function buildTopbarState(remoteUser) {
+
+function renderTopbar(remoteUser) {
+  const ui = getUI();
+  if (!ui?.renderTopbar) return;
+
   const storage = getStorage();
   const data = getData();
 
@@ -86,7 +84,7 @@ function buildTopbarState(remoteUser) {
     }
 
     if (storage.getTickets) {
-tickets = Number(storage.getTickets() || 0);
+      tickets = Number(storage.getTickets() || 0);
     }
   }
 
@@ -94,39 +92,23 @@ tickets = Number(storage.getTickets() || 0);
     collection = storage.getCollection() || [];
   }
 
-  if (data?.mascots?.length) {
+  if (Array.isArray(data?.pool)) {
+    collectionTotal = data.pool.length;
+  } else if (Array.isArray(data?.mascots)) {
     collectionTotal = data.mascots.length;
   }
 
-  return {
+  const state = {
     coins,
     points,
     tickets,
-    collectionCount: collection.length,
+    collection,
     collectionTotal
   };
-}
 
-function renderTopbar(remoteUser) {
-  const state = buildTopbarState(remoteUser);
+  console.log('[renderTopbar state]', state);
 
-  if (refs.coinCountEl) {
-    refs.coinCountEl.textContent = state.coins;
-  }
-
-  if (refs.pointCountEl) {
-    refs.pointCountEl.textContent = state.points;
-  }
-
-  if (refs.ticketCountEl) {
-    refs.ticketCountEl.textContent = state.tickets;
-  }
-
-  if (refs.collectionCountEl) {
-    refs.collectionCountEl.textContent = `${state.collectionCount}/${state.collectionTotal}`;
-  }
-
-  console.log('[renderTopbar]', state);
+  ui.renderTopbar(state, refs);
 }
 
 async function refreshTopbarFromRemote() {
@@ -140,3 +122,48 @@ async function refreshTopbarFromRemote() {
   }
 }
 
+async function initGachaPage() {
+  const ui = getUI();
+  const storage = getStorage();
+
+  if (!ui) {
+    console.warn('GachaUI 尚未載入完成');
+    return;
+  }
+
+  if (storage?.ensureDefaults) {
+    storage.ensureDefaults({
+      coins: 20,
+      points: 0,
+      tickets: 0,
+      collection: [],
+      recentDraws: []
+    });
+  }
+
+  if (ui.renderDropZoneIdle) {
+    ui.renderDropZoneIdle(refs.dropZoneEl);
+  }
+
+  if (ui.renderIdleResult) {
+    ui.renderIdleResult(refs.gachaResultEl);
+  } else if (ui.renderMessageResult) {
+    ui.renderMessageResult(
+      refs.gachaResultEl,
+      '準備好了就轉一次，看看今天的好運會掉下什麼。',
+      'info'
+    );
+  }
+  if (storage?.getRecentDraws && ui.renderRecentDraws) {
+ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
+  }
+
+  renderTopbar();
+  await refreshTopbarFromRemote();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initGachaPage);
+} else {
+  initGachaPage();
+}
