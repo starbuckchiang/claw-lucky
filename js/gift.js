@@ -81,13 +81,26 @@ function renderTopbar(user) {
   const tickets = Number(user?.tickets || 0);
   const coins = Number(user?.coins || 0);
 
-  if (refs.pointCountEl) refs.pointCountEl.textContent = points;
-  if (refs.ticketCountEl) refs.ticketCountEl.textContent = tickets;
-  if (refs.coinCountEl) refs.coinCountEl.textContent = coins;
+  if (refs.pointCountEl) {
+    refs.pointCountEl.textContent = points;
+  }
 
-  console.log("[gift debug] renderTopbar =", { points, tickets, coins });
+  if (refs.ticketCountEl) {
+    refs.ticketCountEl.textContent = tickets;
+  }
+
+  if (refs.coinCountEl) {
+    refs.coinCountEl.textContent = coins;
+  }
+
+  console.log("[gift debug] renderTopbar =", {
+    points,
+    tickets,
+    coins,
+    pointEl: refs.pointCountEl,
+    ticketEl: refs.ticketCountEl
+  });
 }
-
 async function refreshTopbarFromRemote() {
   const user = await fetchRemoteUser();
   renderTopbar(user);
