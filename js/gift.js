@@ -5,11 +5,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
 const refs = {
   redeemButtons: [],
-  pointCountEl: document.getElementById("pointCount"),
-  ticketCountEl: document.getElementById("ticketCount"),
-  coinCountEl: document.getElementById("coinCount"),
-  giftListEl: document.getElementById("giftList"),
-  giftStatusEl: document.getElementById("giftStatus")
+
+  pointCountEl:
+    document.getElementById("pointCount") ||
+    document.getElementById("points"),
+
+  ticketCountEl:
+    document.getElementById("ticketCount") ||
+    document.getElementById("tickets"),
+
+  coinCountEl:
+    document.getElementById("coinCount") ||
+    document.getElementById("coins"),
+
+  giftListEl:
+    document.getElementById("giftList") ||
+    document.getElementById("giftGrid"),
+
+  giftStatusEl:
+    document.getElementById("giftStatus")
 };
 
 let giftCache = [];
