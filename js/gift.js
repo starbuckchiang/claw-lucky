@@ -1,10 +1,12 @@
-document.addEventListener("DOMContentLoaded", () => {
-  document.body.classList.add("page-ready");
-  initGiftPage();
-});
 
-const SUPABASE_URL = "https://umtqpstacjdwxcvcirbl.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk";
+
+const supabaseClient = window.supabase?.createClient
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+if (!supabaseClient) {
+  throw new Error("Supabase 尚未載入，請確認已引入 supabase-js");
+}
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
