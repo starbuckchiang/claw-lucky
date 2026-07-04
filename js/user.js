@@ -2,6 +2,8 @@
   const USER_ID_KEY = "ossUserId";
   const USER_NICKNAME_KEY = "ossNickname";
 
+  let userReadyPromise = null;
+
   function createRandomId() {
     if (window.crypto?.randomUUID) {
       return window.crypto.randomUUID();
@@ -13,12 +15,12 @@
   function getOrCreateUserId() {
     let userId = localStorage.getItem(USER_ID_KEY);
 
-    if (userId) {
-      return userId;
-    }
+    if (!userId) {
+      userId = `oss_u_${createRandomId()}`;
+      localStorage.setItem(USER_ID_KEY, userId);
 
-    userId = `oss_u_${createRandomId()}`;
-    localStorage.setItem(USER_ID_KEY, userId);
+      console.log("[user] create new userId =", userId);
+    }
 
     return userId;
   }
@@ -49,45 +51,55 @@
     localStorage.removeItem(USER_NICKNAME_KEY);
   }
 
- /*
- 防止重複建立user
- initUser() 不能只 upsert ignoreDuplicates，要先查 Supabase，查不到就用同一個 localStorage userId 重新建立
- */
-  let userReadyPromise = null;
+  async function initUser() {
 
-async function initUser() {
-  if (userReadyPromise) return userReadyPromise;
-
-  userReadyPromise = (async () => {
-    const profile = getUserProfile();
-
-    if (!window.Api) {
-      console.warn("[user] Api 尚未載入，無法寫入 Supabase");
-      return profile;
+    if (userReadyPromise) {
+      return userReadyPromise;
     }
 
-    try {
-      let user = await window.Api.getUser(profile.userId);
+    userReadyPromise = (async () => {
 
-      if (!user) {
-        console.warn("[user] Supabase 找不到使用者，重新建立 =", profile.userId);
+      const profile = getUserProfile();
 
-        user = await window.Api.createUserIfNotExists({
-          userId: profile.userId,
-          nickname: profile.nickname
-        });
+      if (!window.Api) {
+        console.warn("[user] Api 尚未載入");
+        return profile;
       }
 
-      console.log("[user] Supabase user ready =", user);
-      return user;
-    } catch (error) {
-      console.error("[user] initUser failed =", error);
-      return profile;
-    }
-  })();
+      try {
 
-  return userReadyPromise;
-}
+        // 先查詢是否存在
+        let user = await window.Api.getUser(profile.userId);
+
+        // 如果不存在，就重新建立
+        if (!user) {
+
+          console.log("[user] user not found, create new user...");
+
+          user = await window.Api.createUserIfNotExists({
+            userId: profile.userId,
+            nickname: profile.nickname
+          });
+
+        }
+
+        console.log("[user] Supabase user ready =", user);
+
+        return user;
+
+      } catch (error) {
+
+        console.error("[user] initUser failed =", error);
+
+        return profile;
+
+      }
+
+    })();
+
+    return userReadyPromise;
+  }
+
   window.UserStore = {
     getOrCreateUserId,
     getUserId,
@@ -98,34 +110,4 @@ async function initUser() {
     initUser
   };
 
-  function waitForApi(maxWaitMs = 3000) {
-  return new Promise((resolve) => {
-    const start = Date.now();
-
-    const timer = setInterval(() => {
-      if (window.Api) {
-        clearInterval(timer);
-        resolve(window.Api);
-        return;
-      }
-
-      if (Date.now() - start >= maxWaitMs) {
-        clearInterval(timer);
-        resolve(null);
-      }
-    }, 50);
-  });
-}
-
-
-
-window.UserStore = {
-  getOrCreateUserId,
-  getUserId,
-  setNickname,
-  getNickname,
-  getUserProfile,
-  clearUserProfile,
-  initUser
-};
 })();
