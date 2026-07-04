@@ -35,10 +35,13 @@ window.Api = {
           nickname,
           points: 0,
           tickets: 0,
-          coins: 0,
+          coins: 20,
           updated_at: new Date().toISOString()
         },
-        { onConflict: "user_id" }
+        { 
+          onConflict: "user_id"
+          ignoreDuplicates: true
+        }
       )
       .select("user_id,nickname,points,tickets,coins")
       .single();
