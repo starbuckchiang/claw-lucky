@@ -14,13 +14,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   initGachaPage();
 });
 
-const supabaseClient = window.supabase?.createClient
+/*const supabaseClient = window.supabase?.createClient
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
 if (!supabaseClient) {
   console.warn('Supabase SDK 尚未載入，將使用本地資料 fallback。');
-}
+}*/
 
 /* =========================
    DOM Refs
