@@ -14,10 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initGachaPage();
 });
 
-window.supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const supabaseClient = window.supabaseClient;
 
 /* =========================
    DOM Refs
@@ -625,11 +622,4 @@ async function initGachaPage() {
   bindEvents();
 }
 
-/* =========================
-   Boot Entry
-   ========================= */
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initGachaPage);
-} else {
-  initGachaPage();
-}
+
