@@ -49,7 +49,13 @@
     localStorage.removeItem(USER_NICKNAME_KEY);
   }
 
+ /*防止重複建立user*/
   async function initUser() {
+  if (userReadyPromise) {
+    return userReadyPromise;
+  }
+
+  userReadyPromise = (async () => {
     const profile = getUserProfile();
 
     if (!window.Api) {
@@ -69,8 +75,10 @@
       console.error("[user] createUserIfNotExists failed =", error);
       return profile;
     }
-  }
+  })();
 
+  return userReadyPromise;
+}
   window.UserStore = {
     getOrCreateUserId,
     getUserId,
