@@ -81,7 +81,31 @@
     initUser
   };
 
-  document.addEventListener("DOMContentLoaded", async () => {
-    await initUser();
+  function waitForApi(maxWaitMs = 3000) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+
+    const timer = setInterval(() => {
+      if (window.Api) {
+        clearInterval(timer);
+        resolve(window.Api);
+        return;
+      }
+
+      if (Date.now() - start >= maxWaitMs) {
+        clearInterval(timer);
+        resolve(null);
+      }
+    }, 50);
   });
+}
+
+window.UserStore.ready = (async () => {
+  await waitForApi();
+  return initUser();
+})();
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await window.UserStore.ready;
+});
 })();
