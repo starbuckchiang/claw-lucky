@@ -1,12 +1,12 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   document.body.classList.add("page-ready");
+
   if (window.UserStore?.ready) {
     await window.UserStore.ready;
   }
 
   initGiftPage();
-});
-
+})
 const slides = document.querySelectorAll('.slide');
 const dots = document.querySelectorAll('.dot');
 const prevBtn = document.querySelector('.slider-arrow.prev');
