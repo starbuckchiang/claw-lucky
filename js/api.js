@@ -192,8 +192,20 @@ window.Api = {
     if (error) throw error;
 
     return data;
-  },
+  },  
 
+   async getRedeemHistory(userId) {
+  const { data, error } = await getSupabaseClient()
+    .from(DB.redeemHistory)
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return data || [];
+ },  
+  
   async redeemGift({
     userId,
     nickname = "",
@@ -233,17 +245,6 @@ window.Api = {
       redeemRecord
     };
     
-    async getRedeemHistory(userId) {
-  const { data, error } = await getSupabaseClient()
-    .from(DB.redeemHistory)
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  return data || [];
-},
   },
 
   async decreaseGiftStock(giftId, quantity = 1) {
