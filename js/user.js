@@ -105,7 +105,14 @@ window.UserStore.ready = (async () => {
   return initUser();
 })();
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await window.UserStore.ready;
-});
+
+window.UserStore = {
+  getOrCreateUserId,
+  getUserId,
+  setNickname,
+  getNickname,
+  getUserProfile,
+  clearUserProfile,
+  initUser
+};
 })();
