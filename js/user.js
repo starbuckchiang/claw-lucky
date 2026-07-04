@@ -109,10 +109,6 @@
   });
 }
 
-window.UserStore.ready = (async () => {
-  await waitForApi();
-  return initUser();
-})();
 
 
 window.UserStore = {
