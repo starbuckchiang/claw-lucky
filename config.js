@@ -1,10 +1,23 @@
 const SUPABASE_URL = "https://umtqpstacjdwxcvcirbl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk";
 
-window.supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+if (!window.supabaseClient) {
+  window.supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    }
+  );
+
+  console.log("[config] Supabase client created");
+} else {
+  console.log("[config] Supabase client already exists");
+}
 
 // =========================
 // App Config / 全站設定值
