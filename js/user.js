@@ -50,6 +50,7 @@
   }
 
  /*防止重複建立user*/
+  let userReadyPromise = null;
   async function initUser() {
   if (userReadyPromise) {
     return userReadyPromise;
