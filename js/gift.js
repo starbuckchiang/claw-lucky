@@ -28,7 +28,13 @@ const refs = {
     document.getElementById("giftGrid"),
 
   giftStatusEl:
-    document.getElementById("giftStatus")
+    document.getElementById("giftStatus"),
+
+  historyListEl: 
+   document.getElementById("historyList"),
+
+  historyEmptyEl: 
+   document.getElementById("historyEmpty")
 };
 
 let giftCache = [];
@@ -275,4 +281,43 @@ async function initGiftPage() {
     console.error("[gift debug] initGiftPage error =", error);
     setStatus(`初始化失敗：${error.message}`);
   }
+}
+
+function buildHistoryItem(item) {
+  const date = item.created_at
+    ? new Date(item.created_at).toLocaleString("zh-TW")
+    : "";
+
+  return `
+    <div class="history-item">
+      <div class="history-title">🎁 ${item.gift_name}</div>
+      <div class="history-meta">
+        ${date}｜狀態：${item.status || "pending"}
+      </div>
+      <div class="history-cost">
+        💎 ${item.points_cost || 0}
+        🎟 ${item.tickets_cost || 0}
+        🪙 ${item.coins_cost || 0}
+      </div>
+    </div>
+  `;
+}
+
+async function renderRedeemHistory() {
+  if (!refs.historyListEl || !refs.historyEmptyEl) return;
+
+  const profile = getUserProfile();
+
+  if (!profile.userId) return;
+
+  const history = await getApi().getRedeemHistory(profile.userId);
+
+  if (!history.length) {
+    refs.historyListEl.innerHTML = "";
+    refs.historyEmptyEl.style.display = "block";
+    return;
+  }
+
+  refs.historyEmptyEl.style.display = "none";
+  refs.historyListEl.innerHTML = history.map(buildHistoryItem).join("");
 }
