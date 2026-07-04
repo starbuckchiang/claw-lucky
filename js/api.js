@@ -40,7 +40,7 @@ window.Api = {
         },
         { 
           onConflict: "user_id"
-          ignoreDuplicates: true
+        
         }
       )
       .select("user_id,nickname,points,tickets,coins")
