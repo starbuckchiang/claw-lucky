@@ -621,5 +621,10 @@ async function initGachaPage() {
   renderAdRemaining();
   bindEvents();
 }
-
+/* ========================= Boot Entry ========================= */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initGachaPage);
+} else {
+  initGachaPage();
+}
 
