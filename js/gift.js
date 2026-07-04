@@ -248,6 +248,8 @@ async function redeemGift(gift) {
 
     await renderGiftList();
 
+    await renderRedeemHistory();
+
     setStatus(`兌換成功：${gift.name}`);
     alert(`兌換成功：${gift.name}`);
   } catch (error) {
@@ -271,10 +273,13 @@ function handleRedeemClick(event) {
 async function initGiftPage() {
   try {
     setStatus("正在初始化禮物頁...");
+
     await renderGiftList();
 
     setStatus("正在讀取帳戶資料...");
     await refreshTopbarFromRemote();
+
+    await renderRedeemHistory();
 
     setStatus("請選擇想兌換的禮物。");
   } catch (error) {
