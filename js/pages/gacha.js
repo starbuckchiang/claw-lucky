@@ -6,12 +6,9 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
   document.body.classList.add("page-ready");
+  await window.UserStore.initUser();
+  await initGachaPage();
 
-  if (window.UserStore?.initUser) {
-    await window.UserStore.initUser();
-  }
-
-  initGachaPage();
 });
 
 const supabaseClient = window.supabaseClient;
