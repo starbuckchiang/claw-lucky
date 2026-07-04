@@ -49,12 +49,14 @@
     localStorage.removeItem(USER_NICKNAME_KEY);
   }
 
- /*防止重複建立user*/
+ /*
+ 防止重複建立user
+ initUser() 不能只 upsert ignoreDuplicates，要先查 Supabase，查不到就用同一個 localStorage userId 重新建立
+ */
   let userReadyPromise = null;
-  async function initUser() {
-  if (userReadyPromise) {
-    return userReadyPromise;
-  }
+
+async function initUser() {
+  if (userReadyPromise) return userReadyPromise;
 
   userReadyPromise = (async () => {
     const profile = getUserProfile();
@@ -65,15 +67,21 @@
     }
 
     try {
-      const user = await window.Api.createUserIfNotExists({
-        userId: profile.userId,
-        nickname: profile.nickname
-      });
+      let user = await window.Api.getUser(profile.userId);
+
+      if (!user) {
+        console.warn("[user] Supabase 找不到使用者，重新建立 =", profile.userId);
+
+        user = await window.Api.createUserIfNotExists({
+          userId: profile.userId,
+          nickname: profile.nickname
+        });
+      }
 
       console.log("[user] Supabase user ready =", user);
       return user;
     } catch (error) {
-      console.error("[user] createUserIfNotExists failed =", error);
+      console.error("[user] initUser failed =", error);
       return profile;
     }
   })();
