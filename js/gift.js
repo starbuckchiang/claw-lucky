@@ -1,5 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
   document.body.classList.add("page-ready");
+  if (window.UserStore?.ready) {
+    await window.UserStore.ready;
+  }
+
   initGiftPage();
 });
 
