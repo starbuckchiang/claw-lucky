@@ -3,10 +3,16 @@
    - 頁面 ready 樣式
    - Supabase client 建立
    ========================= */
-document.documentElement.classList.add('page-ready');
 
-const SUPABASE_URL = 'https://umtqpstacjdwxcvcirbl.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_PtWhyYhKGUVxph4o80oGbg_aeZVnUyk';
+document.addEventListener("DOMContentLoaded", async () => {
+  document.body.classList.add("page-ready");
+
+  if (window.UserStore?.initUser) {
+    await window.UserStore.initUser();
+  }
+
+  initGachaPage();
+});
 
 const supabaseClient = window.supabase?.createClient
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
