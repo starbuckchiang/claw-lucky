@@ -194,6 +194,50 @@ function handleDrawSuccess(result) {
 }
 
 /* ============================================================
+   抽吉祥物改從supabase抽, 失敗才從本地 GachaData抽。
+   ============================================================ */
+async function loadMascotsFromSupabase() {
+  if (!window.Api?.getMascots) {
+    console.warn("Api.getMascots 尚未建立，改用本地 GachaData");
+    return;
+  }
+
+  const mascots = await window.Api.getMascots();
+
+  if (!Array.isArray(mascots) || !mascots.length) {
+    console.warn("Supabase mascots 為空，改用本地 GachaData");
+    return;
+  }
+
+  if (!window.GachaData) {
+    window.GachaData = {};
+  }
+
+  window.GachaData.mascots = mascots.map((item) => ({
+    id: item.id,
+    name: item.name,
+    rarity: item.rarity,
+    title: item.title || "",
+    description: item.description || "",
+    image: item.image || "",
+    silhouette: item.silhouette || "./images/mascots/mascot-shadow.png",
+    points: Number(item.points || 0),
+    tickets: Number(item.tickets || 0),
+    duplicateBonus: Number(item.duplicate_bonus || 0)
+  }));
+
+  window.GachaData.getMascotById = function (mascotId) {
+    return window.GachaData.mascots.find((item) => item.id === mascotId) || null;
+  };
+
+  window.GachaData.getMascotsByRarity = function (rarityCode) {
+    return window.GachaData.mascots.filter((item) => item.rarity === rarityCode);
+  };
+
+  console.log("[gacha] mascots loaded from Supabase =", window.GachaData.mascots.length);
+}
+
+/* ============================================================
    Sync Mascot Collection To Supabase
    ------------------------------------------------------------
    將抽到的吉祥物寫入 user_mascots。
@@ -216,6 +260,7 @@ async function syncMascotToSupabase(profile, result) {
     image: result.image || ""
   });
 }
+
 
 /* ============================================================
    Draw Click
@@ -332,6 +377,8 @@ async function initGachaPage() {
     console.warn("GachaUI 尚未載入完成");
     return;
   }
+
+ await loadMascotsFromSupabase();
 
   if (storage?.ensureDefaults) {
     storage.ensureDefaults({
