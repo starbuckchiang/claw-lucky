@@ -283,10 +283,18 @@ function handleDrawClick() {
         note: `抽到 ${result.name}`,
         actionType: "gacha_draw"
       });
-
-      await syncMascotToSupabase(profile, result);
+     
+       await getApi().upsertUserMascot({
+        userId: profile.userId,
+        mascotId: result.id,
+        mascotName: result.name,
+        rarity: result.rarity,
+        image: result.image || ""
+      });
 
       handleDrawSuccess(result);
+   
+      await syncMascotToSupabase(profile, result);
 
       renderTopbar(updatedUser);
     } catch (error) {
