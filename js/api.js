@@ -2,7 +2,9 @@ const DB = {
   users: "users",
   logs: "logs",
   gifts: "gifts",
-  redeemHistory: "redeem_history"
+  redeemHistory: "redeem_history",
+  mascots: "mascots",
+  userMascots: "user_mascots"
 };
 
 function getSupabaseClient() {
@@ -131,7 +133,7 @@ async getUserMascots(userId) {
 
   async getMascots() {
   const { data, error } = await getSupabaseClient()
-    .from("mascots")
+    .from("user_mascots")
     .select("*")
     .eq("enabled", true)
     .order("sort_order", { ascending: true });
