@@ -1,98 +1,172 @@
 /* ============================================================
    Ad Video Modal
    ------------------------------------------------------------
-   規則：
-   1. 點擊觀看廣告 → 開啟影片 modal
-   2. 影片完整播放 ended
-   3. 使用者按 X 關閉
-   4. 才呼叫 onComplete 發獎勵
+   負責：
+   1. 開啟廣告影片
+   2. 播放完成判定
+   3. 關閉 Modal
+   4. 播放完成 + 按 X 才 callback 發獎
    ============================================================ */
 
 (function () {
-  const adVideoModal = document.getElementById("adVideoModal");
-  const adVideoPlayer = document.getElementById("adVideoPlayer");
-  const adVideoCloseBtn = document.getElementById("adVideoCloseBtn");
-  const adVideoStatus = document.getElementById("adVideoStatus");
 
-  let adVideoCompleted = false;
-  let adRewardClaimed = false;
+  const modal = document.getElementById("adVideoModal");
+
+  const video = document.getElementById("adVideoPlayer");
+
+  const closeBtn =
+    document.getElementById("adVideoCloseBtn") ||
+    document.querySelector("[data-ad-modal-close]");
+
+  const status = document.getElementById("adVideoStatus");
+
+  let videoCompleted = false;
+  let rewardClaimed = false;
   let completeCallback = null;
 
+  /* ============================================================
+     Open
+     ============================================================ */
+
   function open(onComplete) {
-    if (!adVideoModal || !adVideoPlayer || !adVideoCloseBtn) {
-      console.warn("[AdModal] modal elements not found");
+
+    if (!modal || !video) {
+      console.warn("[AdModal] Modal DOM 不存在");
       return;
     }
 
-    adVideoCompleted = false;
-    adRewardClaimed = false;
-    completeCallback = typeof onComplete === "function" ? onComplete : null;
+    completeCallback =
+      typeof onComplete === "function"
+        ? onComplete
+        : null;
 
-    if (adVideoStatus) {
-      adVideoStatus.textContent = "影片尚未播放完成";
+    videoCompleted = false;
+    rewardClaimed = false;
+
+    if (status) {
+      status.textContent = "影片尚未播放完成";
     }
 
-    adVideoModal.classList.add("show");
+    modal.classList.add("show");
 
-    adVideoPlayer.setAttribute("playsinline", "");
-    adVideoPlayer.setAttribute("webkit-playsinline", "");
-    adVideoPlayer.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.setAttribute("x5-playsinline", "");
 
-    adVideoPlayer.currentTime = 0;
-    adVideoPlayer.load();
+    video.playsInline = true;
 
-    adVideoPlayer.play().catch(() => {
-      if (adVideoStatus) {
-        adVideoStatus.textContent = "影片已開啟，如果沒有自動播放，請手動按播放。";
+    video.currentTime = 0;
+
+    video.load();
+
+    video.play().catch(() => {
+
+      console.warn("[AdModal] autoplay failed");
+
+      if (status) {
+        status.textContent = "請點擊播放影片";
       }
+
     });
+
   }
 
+  /* ============================================================
+     Close
+     ============================================================ */
+
   function close() {
-    if (!adVideoPlayer || !adVideoModal) return;
 
-    adVideoPlayer.pause();
-    adVideoModal.classList.remove("show");
+    if (!modal || !video) return;
 
-    if (!adVideoCompleted) {
-      if (adVideoStatus) {
-        adVideoStatus.textContent = "影片尚未播放完成";
+    video.pause();
+
+    modal.classList.remove("show");
+
+    if (!videoCompleted) {
+
+      if (status) {
+        status.textContent = "影片尚未播放完成";
       }
 
-      alert("影片還沒播完，這次還不能領補給喔。");
       return;
+
     }
 
-    if (adRewardClaimed) return;
+    if (rewardClaimed) return;
 
-    adRewardClaimed = true;
+    rewardClaimed = true;
 
-    if (adVideoStatus) {
-      adVideoStatus.textContent = "補給已送達，記得去試試手氣！";
+    if (status) {
+      status.textContent =
+        "補給已送達，祝你好運！";
     }
 
     if (completeCallback) {
       completeCallback();
     }
+
   }
 
-  if (adVideoPlayer) {
-    adVideoPlayer.addEventListener("ended", () => {
-      adVideoCompleted = true;
+  /* ============================================================
+     Video End
+     ============================================================ */
 
-      if (adVideoStatus) {
-        adVideoStatus.textContent =
-          "影片播放完成，按右上角 × 關閉即可領取補給";
+  if (video) {
+
+    video.addEventListener("ended", () => {
+
+      videoCompleted = true;
+
+      if (status) {
+
+        status.textContent =
+          "影片播放完成，請按右上角 × 領取補給";
+
       }
+
     });
+
   }
 
-  if (adVideoCloseBtn) {
-    adVideoCloseBtn.addEventListener("click", close);
+  /* ============================================================
+     Close Button
+     ============================================================ */
+
+  if (closeBtn) {
+
+    closeBtn.addEventListener("click", close);
+
   }
+
+  /* ============================================================
+     ESC
+     ============================================================ */
+
+  document.addEventListener("keydown", (e) => {
+
+    if (e.key === "Escape") {
+
+      if (modal?.classList.contains("show")) {
+
+        close();
+
+      }
+
+    }
+
+  });
+
+  /* ============================================================
+     API
+     ============================================================ */
 
   window.AdModal = {
+
     open,
+
     close
+
   };
+
 })();
