@@ -365,137 +365,7 @@ function handleDrawSuccess(result) {
   renderTopbar();
 }
 
-/* =========================
-   Ad Reward Config
-   - 廣告補給固定 coins +20
-   ========================= */
-function getAdConfig() {
-  const config = window.APP_CONFIG || {};
-  return {
-    adRewardCoins: Number(config.adRewardCoins || 20),
-    adRewardBonusPlay: Number(config.adRewardBonusPlay || 1),
-    maxDailyAdRewards: Number(config.maxDailyAdRewards || 3)
-  };
-}
 
-function getAdStorageKey() {
-  return 'gachaDailyAdRewards';
-}
-
-function getTodayKey() {
-  return new Date().toLocaleDateString('sv-SE');
-}
-
-function getAdRewardState() {
-  try {
-    const raw = localStorage.getItem(getAdStorageKey());
-
-    if (!raw) {
-      return {
-        date: getTodayKey(),
-        count: 0
-      };
-    }
-
-    const parsed = JSON.parse(raw);
-
-    if (parsed.date !== getTodayKey()) {
-      return {
-        date: getTodayKey(),
-        count: 0
-      };
-    }
-
-    return {
-      date: parsed.date,
-      count: Number(parsed.count || 0)
-    };
-  } catch (error) {
-    return {
-      date: getTodayKey(),
-      count: 0
-    };
-  }
-}
-
-function setAdRewardState(state) {
-  localStorage.setItem(getAdStorageKey(), JSON.stringify(state));
-}
-
-function getRemainingAdRewards() {
-  const { maxDailyAdRewards } = getAdConfig();
-  const state = getAdRewardState();
-  return Math.max(0, maxDailyAdRewards - state.count);
-}
-
-function renderAdRemaining() {
-  const remaining = getRemainingAdRewards();
-
-  if (refs.adRemainingEl) {
-    refs.adRemainingEl.textContent = remaining;
-  }
-
-  if (refs.watchAdBtnEl) {
-    refs.watchAdBtnEl.disabled = isDrawing || remaining <= 0;
-    refs.watchAdBtnEl.textContent = remaining <= 0 ? '今日已領完' : '觀看獎勵影片';
-  }
-}
-
-/* =========================
-   Ad Reward Grant
-   - 本地加 coins +20
-   - 遠端只同步 coins
-   ========================= */
-async function rewardAdBonus() {
-  const storage = getStorage();
-  const config = getAdConfig();
-  const state = getAdRewardState();
-  const remaining = getRemainingAdRewards();
-
-  if (remaining <= 0) {
-    alert('今日補給次數已用完。');
-    renderAdRemaining();
-    return;
-  }
-
-  if (storage?.addCoins) {
-    storage.addCoins(config.adRewardCoins);
-  } else if (storage?.getCoins && storage?.setCoins) {
-    const currentCoins = Number(storage.getCoins() || 0);
-    storage.setCoins(currentCoins + config.adRewardCoins);
-  }
-
-  state.count += 1;
-  setAdRewardState(state);
-
-  renderTopbar();
-  renderAdRemaining();
-
-  try {
-    const syncedUser = await syncCoinsToSupabase();
-    syncRemoteUserToLocal(syncedUser);
-    renderTopbar(syncedUser);
-  } catch (error) {
-    console.error('補給後同步 Supabase coins 失敗', error);
-  }
-
-  alert(`補給成功！獲得 +${config.adRewardCoins} 好運幣`);
-}
-
-/* =========================
-   Watch Ad Click
-   ========================= */
-function handleWatchAdClick() {
-  if (!window.AdModal?.open) {
-    console.warn('AdModal 尚未載入，改用直接發獎勵流程');
-    rewardAdBonus();
-    return;
-  }
-
-  window.AdModal.open(() => {
-    rewardAdBonus();
-  });
-}
 
 /* =========================
    Draw Click
@@ -574,22 +444,113 @@ function bindEvents() {
 }
 
 /* =========================
-   Page Init
+        廣告設定值
+ =========================*/
+const {
+    adRewardCoins,
+    adRewardBonusPlay,
+    maxDailyAdRewards
+} = window.AdConfig.getAdConfig();
+
+/*  =========================
+呼叫ad-storage.js 
+-getAdStorageKey()
+-getTodayKey()
+-getAdRewardState()
+-setAdRewardState()
+-getRemainingAdRewards()
+ =========================*/
+
+function renderAdRemaining() {
+
+    const remaining = window.AdStorage.getRemaining();
+
+    refs.adRemainingEl.textContent = remaining;
+
+    refs.watchAdBtnEl.disabled =
+        isDrawing || remaining <= 0;
+
+    refs.watchAdBtnEl.textContent =
+        remaining <= 0
+            ? "今日已領完"
+            : "觀看獎勵影片";
+}
+
+/* ========================= 
+Ad Reward Grant 
+- 本地加 coins +20 
+- 遠端只同步 coins 
+========================= */
+async function rewardAdBonus() {
+  const storage = getStorage();
+  const config = window.AdConfig.getAdConfig();
+  const state = window.AdStorage.getState();
+  const remaining = window.AdStorage.getRemaining();
+
+  if (remaining <= 0) {
+    alert("今日補給次數已用完。");
+    renderAdRemaining();
+    return;
+  }
+
+ const profile = getUserProfile();
+
+ await getApi().adjustBalance({
+  userId: profile.userId,
+  nickname: profile.nickname,
+  coinsDelta: config.adRewardCoins,
+  source: "watch_ad",
+  note: "觀看廣告獎勵",
+  actionType: "watch_ad"
+});
+
+ state.count += 1;
+ window.AdStorage.saveState(state);
+
+
+await refreshTopbarFromRemote();
+renderAdRemaining();
+alert(`補給成功！獲得 +${config.adRewardCoins} 好運幣`);
+
+  
+  try {
+    const syncedUser = await syncCoinsToSupabase();
+    syncRemoteUserToLocal(syncedUser);
+    renderTopbar(syncedUser);
+  } catch (error) {
+    console.error("補給後同步 Supabase coins 失敗", error);
+  }
+
+  alert(`補給成功！獲得 +${config.adRewardCoins} 好運幣`);
+}
+
+function handleWatchAdClick() {
+  if (!window.AdModal?.open) {
+    console.warn("AdModal 尚未載入，改用直接發獎勵流程");
+    rewardAdBonus();
+    return;
+  }
+
+  window.AdModal.open(() => {
+    rewardAdBonus();
+  });
+}
+
+
+/* =========================
+   UI Page Init
    ========================= */
 async function initGachaPage() {
   const ui = getUI();
   const storage = getStorage();
 
   if (!ui) {
-    console.warn('GachaUI 尚未載入完成');
+    console.warn("GachaUI 尚未載入完成");
     return;
   }
 
   if (storage?.ensureDefaults) {
     storage.ensureDefaults({
-      coins: 20,
-      points: 0,
-      tickets: 0,
       collection: [],
       recentDraws: []
     });
@@ -604,8 +565,8 @@ async function initGachaPage() {
   } else if (ui.renderMessageResult) {
     ui.renderMessageResult(
       refs.gachaResultEl,
-      '準備好了就轉一次，看看今天的好運會掉下什麼。',
-      'info'
+      "準備好了就轉一次，看看今天的好運會掉下什麼。",
+      "info"
     );
   }
 
@@ -613,15 +574,8 @@ async function initGachaPage() {
     ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
   }
 
-  renderTopbar();
+  
   await refreshTopbarFromRemote();
   renderAdRemaining();
   bindEvents();
 }
-/* ========================= Boot Entry ========================= */
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initGachaPage);
-} else {
-  initGachaPage();
-}
-
