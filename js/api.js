@@ -51,6 +51,70 @@ window.Api = {
     return data;
   },
 
+  async upsertUserMascot({
+  userId,
+  mascotId,
+  mascotName = "",
+  rarity = "",
+  image = ""
+}) {
+  const existing = await getSupabaseClient()
+    .from("user_mascots")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("mascot_id", mascotId)
+    .maybeSingle();
+
+  if (existing.error) throw existing.error;
+
+  if (existing.data) {
+    const { data, error } = await getSupabaseClient()
+      .from("user_mascots")
+      .update({
+        mascot_name: mascotName || existing.data.mascot_name,
+        rarity: rarity || existing.data.rarity,
+        image: image || existing.data.image,
+        obtain_count: Number(existing.data.obtain_count || 1) + 1,
+        last_obtained_at: new Date().toISOString()
+      })
+      .eq("user_id", userId)
+      .eq("mascot_id", mascotId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  const { data, error } = await getSupabaseClient()
+    .from("user_mascots")
+    .insert({
+      user_id: userId,
+      mascot_id: mascotId,
+      mascot_name: mascotName,
+      rarity,
+      image,
+      obtain_count: 1,
+      first_obtained_at: new Date().toISOString(),
+      last_obtained_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+},
+
+async getUserMascots(userId) {
+  const { data, error } = await getSupabaseClient()
+    .from("user_mascots")
+    .select("*")
+    .eq("user_id", userId)
+    .order("first_obtained_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+},
   async getGiftList() {
     const { data, error } = await getSupabaseClient()
       .from(DB.gifts)
@@ -275,3 +339,4 @@ window.Api = {
     return data;
   }
 };
+
