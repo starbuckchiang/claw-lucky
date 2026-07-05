@@ -135,36 +135,44 @@
 -->
 
   
-<div id="adVideoModal" class="ad-video-modal">
- <div class="ad-modal-backdrop" data-ad-modal-backdrop>
-  <div class="ad-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="adModalTitle">
-    <button
-      id="adVideoCloseBtn"
-      type="button"
-      class="ad-modal-close"
-      data-ad-modal-close
-      aria-label="關閉影片視窗" >
-      ×
-    </button>
-
-    <div class="ad-modal-video-wrap">
-      <video
-        id="adVideoPlayer"
-        playsinline
-        webkit-playsinline
-        preload="auto"
-        controls
+<div id="adVideoModal" class="ad-modal" hidden>
+  <div class="ad-modal-backdrop">
+    <div class="ad-modal-dialog">
+      <button
+        id="adVideoCloseBtn"
+        class="ad-modal-close"
+        data-ad-modal-close
+        type="button"
+        aria-label="關閉"
       >
-        <source src="./video/ad-v2.mp4" type="video/mp4" />
-        你的瀏覽器不支援影片播放。
-      </video>
-    </div>
+        ×
+      </button>
 
-    <div id="adVideoStatus" class="ad-video-status">
-      影片尚未播放完成
+      <div class="ad-modal-video-wrap">
+        <video
+          id="adVideoPlayer"
+          class="ad-modal-video"
+          playsinline
+          webkit-playsinline
+          preload="auto"
+          controls
+        >
+          <source
+            src="./video/ad-v2.mp4"
+            type="video/mp4"
+          >
+        </video>
+      </div>
+
+      <div
+        id="adVideoStatus"
+        class="ad-video-status"
+      >
+        影片尚未播放完成
+      </div>
+
     </div>
   </div>
- </div>
 </div>
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
