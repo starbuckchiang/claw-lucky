@@ -284,14 +284,7 @@ function handleDrawClick() {
         actionType: "gacha_draw"
       });
      
-       await getApi().upsertUserMascot({
-        userId: profile.userId,
-        mascotId: result.id,
-        mascotName: result.name,
-        rarity: result.rarity,
-        image: result.image || ""
-      });
-
+      
       handleDrawSuccess(result);
    
       await syncMascotToSupabase(profile, result);
