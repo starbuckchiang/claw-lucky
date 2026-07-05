@@ -443,139 +443,174 @@ function bindEvents() {
   }
 }
 
-/* =========================
-        廣告設定值
- =========================*/
-const {
-    adRewardCoins,
-    adRewardBonusPlay,
-    maxDailyAdRewards
-} = window.AdConfig.getAdConfig();
-
-/*  =========================
-呼叫ad-storage.js 
--getAdStorageKey()
--getTodayKey()
--getAdRewardState()
--setAdRewardState()
--getRemainingAdRewards()
- =========================*/
+/* ============================================================
+   Ad Reward
+   ============================================================ */
 
 function renderAdRemaining() {
 
-    const remaining = window.AdStorage.getRemaining();
+  const remaining = window.AdStorage.getRemaining();
 
+  if (refs.adRemainingEl) {
     refs.adRemainingEl.textContent = remaining;
+  }
 
+  if (refs.watchAdBtnEl) {
     refs.watchAdBtnEl.disabled =
-        isDrawing || remaining <= 0;
+      isDrawing || remaining <= 0;
 
     refs.watchAdBtnEl.textContent =
-        remaining <= 0
-            ? "今日已領完"
-            : "觀看獎勵影片";
+      remaining <= 0
+        ? "今日已領完"
+        : "觀看獎勵影片";
+  }
+
 }
 
-/* ========================= 
-Ad Reward Grant 
-- 本地加 coins +20 
-- 遠端只同步 coins 
-========================= */
+/* ============================================================
+   Reward Ad Bonus
+   ============================================================ */
+
 async function rewardAdBonus() {
-  const storage = getStorage();
+
   const config = window.AdConfig.getAdConfig();
   const state = window.AdStorage.getState();
   const remaining = window.AdStorage.getRemaining();
 
   if (remaining <= 0) {
+
     alert("今日補給次數已用完。");
     renderAdRemaining();
+
     return;
+
   }
 
- const profile = getUserProfile();
+  const profile = getUserProfile();
 
- await getApi().adjustBalance({
-  userId: profile.userId,
-  nickname: profile.nickname,
-  coinsDelta: config.adRewardCoins,
-  source: "watch_ad",
-  note: "觀看廣告獎勵",
-  actionType: "watch_ad"
-});
-
- state.count += 1;
- window.AdStorage.saveState(state);
-
-
-await refreshTopbarFromRemote();
-renderAdRemaining();
-alert(`補給成功！獲得 +${config.adRewardCoins} 好運幣`);
-
-  
   try {
-    const syncedUser = await syncCoinsToSupabase();
-    syncRemoteUserToLocal(syncedUser);
-    renderTopbar(syncedUser);
+
+    await getApi().adjustBalance({
+      userId: profile.userId,
+      nickname: profile.nickname,
+      coinsDelta: config.adRewardCoins,
+      source: "watch_ad",
+      note: "觀看廣告獎勵",
+      actionType: "watch_ad"
+    });
+
+    state.count += 1;
+    window.AdStorage.saveState(state);
+
+    await refreshTopbarFromRemote();
+
+    renderAdRemaining();
+
+    alert(`補給成功！獲得 ${config.adRewardCoins} 好運幣`);
+
   } catch (error) {
-    console.error("補給後同步 Supabase coins 失敗", error);
+
+    console.error("[rewardAdBonus]", error);
+
+    alert("補給失敗，請稍後再試。");
+
   }
 
-  alert(`補給成功！獲得 +${config.adRewardCoins} 好運幣`);
 }
+
+/* ============================================================
+   Watch Ad Button
+   ============================================================ */
 
 function handleWatchAdClick() {
+
   if (!window.AdModal?.open) {
-    console.warn("AdModal 尚未載入，改用直接發獎勵流程");
+
+    console.warn("AdModal 尚未載入，直接發放獎勵");
+
     rewardAdBonus();
+
     return;
+
   }
 
-  window.AdModal.open(() => {
-    rewardAdBonus();
+  window.AdModal.open(async () => {
+
+    await rewardAdBonus();
+
   });
+
 }
 
-
-/* =========================
+/* ============================================================
    UI Page Init
-   ========================= */
+   ============================================================ */
+
 async function initGachaPage() {
+
   const ui = getUI();
   const storage = getStorage();
 
   if (!ui) {
+
     console.warn("GachaUI 尚未載入完成");
+
     return;
+
   }
 
+  /* ---------- local cache ---------- */
+
   if (storage?.ensureDefaults) {
+
     storage.ensureDefaults({
       collection: [],
       recentDraws: []
     });
+
   }
 
+  /* ---------- UI ---------- */
+
   if (ui.renderDropZoneIdle) {
+
     ui.renderDropZoneIdle(refs.dropZoneEl);
+
   }
 
   if (ui.renderIdleResult) {
+
     ui.renderIdleResult(refs.gachaResultEl);
+
   } else if (ui.renderMessageResult) {
+
     ui.renderMessageResult(
       refs.gachaResultEl,
       "準備好了就轉一次，看看今天的好運會掉下什麼。",
       "info"
     );
+
   }
 
   if (storage?.getRecentDraws && ui.renderRecentDraws) {
-    ui.renderRecentDraws(storage.getRecentDraws(), refs.recentDrawListEl);
+
+    ui.renderRecentDraws(
+      storage.getRecentDraws(),
+      refs.recentDrawListEl
+    );
+
   }
 
-  
+  /* ---------- Supabase ---------- */
+
   await refreshTopbarFromRemote();
+
+  /* ---------- Ad ---------- */
+
   renderAdRemaining();
+
+  /* ---------- Events ---------- */
+
   bindEvents();
+
 }
