@@ -26,7 +26,7 @@ if (!window.supabaseClient) {
 
 window.APP_CONFIG = {
   // 廣告補給設定
-  adRewardCoins: 100,
+  adRewardCoins: 20,
   adRewardBonusPlay: 1,
   maxDailyAdRewards: 3,
 
