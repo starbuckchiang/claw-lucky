@@ -76,7 +76,7 @@
       title: '把陰天曬成好天氣',
       description: '肚子上藏著小太陽，總能在你需要的時候送來剛剛好的暖意。',
       image: './images/mascots/mascot-bear.jpg',
-      silhouette: './images/mascots/mascot-.png',
+      silhouette: './images/mascots/mascot.png',
       points: 60,
       tickets: 0,
       duplicateBonus: 20
