@@ -58,6 +58,7 @@ window.Api = {
   rarity = "",
   image = ""
 }) {
+  
   const existing = await getSupabaseClient()
     .from("user_mascots")
     .select("*")
@@ -127,6 +128,17 @@ async getUserMascots(userId) {
 
     return data || [];
   },
+
+  async getMascots() {
+  const { data, error } = await getSupabaseClient()
+    .from("mascots")
+    .select("*")
+    .eq("enabled", true)
+    .order("sort_order", { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+},
 
   async getGiftById(giftId) {
     const { data, error } = await getSupabaseClient()
