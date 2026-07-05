@@ -134,30 +134,30 @@
 -->
 
   
-<div id="adVideoModal" class="ad-video-modal" hidden aria-hidden="true">
+<div id="adVideoModal" class="ad-video-modal">
   <div class="ad-video-box">
     <div class="ad-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="adModalTitle">
-    <button id="adVideoCloseBtn" class="ad-video-close" type="button">×</button>
-
-     <div class="ad-modal-head">
-        <h3 id="adModalTitle" class="ad-modal-title" data-ad-modal-title>
-          🎬 今日補給影片
-        </h3>
-        <p class="ad-modal-desc" data-ad-modal-desc>
-          看完影片可獲得 +20 好運幣、+1 次免費機會
-        </p>
-      </div>
-    
-    <video
+    <!--
+      <button id="adVideoCloseBtn" class="ad-video-close" type="button">×</button>
+    -->
+    <button
+        type="button"
+        class="ad-modal-close"
+        data-ad-modal-close
+        aria-label="關閉影片視窗"
+      ></button>    
+    <div class="ad-modal-video-wrap">
+      <video
       id="adVideoPlayer"
       playsinline
       webkit-playsinline
       preload="auto"
       controls
-    >
-     <source src="./video/ad-v2.mp4" type="video/mp4" />
-      你的瀏覽器不支援影片播放。
-    </video>
+      >
+         <source src="./video/ad-v2.mp4" type="video/mp4" />
+          你的瀏覽器不支援影片播放。
+     </video>
+    </div>
 
     <div id="adVideoStatus" class="ad-video-status">
       影片尚未播放完成
