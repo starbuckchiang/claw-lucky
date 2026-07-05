@@ -47,7 +47,8 @@
       status.textContent = "影片尚未播放完成";
     }
 
-    modal.classList.add("show");
+    modal.hidden = false;
+    document.body.classList.add("ad-modal-open");
 
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
@@ -79,7 +80,8 @@
   if (!modal || !video) return;
 
   video.pause();
-  modal.classList.remove("show");
+  modal.hidden = true;
+  document.body.classList.remove("ad-modal-open");
 
   if (!videoCompleted) {
     if (status) status.textContent = "影片尚未播放完成";
