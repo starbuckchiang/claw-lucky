@@ -75,38 +75,37 @@
      Close
      ============================================================ */
 
-  function close() {
+  async function close() {
+  if (!modal || !video) return;
 
-    if (!modal || !video) return;
+  video.pause();
+  modal.classList.remove("show");
 
-    video.pause();
+  if (!videoCompleted) {
+    if (status) status.textContent = "影片尚未播放完成";
+    return;
+  }
 
-    modal.classList.remove("show");
+  if (rewardClaimed) return;
+  rewardClaimed = true;
 
-    if (!videoCompleted) {
-
-      if (status) {
-        status.textContent = "影片尚未播放完成";
-      }
-
-      return;
-
+  try {
+    if (completeCallback) {
+      await completeCallback();
     }
-
-    if (rewardClaimed) return;
-
-    rewardClaimed = true;
 
     if (status) {
-      status.textContent =
-        "補給已送達，祝你好運！";
+      status.textContent = "補給已送達，祝你好運！";
     }
+  } catch (error) {
+    console.error("[AdModal] reward callback failed =", error);
+    rewardClaimed = false;
 
-    if (completeCallback) {
-      completeCallback();
+    if (status) {
+      status.textContent = "補給發放失敗，請稍後再試";
     }
-
   }
+}
 
   /* ============================================================
      Video End
