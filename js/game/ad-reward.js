@@ -29,7 +29,7 @@
       return {
         adRewardCoins: 20,
         adRewardBonusPlay: 1,
-        maxDailyAdRewards: 3
+        maxDailyAdRewards: 99
       };
     }
 
