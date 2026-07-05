@@ -133,7 +133,7 @@ async getUserMascots(userId) {
 
   async getMascots() {
   const { data, error } = await getSupabaseClient()
-    .from("user_mascots")
+    .from("mascots")
     .select("*")
     .eq("enabled", true)
     .order("sort_order", { ascending: true });
