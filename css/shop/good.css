@@ -82,7 +82,7 @@ body {
   padding: 22px 18px;
   background:
     linear-gradient(180deg, rgba(30, 16, 9, 0.08), rgba(30, 16, 9, 0.72)),
-    url("../../images/變色龍店長.jpg") center / cover no-repeat;
+    url("../../images/chameleon.jpg") center / cover no-repeat;
   box-shadow: var(--shop-shadow);
   border: 2px solid rgba(255, 221, 158, 0.28);
 }
