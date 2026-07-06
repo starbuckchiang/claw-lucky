@@ -74,7 +74,7 @@ body {
 
 /* Hero */
 
-.good-hero {
+/*.good-hero {
   position: relative;
   overflow: hidden;
   border-radius: 26px;
@@ -93,6 +93,18 @@ body {
   inset: 0;
   background: radial-gradient(circle at 50% 18%, rgba(255, 221, 158, 0.22), transparent 34%);
   pointer-events: none;
+}*/
+
+.good-hero{
+    border-radius:28px;
+    overflow:hidden;
+    background:#3b2418;
+}
+
+.good-hero-image{
+    display:block;
+    width:100%;
+    height:auto;
 }
 
 
