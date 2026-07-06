@@ -162,6 +162,36 @@ body {
   background: rgba(255, 241, 216, 0.92);
   border: 1px solid rgba(255, 221, 158, 0.45);
 }
+/* ==========================================================
+   Intro
+   ========================================================== */
+.good-intro{
+    margin-top:18px;
+    padding:26px;
+    border-radius:24px;
+    background:linear-gradient(
+        180deg,
+        var(--shop-paper-soft),
+        var(--shop-paper)
+    );
+    box-shadow:var(--shop-shadow);
+    border:1px solid var(--shop-line);
+}
+
+.good-intro .good-title{
+    color:var(--shop-brown-dark);
+    text-shadow:none;
+    margin-top:12px;
+}
+
+.good-intro .good-subtitle{
+    color:var(--shop-muted);
+    max-width:unset;
+}
+
+.good-intro .good-actions{
+    margin-top:20px;
+}
 
 /* Sections */
 
