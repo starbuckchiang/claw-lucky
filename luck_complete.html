@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lucky Shop｜好運已送達</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/shop/product.css?v=20260708" />
+</head>
+<body>
+  <main class="product-page">
+    <header class="product-nav">
+      <a class="product-back" href="./good.html">← 回 Lucky Shop</a>
+    </header>
+
+    <section class="product-hero">
+      <div class="product-info">
+        <div class="product-kicker">🍀 好運已送達</div>
+        <h1 class="product-title">🍀 好運已送達！</h1>
+        <p class="product-desc">這次帶回的商品已經整理好了，祝你有好運連連。</p>
+
+        <div class="product-price-row">
+          <strong class="product-price" id="completeTotal">NT$ 0</strong>
+          <span class="product-stock" id="completeCount">0 件商品</span>
+        </div>
+
+        <div class="product-actions">
+          <a class="product-btn product-btn-primary" href="./good.html">回首頁</a>
+          <button class="product-btn product-btn-secondary" id="viewOrdersBtn" type="button">查看好運紀錄</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js?v=20260706"></script>
+  <script src="./js/api.js?v=20260706"></script>
+  <script src="./js/user.js?v=20260706"></script>
+  <script src="./js/shop/shop-api.js?v=20260706"></script>
+  <script src="./js/shop/luck_complete.js?v=20260708"></script>
+</body>
+</html>

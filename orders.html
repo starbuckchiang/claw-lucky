@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lucky Shop｜好運紀錄</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/shop/product.css?v=20260709" />
+  <link rel="stylesheet" href="./css/shop/orders.css?v=20260709" />
+</head>
+<body>
+  <main class="product-page">
+    <header class="product-nav">
+      <a class="product-back" href="./good.html">← 回 Lucky Shop</a>
+    </header>
+
+    <section class="product-hero">
+      <div class="product-info">
+        <div class="product-kicker">🍀 好運紀錄</div>
+        <h1 class="product-title">你的好運回憶</h1>
+        <p class="product-desc">查看你曾經帶回家的每一份好運。</p>
+      </div>
+    </section>
+
+    <section class="product-section">
+      <h2>我的訂單</h2>
+      <div id="ordersList" class="good-product-grid"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js?v=20260706"></script>
+  <script src="./js/api.js?v=20260706"></script>
+  <script src="./js/user.js?v=20260706"></script>
+  <script src="./js/shop/shop-api.js?v=20260706"></script>
+  <script src="./js/shop/orders.js?v=20260709"></script>
+</body>
+</html>

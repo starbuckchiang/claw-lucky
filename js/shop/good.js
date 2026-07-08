@@ -29,12 +29,22 @@
   }
 
   function getProductImage(product) {
-    return product.thumbnail || product.image || product.cover || "";
+    if (!product || typeof product !== "object") {
+      return "";
+    }
+
+    return (
+      product.thumbnail ||
+      product.image ||
+      product.cover ||
+      product.image_url ||
+      ""
+    );
   }
 
   function buildProductImage(product) {
     const image = getProductImage(product);
-    const name = product.name || "商品";
+    const name = product?.name || product?.title || "商品";
 
     if (!image) {
       return `
@@ -58,12 +68,12 @@
   }
 
   function buildProductCard(product) {
-    const id = escapeHtml(product.id);
-    const name = escapeHtml(product.name || "未命名商品");
-    const subtitle = escapeHtml(product.subtitle || product.description || "");
-    const badge = escapeHtml(product.badge || "LIMITED");
-    const price = formatPrice(product.price);
-    const stock = Number(product.stock || 0);
+    const id = escapeHtml(product?.id || "");
+    const name = escapeHtml(product?.name || product?.title || "未命名商品");
+    const subtitle = escapeHtml(product?.subtitle || product?.description || "");
+    const badge = escapeHtml(product?.badge || product?.tag || "LIMITED");
+    const price = formatPrice(product?.price ?? 0);
+    const stock = Number(product?.stock ?? 0);
 
     const stockText =
       stock > 0 ? `剩餘 ${stock} 件` : "已售完";
@@ -92,6 +102,7 @@
           <button
             class="good-btn ${stock > 0 ? "good-btn-primary" : "good-btn-secondary"}"
             type="button"
+            data-action="view-product"
             data-product-id="${id}"
             ${stock <= 0 ? "disabled" : ""}
           >
@@ -127,13 +138,15 @@
   }
 
   function handleProductClick(event) {
-    const button = event.target.closest("[data-product-id]");
+    const button = event.target.closest("button[data-action='view-product'][data-product-id]");
     if (!button) return;
 
     const productId = button.dataset.productId;
     if (!productId) return;
 
-    location.href = `./product.html?id=${encodeURIComponent(productId)}`;
+    event.preventDefault();
+    event.stopPropagation();
+    window.location.assign(`./product.html?id=${encodeURIComponent(productId)}`);
   }
 
   function handleAskShopkeeper() {

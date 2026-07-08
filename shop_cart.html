@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lucky Shop｜我的好運籃</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/shop/shop_cart.css?v=20260708" />
+</head>
+<body>
+  <main class="good-page shop-cart-page">
+    <header class="good-nav">
+      <div class="good-logo">🍀 Lucky Shop</div>
+      <nav class="good-nav-links">
+        <a href="./good.html">返回商店</a>
+      </nav>
+    </header>
+
+    <section class="good-intro shop-cart-intro">
+      <div class="good-kicker">🍀 我的好運籃</div>
+      <h1 class="good-title">🍀 我的好運籃</h1>
+      <p class="good-subtitle">今天準備把哪些好運帶回家？</p>
+      <a class="shop-cart-return-link" href="./good.html">↩ 返回商店</a>
+    </section>
+
+    <section class="good-section">
+      <div id="cartList" class="good-product-grid"></div>
+    </section>
+
+    <section class="good-section shop-cart-summary">
+      <div class="shop-cart-summary-card">
+        <div class="shop-cart-summary-row">
+          <span>商品小計</span>
+          <strong id="cartSubtotal">NT$ 0</strong>
+        </div>
+        <div class="shop-cart-summary-row total">
+          <span>總金額</span>
+          <strong id="cartTotal">NT$ 0</strong>
+        </div>
+        <button class="good-btn good-btn-primary shop-cart-submit" type="button">🍀 帶回好運</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js?v=20260706"></script>
+  <script src="./js/api.js?v=20260706"></script>
+  <script src="./js/user.js?v=20260706"></script>
+  <script src="./js/shop/shop-api.js?v=20260706"></script>
+  <script src="./js/shop/shop_cart.js?v=20260708"></script>
+</body>
+</html>

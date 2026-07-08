@@ -12,7 +12,6 @@
 
 <body>
   <main class="product-page">
-
     <header class="product-nav">
       <a class="product-back" href="./good.html">← 回 Lucky Shop</a>
       <a class="product-nav-link" href="./mascot-collection.html">我的收藏</a>
@@ -44,7 +43,7 @@
         </div>
 
         <div class="product-actions">
-          <button class="product-btn product-btn-primary" type="button">
+          <button class="product-btn product-btn-primary" id="addToCartBtn" type="button">
             加入購物車
           </button>
 
@@ -107,5 +106,131 @@
     </section>
 
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js?v=20260706"></script>
+  <script src="./js/api.js?v=20260706"></script>
+  <script src="./js/user.js?v=20260706"></script>
+  <script src="./js/shop/shop-api.js?v=20260706"></script>
+  <script>
+    (function () {
+      function getProductId() {
+        const id = new URLSearchParams(location.search).get("id");
+        return String(id || "").trim();
+      }
+
+      async function handleAddToCart() {
+        const id = getProductId();
+        if (!id) {
+          console.warn("[product] no product id found");
+          return;
+        }
+
+        try {
+          if (!window.ShopApi?.addToCart) {
+            throw new Error("ShopApi.addToCart 尚未載入");
+          }
+
+          await window.ShopApi.addToCart(id);
+          window.location.assign("./shop_cart.html");
+        } catch (error) {
+          console.error("[product] add to cart failed", error);
+        }
+      }
+
+      function setImage(product) {
+        const imageWrap = document.querySelector(".product-image-wrap");
+        const placeholderEl = document.querySelector(".product-image-placeholder");
+
+        if (!imageWrap || !placeholderEl) return;
+
+        const imageUrl = product?.image || "";
+
+        const existingImage = imageWrap.querySelector("img.product-detail-image");
+        if (existingImage) {
+          existingImage.remove();
+        }
+
+        if (!imageUrl) {
+          placeholderEl.style.display = "flex";
+          return;
+        }
+
+        const imageEl = document.createElement("img");
+        imageEl.className = "product-detail-image";
+        imageEl.src = imageUrl;
+        imageEl.alt = product?.name || "商品";
+        imageEl.loading = "lazy";
+        imageEl.style.width = "100%";
+        imageEl.style.height = "100%";
+        imageEl.style.objectFit = "cover";
+        imageEl.style.borderRadius = "16px";
+        imageEl.style.display = "block";
+
+        placeholderEl.style.display = "none";
+        imageWrap.prepend(imageEl);
+      }
+
+      async function renderProduct() {
+        const id = getProductId();
+        const titleEl = document.querySelector(".product-title");
+        const descEl = document.querySelector(".product-desc");
+        const priceEl = document.querySelector(".product-price");
+        const stockEl = document.querySelector(".product-stock");
+        const badgeEl = document.querySelector(".product-badge");
+        const kickerEl = document.querySelector(".product-kicker");
+        const unlockTextEl = document.querySelector(".product-unlock-box p");
+
+        if (!id) {
+          if (titleEl) titleEl.textContent = "找不到商品";
+          return;
+        }
+
+        if (!window.ShopApi?.getProduct) {
+          if (titleEl) titleEl.textContent = "商品載入失敗";
+          return;
+        }
+
+        try {
+          const product = await window.ShopApi.getProduct(id);
+
+          if (!product) {
+            if (titleEl) titleEl.textContent = "找不到商品";
+            return;
+          }
+
+          if (titleEl) titleEl.textContent = product.name || "未命名商品";
+          if (descEl) descEl.textContent = product.description || product.subtitle || "";
+          if (priceEl) priceEl.textContent = `NT$ ${Number(product.price || 0).toLocaleString("zh-TW")}`;
+          if (stockEl) {
+            const stock = Number(product.stock || 0);
+            stockEl.textContent = stock > 0 ? `剩餘 ${stock} 件` : "已售完";
+          }
+          if (badgeEl) badgeEl.textContent = product.badge || "限量商品";
+          if (kickerEl) kickerEl.textContent = product.badge || "🦎 Lucky 店長推薦";
+          if (unlockTextEl) {
+            unlockTextEl.textContent = product.required_mascot_id
+              ? "此商品需要解鎖指定吉祥物收藏後才能購買。"
+              : "已收藏指定吉祥物即可優先購買。";
+          }
+
+          setImage(product);
+        } catch (error) {
+          console.error("[product] load failed", error);
+          if (titleEl) titleEl.textContent = "商品載入失敗";
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const addToCartBtn = document.getElementById("addToCartBtn");
+
+        if (addToCartBtn) {
+          addToCartBtn.addEventListener("click", handleAddToCart);
+        }
+
+        renderProduct();
+      });
+    })();
+  </script>
 </body>
 </html>

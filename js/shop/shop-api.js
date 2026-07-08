@@ -31,6 +31,58 @@
       : { userId: "", nickname: "" };
   }
 
+  function resolveAssetPath(value) {
+    if (!value || typeof value !== "string") {
+      return "";
+    }
+
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return "";
+    }
+
+    if (/^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith("data:")) {
+      return trimmed;
+    }
+
+    if (trimmed.startsWith("/")) {
+      return trimmed;
+    }
+
+    if (trimmed.startsWith("./") || trimmed.startsWith("../")) {
+      return trimmed;
+    }
+
+    return `./${trimmed}`;
+  }
+
+  function normalizeProduct(product) {
+    if (!product || typeof product !== "object") {
+      return null;
+    }
+
+    const imageValue = product.thumbnail || product.image || product.cover || product.image_url || "";
+
+    return {
+      ...product,
+      id: String(product.id ?? ""),
+      name: String(product.name || product.title || "未命名商品"),
+      subtitle: String(product.subtitle || product.description || ""),
+      description: String(product.description || product.subtitle || ""),
+      badge: String(product.badge || product.tag || "LIMITED"),
+      price: Number(product.price ?? 0),
+      stock: Number(product.stock ?? 0),
+      enabled: Boolean(product.enabled !== false),
+      required_mascot_id: product.required_mascot_id || "",
+      required_mascot_count: Number(product.required_mascot_count || 1),
+      sort_order: Number(product.sort_order || 0),
+      thumbnail: resolveAssetPath(imageValue),
+      image: resolveAssetPath(imageValue),
+      cover: resolveAssetPath(imageValue)
+    };
+  }
+
   async function getProducts() {
     const { data, error } = await getSupabaseClient()
       .from(DB.products)
@@ -39,18 +91,27 @@
       .order("sort_order", { ascending: true });
 
     if (error) throw error;
-    return data || [];
+
+    return (data || [])
+      .map(normalizeProduct)
+      .filter(Boolean);
   }
 
   async function getProduct(productId) {
+    const normalizedProductId = String(productId ?? "").trim();
+
+    if (!normalizedProductId) {
+      return null;
+    }
+
     const { data, error } = await getSupabaseClient()
       .from(DB.products)
       .select("*")
-      .eq("id", productId)
+      .eq("id", normalizedProductId)
       .maybeSingle();
 
     if (error) throw error;
-    return data;
+    return normalizeProduct(data);
   }
 
   async function checkProductUnlocked(product) {
@@ -222,6 +283,8 @@
   }
 
   window.ShopApi = {
+    resolveAssetPath,
+    normalizeProduct,
     getProducts,
     getProduct,
     checkProductUnlocked,
