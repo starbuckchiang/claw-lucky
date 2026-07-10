@@ -7,9 +7,11 @@ if (!window.supabaseClient) {
     SUPABASE_KEY,
     {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+        storageKey: "claw-lucky-auth"
       }
     }
   );

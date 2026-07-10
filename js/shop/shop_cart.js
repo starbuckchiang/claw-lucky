@@ -59,11 +59,28 @@
         await window.UserStore.initUser();
       }
 
-      const profile = window.UserStore?.getUserProfile ? window.UserStore.getUserProfile() : {};
-      const userId = profile?.userId;
+      const user = window.userReadyPromise
+        ? await window.userReadyPromise
+        : null;
+
+      let userId = String(user?.user_id || "").trim();
+
+      if (!userId && window.ClawUser?.getUserId) {
+        userId = String(await window.ClawUser.getUserId() || "").trim();
+      }
 
       if (!userId) {
         throw new Error("找不到使用者資料");
+      }
+
+      const { data: sessionData, error: sessionError } = await window.supabaseClient.auth.getSession();
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      const sessionUserId = String(sessionData?.session?.user?.id || "").trim();
+      if (!sessionUserId || sessionUserId !== userId) {
+        throw new Error("checkout userId 與 session.user.id 不一致");
       }
 
       const { totalAmount, totalItems } = getCheckoutSummary(cartItems);
@@ -80,7 +97,7 @@
       const { data: order, error: orderError } = await window.supabaseClient
         .from("orders")
         .insert(orderPayload)
-        .select()
+        .select("id,order_no,user_id,total_amount,total_items,status,created_at")
         .single();
 
       if (orderError) {

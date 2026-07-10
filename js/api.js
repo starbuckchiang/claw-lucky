@@ -15,6 +15,31 @@ function getSupabaseClient() {
   return window.supabaseClient;
 }
 
+async function resolveAuthUserContext() {
+  if (!window.userReadyPromise && window.UserStore?.initUser) {
+    window.userReadyPromise = window.UserStore.initUser();
+  }
+
+  const user = window.userReadyPromise
+    ? await window.userReadyPromise
+    : null;
+
+  let userId = String(user?.user_id || "").trim();
+
+  if (!userId && window.ClawUser?.getUserId) {
+    userId = String(await window.ClawUser.getUserId() || "").trim();
+  }
+
+  if (!userId) {
+    throw new Error("找不到 auth userId");
+  }
+
+  return {
+    userId,
+    nickname: String(user?.nickname || "").trim()
+  };
+}
+
 window.Api = {
   async getUser(userId) {
     const { data, error } = await getSupabaseClient()
@@ -119,12 +144,18 @@ async getUserMascots(userId) {
   return data || [];
 },
   async getGiftList() {
+    console.log("[gift] DB.gifts =", DB.gifts);
+
     const { data, error } = await getSupabaseClient()
       .from(DB.gifts)
       .select("*")
       .eq("enabled", true)
       .gt("stock", 0)
       .order("sort_order", { ascending: true });
+
+    console.log("[gift] getGifts data =", data);
+    console.log("[gift] getGifts error =", error);
+    console.log("[gift] getGifts length =", data?.length);
 
     if (error) throw error;
 
@@ -137,6 +168,10 @@ async getUserMascots(userId) {
     .select("*")
     .eq("enabled", true)
     .order("sort_order", { ascending: true });
+
+  console.log("[gallery] getAllMascots data =", data);
+  console.log("[gallery] getAllMascots error =", error);
+  console.log("[gallery] getAllMascots length =", data?.length);
 
   if (error) throw error;
   return data || [];
@@ -217,11 +252,13 @@ async getUserMascots(userId) {
     note = "",
     source = ""
   }) {
+    const authUser = await resolveAuthUserContext();
+
     const { error } = await getSupabaseClient()
       .from(DB.logs)
       .insert({
-        user_id: userId,
-        nickname,
+        user_id: authUser.userId,
+        nickname: nickname || authUser.nickname,
         action_type: actionType,
         coins_change: Number(coinsDelta || 0),
         points_change: Number(pointsDelta || 0),
@@ -248,11 +285,13 @@ async getUserMascots(userId) {
     coinsCost = 0,
     note = ""
   }) {
+    const authUser = await resolveAuthUserContext();
+
     const { data, error } = await getSupabaseClient()
       .from(DB.redeemHistory)
       .insert({
-        user_id: userId,
-        nickname,
+        user_id: authUser.userId,
+        nickname: nickname || authUser.nickname,
         gift_id: giftId,
         gift_name: giftName,
         quantity: Number(quantity || 1),
@@ -273,11 +312,17 @@ async getUserMascots(userId) {
   },  
 
    async getRedeemHistory(userId) {
+  const authUser = await resolveAuthUserContext();
+
   const { data, error } = await getSupabaseClient()
     .from(DB.redeemHistory)
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", authUser.userId)
     .order("created_at", { ascending: false });
+
+  console.log("[gift] redeem history data =", data);
+  console.log("[gift] redeem history error =", error);
+  console.log("[gift] redeem history length =", data?.length);
 
   if (error) throw error;
 
@@ -294,9 +339,11 @@ async getUserMascots(userId) {
     coinsCost = 0,
     note = ""
   }) {
+    const authUser = await resolveAuthUserContext();
+
     const updatedUser = await this.adjustBalance({
-      userId,
-      nickname,
+      userId: authUser.userId,
+      nickname: nickname || authUser.nickname,
       pointsDelta: -Number(pointsCost || 0),
       ticketsDelta: -Number(ticketsCost || 0),
       coinsDelta: -Number(coinsCost || 0),
@@ -306,8 +353,8 @@ async getUserMascots(userId) {
     });
 
     const redeemRecord = await this.addRedeemHistory({
-      userId,
-      nickname,
+      userId: authUser.userId,
+      nickname: nickname || authUser.nickname,
       giftId,
       giftName,
       quantity: 1,

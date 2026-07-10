@@ -114,10 +114,12 @@
   }
 
   function renderProducts(products) {
-    if (!refs.productGridEl) return;
+    const container = refs.productGridEl;
+    console.log("[good] product container =", container);
+    if (!container) return;
 
     if (!Array.isArray(products) || !products.length) {
-      refs.productGridEl.innerHTML = `
+      container.innerHTML = `
         <div class="good-product-empty">
           目前尚無上架商品，請稍後再回來逛逛。
         </div>
@@ -125,15 +127,18 @@
       return;
     }
 
-    refs.productGridEl.innerHTML = products.map(buildProductCard).join("");
+    container.innerHTML = products.map(buildProductCard).join("");
   }
 
   async function loadProducts() {
+    console.log("[good] loadProducts started");
+    console.log("[good] ShopApi =", window.ShopApi);
     if (!window.ShopApi?.getProducts) {
       throw new Error("ShopApi.getProducts 尚未載入");
     }
 
     const products = await window.ShopApi.getProducts();
+    console.log("[good] products =", products);
     renderProducts(products);
   }
 
@@ -169,10 +174,15 @@
 
   async function initGoodPage() {
     try {
+      console.log("[good] initGoodPage started");
       document.body.classList.add("page-ready");
 
       if (window.UserStore?.initUser) {
-        await window.UserStore.initUser();
+        try {
+          await window.UserStore.initUser();
+        } catch (error) {
+          console.warn("[good] user init failed, continue loading products", error);
+        }
       }
 
       await loadProducts();

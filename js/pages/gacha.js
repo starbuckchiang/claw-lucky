@@ -74,10 +74,25 @@ function getApi() {
   return window.Api;
 }
 
-function getUserProfile() {
-  return window.UserStore?.getUserProfile
-    ? window.UserStore.getUserProfile()
-    : { userId: "", nickname: "" };
+async function getAuthProfile() {
+  if (!window.userReadyPromise && window.UserStore?.initUser) {
+    window.userReadyPromise = window.UserStore.initUser();
+  }
+
+  const user = window.userReadyPromise
+    ? await window.userReadyPromise
+    : null;
+
+  let userId = String(user?.user_id || "").trim();
+
+  if (!userId && window.ClawUser?.getUserId) {
+    userId = String(await window.ClawUser.getUserId() || "").trim();
+  }
+
+  return {
+    userId,
+    nickname: String(user?.nickname || "").trim()
+  };
 }
 
 /* ============================================================
@@ -297,7 +312,11 @@ function handleDrawClick() {
 
   window.setTimeout(async () => {
     try {
-      const profile = getUserProfile();
+      const profile = await getAuthProfile();
+
+      if (!profile.userId) {
+        throw new Error("找不到 auth userId");
+      }
 
       const remoteUser = await getApi().getUser(profile.userId);
 

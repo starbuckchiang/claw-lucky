@@ -6,71 +6,86 @@
   <title>舊社選物｜好運商品兌換</title>
 
   <link rel="stylesheet" href="./css/base.css" />
-  <link rel="stylesheet" href="./css/gift.css?v=3" />
+  <link rel="stylesheet" href="./css/gift.css?v=20260710-3" />
 </head>
 <body>
-  <div class="wrap">
-    <div class="hero">
-      <h1 class="primary-title">🎁 好運商品兌換頁</h1>
-      <p class="page-text">
-        這裡可以用你在抽幸運物累積的 <strong>點數</strong> 與 <strong>兌換券</strong> 兌換商品。<br>
-        如果還差一點點，就回去抽幾次再來看看吧。
+  <main class="gift-page">
+    <header class="gift-topbar">
+      <div class="gift-topbar-title-group">
+        <span class="gift-topbar-kicker">Lucky Exchange</span>
+        <h1 class="gift-topbar-title">好運商品兌換頁</h1>
+      </div>
+    </header>
+
+    <section class="gift-hero">
+      <h2 class="gift-hero-title">把抽到的好運，換成真的帶得走的禮物</h2>
+      <p class="gift-hero-text">
+        這裡可以用你在抽幸運物累積的點數與兌換券兌換商品。如果還差一點點，就回去抽幾次再來看看吧。
       </p>
-
-      <div class="top-actions">
-        <a class="btn btn-gift" href="./gacha.html">回 抽吉祥物</a>
+      <div class="gift-hero-actions">
+        <a class="gift-primary-button" href="./gacha.html">回抽吉祥物</a>
+        <a class="gift-primary-button" href="./index.html">回首頁</a>
       </div>
-    </div>
 
-    <div class="wallet">
-      <h2>💼 我的兌換資產</h2>
-      <div class="wallet-stats">
-        <div class="wallet-stat">
-          <div class="wallet-label">💎 目前點數</div>
-          <div class="wallet-value" id="points">0</div>
-        </div>
-        
-        <div id="giftStatus" class="notice-box">正在讀取帳戶資料...</div>
-
-        <div class="wallet-stat">
-          <div class="wallet-label">🎟 目前兌換券</div>
-          <div class="wallet-value" id="tickets">0</div>
-        </div>
+      <div class="gift-section-head">
+        <h2 id="walletTitle" class="gift-section-title">我的兌換資產</h2>
+        <p id="giftPageStatus" class="gift-page-status">正在初始化兌換頁...</p>
       </div>
-    </div>
 
-    <div class="gift-rules">
-      <h3>✨ 兌換小提醒</h3>
-      <ul>
+      <div class="gift-wallet-grid">
+        <article class="gift-wallet-card">
+          <span class="gift-wallet-label">點數</span>
+          <strong id="pointsValue" class="gift-wallet-value">--</strong>
+        </article>
+
+        <article class="gift-wallet-card">
+          <span class="gift-wallet-label">兌換券</span>
+          <strong id="ticketsValue" class="gift-wallet-value">--</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="gift-list-section" aria-labelledby="giftListTitle">
+      <div class="gift-section-head">
+        <h2 id="giftListTitle" class="gift-section-title">可兌換商品</h2>
+        <p class="gift-section-note">公開商品清單不依賴登入結果。</p>
+      </div>
+
+      <div id="giftLoading" class="gift-state-card">正在讀取可兌換商品...</div>
+      <div id="giftError" class="gift-state-card gift-state-error hidden">商品載入失敗，請稍後再試。</div>
+      <div id="giftEmpty" class="gift-state-card hidden">目前沒有可兌換的商品。</div>
+      <div id="giftGrid" class="gift-grid"></div>
+    </section>
+
+    <section class="gift-help-section" aria-labelledby="giftHelpTitle">
+      <h2 id="giftHelpTitle" class="gift-section-title">✨ 兌換小提醒</h2>
+      <ul class="gift-help-list">
         <li>喜歡的商品可以用 <strong>點數</strong> 或 <strong>兌換券</strong> 帶回家</li>
         <li>如果你現在還差一點資源，可以先回抽吉祥物首頁補一下</li>
         <li>按下 <strong>立即兌換</strong> 後，系統會先請你再確認一次</li>
         <li>成功兌換後，紀錄會留在下方的 <strong>兌換紀錄</strong></li>
         <li>如果商品有限量，就要把握機會，兌完就要等下次啦</li>
       </ul>
-    </div>
+    </section>
 
-    <div class="grid" id="giftGrid"></div>
-
-    <div class="history-card">
-      <h3>🧾 已兌換紀錄</h3>
-      <div id="historyList" class="history-list"></div>
-      <div id="historyEmpty" class="history-empty" style="display:none;">
-        目前還沒有兌換紀錄。
+    <section class="gift-history-section" id="historySection" aria-labelledby="historyTitle">
+      <div class="gift-section-head">
+        <h2 id="historyTitle" class="gift-section-title">已兌換紀錄</h2>
+        <p class="gift-section-note">只顯示目前 Auth UUID 的紀錄。</p>
       </div>
-    </div>
 
-    <div class="bottom-actions">
-      <a class="btn btn-gift" href="./gacha.html">回 抽吉祥物</a>
-    </div>
-  </div>
+      <div id="historyLoading" class="gift-state-card">正在讀取兌換紀錄...</div>
+      <div id="historyError" class="gift-state-card gift-state-error hidden">兌換紀錄載入失敗。</div>
+      <div id="historyEmpty" class="gift-state-card hidden">目前還沒有兌換紀錄。</div>
+      <div id="historyList" class="gift-history-list"></div>
+    </section>
+  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./config.js?v=20260710-2"></script>
-  <script src="./js/api.js?v=18"></script>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
-  <script src="./js/user.js?v=20260710-2"></script>
-  <script src="./js/storage/gacha-storage.js"></script>
-  <script src="./js/gift.js"></script>
+  <script src="./config.js?v=20260710-3"></script>
+  <script src="./js/api.js?v=20260710-3"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
+  <script src="./js/user.js?v=20260710-3"></script>
+  <script src="./js/gift.js?v=20260710-3"></script>
 </body>
 </html>

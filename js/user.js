@@ -2,9 +2,14 @@
   const USER_ID_KEY = "ossUserId";
   const USER_NICKNAME_KEY = "ossNickname";
   const SUPABASE_AUTH_USER_ID_KEY = "supabaseAuthUserId";
+  const AUTH_SESSION_KEY = "claw-lucky-auth-session";
 
   let userReadyPromise = null;
+  let authUserCache = null;
+  let readyUserCache = null;
   window.userReadyPromise = null;
+  window.__clawUserInitLock = window.__clawUserInitLock || null;
+  window.__clawAuthSignInLock = window.__clawAuthSignInLock || null;
 
   function createRandomId() {
     if (window.crypto?.randomUUID) {
@@ -14,7 +19,7 @@
     return Math.random().toString(36).slice(2, 10);
   }
 
-  function getOrCreateUserId() {
+  function getOrCreateLegacyUserId() {
     let userId = localStorage.getItem(USER_ID_KEY);
 
     if (!userId) {
@@ -27,8 +32,16 @@
     return userId;
   }
 
-  function getUserId() {
+  function getLegacyUserId() {
     return localStorage.getItem(USER_ID_KEY) || "";
+  }
+
+  function getAuthUserId() {
+    return localStorage.getItem(SUPABASE_AUTH_USER_ID_KEY) || "";
+  }
+
+  function getUserId() {
+    return getAuthUserId();
   }
 
   function setNickname(nickname) {
@@ -43,7 +56,8 @@
 
   function getUserProfile() {
     return {
-      userId: getOrCreateUserId(),
+      userId: getAuthUserId(),
+      legacyUserId: getOrCreateLegacyUserId(),
       nickname: getNickname()
     };
   }
@@ -144,35 +158,118 @@
       throw sessionError;
     }
 
+    console.log("[auth] stored session user =", sessionData?.session?.user?.id || null);
+
     if (sessionData?.session?.user?.id) {
       const existingAuthUserId = String(sessionData.session.user.id);
       localStorage.setItem(SUPABASE_AUTH_USER_ID_KEY, existingAuthUserId);
+      try {
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(sessionData.session));
+      } catch (error) {
+        console.warn("[auth] store session cache failed =", error);
+      }
+      authUserCache = sessionData.session.user;
       console.log(`[user] auth user ready = ${existingAuthUserId}`);
       return sessionData.session.user;
     }
 
-    const captchaToken = await verifyTurnstile();
+    const rawCachedSession = localStorage.getItem(AUTH_SESSION_KEY);
+    if (rawCachedSession) {
+      try {
+        const cachedSession = JSON.parse(rawCachedSession);
+        if (cachedSession?.access_token && cachedSession?.refresh_token) {
+          const { data: restoredData, error: restoredError } =
+            await window.supabaseClient.auth.setSession({
+              access_token: cachedSession.access_token,
+              refresh_token: cachedSession.refresh_token
+            });
 
-    const { data, error } = await window.supabaseClient.auth.signInAnonymously({
-      options: {
-        captchaToken
+          if (!restoredError && restoredData?.session?.user?.id) {
+            const restoredUserId = String(restoredData.session.user.id);
+            localStorage.setItem(SUPABASE_AUTH_USER_ID_KEY, restoredUserId);
+            try {
+              localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(restoredData.session));
+            } catch (error) {
+              console.warn("[auth] store restored session cache failed =", error);
+            }
+            authUserCache = restoredData.session.user;
+            console.log("[auth] stored session user =", restoredUserId);
+            console.log(`[user] auth user ready = ${restoredUserId}`);
+            return restoredData.session.user;
+          }
+        }
+      } catch (error) {
+        console.warn("[auth] parse cached session failed =", error);
       }
-    });
-
-    if (error) {
-      throw error;
     }
 
-    const authUserId = String(data?.user?.id || "").trim();
-
-    if (!authUserId) {
-      throw new Error("Anonymous auth user id 無效");
+    if (window.__clawAuthSignInLock) {
+      return window.__clawAuthSignInLock;
     }
 
-    localStorage.setItem(SUPABASE_AUTH_USER_ID_KEY, authUserId);
-    console.log(`[user] auth user ready = ${authUserId}`);
+    window.__clawAuthSignInLock = (async () => {
+      const { data: latestSessionData, error: latestSessionError } =
+        await window.supabaseClient.auth.getSession();
 
-    return data.user;
+      if (latestSessionError) {
+        throw latestSessionError;
+      }
+
+      if (latestSessionData?.session?.user?.id) {
+        const latestUserId = String(latestSessionData.session.user.id);
+        localStorage.setItem(SUPABASE_AUTH_USER_ID_KEY, latestUserId);
+        try {
+          localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(latestSessionData.session));
+        } catch (error) {
+          console.warn("[auth] store latest session cache failed =", error);
+        }
+        authUserCache = latestSessionData.session.user;
+        console.log("[auth] stored session user =", latestUserId);
+        console.log(`[user] auth user ready = ${latestUserId}`);
+        return latestSessionData.session.user;
+      }
+
+      const captchaToken = await verifyTurnstile();
+
+      console.log("[auth] creating anonymous user =", true);
+
+      const { data, error } = await window.supabaseClient.auth.signInAnonymously({
+        options: {
+          captchaToken
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const authUserId = String(data?.user?.id || "").trim();
+
+      if (!authUserId) {
+        throw new Error("Anonymous auth user id 無效");
+      }
+
+      const { data: postSessionData } = await window.supabaseClient.auth.getSession();
+
+      localStorage.setItem(SUPABASE_AUTH_USER_ID_KEY, authUserId);
+      if (postSessionData?.session) {
+        try {
+          localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(postSessionData.session));
+        } catch (storeError) {
+          console.warn("[auth] store post sign-in session failed =", storeError);
+        }
+      }
+      authUserCache = data.user;
+      console.log(`[user] auth user ready = ${authUserId}`);
+
+      return data.user;
+    })();
+
+    try {
+      return await window.__clawAuthSignInLock;
+    } finally {
+      window.__clawAuthSignInLock = null;
+    }
   }
 
   function clearUserProfile() {
@@ -186,7 +283,13 @@
       return userReadyPromise;
     }
 
-    userReadyPromise = (async () => {
+    if (window.__clawUserInitLock) {
+      userReadyPromise = window.__clawUserInitLock;
+      window.userReadyPromise = userReadyPromise;
+      return userReadyPromise;
+    }
+
+    window.__clawUserInitLock = (async () => {
 
       const profile = getUserProfile();
       let authUser = null;
@@ -199,7 +302,17 @@
 
       if (!window.Api) {
         console.warn("[user] Api 尚未載入");
-        return profile;
+        const fallbackUser = {
+          user_id: String(authUser?.id || profile.userId || "").trim(),
+          userId: String(authUser?.id || profile.userId || "").trim(),
+          legacyUserId: profile.legacyUserId,
+          nickname: profile.nickname,
+          points: 0,
+          tickets: 0,
+          coins: 20
+        };
+        readyUserCache = fallbackUser;
+        return fallbackUser;
       }
 
       try {
@@ -226,33 +339,70 @@
 
         }
 
-        console.log("[user] Supabase user ready =", user);
+        const normalizedUser = {
+          ...user,
+          user_id: String(user?.user_id || authUserId),
+          userId: String(user?.user_id || authUserId),
+          legacyUserId: profile.legacyUserId
+        };
 
-        return user;
+        console.log("[user] Supabase user ready =", normalizedUser);
+        readyUserCache = normalizedUser;
+
+        return normalizedUser;
 
       } catch (error) {
 
         console.error("[user] initUser failed =", error);
 
-        return profile;
+        const fallbackUser = {
+          user_id: String(authUser?.id || "").trim(),
+          userId: String(authUser?.id || "").trim(),
+          legacyUserId: profile.legacyUserId,
+          nickname: profile.nickname,
+          points: 0,
+          tickets: 0,
+          coins: 20
+        };
+        readyUserCache = fallbackUser;
+
+        return fallbackUser;
 
       }
 
     })();
 
+    userReadyPromise = window.__clawUserInitLock;
+
     window.userReadyPromise = userReadyPromise;
+
+    userReadyPromise.finally(() => {
+      if (window.__clawUserInitLock === userReadyPromise) {
+        window.__clawUserInitLock = null;
+      }
+    });
 
     return userReadyPromise;
   }
 
   window.UserStore = {
-    getOrCreateUserId,
+    getOrCreateUserId: getOrCreateLegacyUserId,
+    getOrCreateLegacyUserId,
+    getLegacyUserId,
+    getAuthUserId,
     getUserId,
     setNickname,
     getNickname,
     getUserProfile,
     clearUserProfile,
     initUser
+  };
+
+  window.ClawUser = {
+    getUserId,
+    getAuthUser() {
+      return authUserCache;
+    }
   };
 
 })();

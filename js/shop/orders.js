@@ -24,6 +24,9 @@
 
   function buildOrderCard(order) {
     const orderId = order?.id || "";
+    const orderNo = String(order?.order_no || "").trim();
+    const legacyCode = String(orderId || "").slice(0, 8);
+    const displayOrderNo = orderNo || (legacyCode ? `舊訂單 ${legacyCode}` : "舊訂單");
     const totalAmount = formatPrice(order?.total_amount || 0);
     const totalItems = Number(order?.total_items || 0);
     const status = order?.status || "pending";
@@ -33,7 +36,7 @@
       <article class="orders-card">
         <div class="orders-meta">
           <div>
-            <h3>訂單 ${escapeHtml(orderId)}</h3>
+            <h3>訂單 ${escapeHtml(displayOrderNo)}</h3>
             <div>${escapeHtml(createdAt)}</div>
           </div>
           <div>
@@ -123,8 +126,19 @@
     }
 
     try {
-      const profile = window.UserStore?.getUserProfile ? window.UserStore.getUserProfile() : {};
-      const userId = profile?.userId;
+      if (!window.userReadyPromise && window.UserStore?.initUser) {
+        window.userReadyPromise = window.UserStore.initUser();
+      }
+
+      const user = window.userReadyPromise
+        ? await window.userReadyPromise
+        : null;
+
+      let userId = String(user?.user_id || "").trim();
+
+      if (!userId && window.ClawUser?.getUserId) {
+        userId = String(await window.ClawUser.getUserId() || "").trim();
+      }
 
       if (!userId) {
         refs.ordersListEl.innerHTML = '<div class="good-product-empty">目前沒有可用的使用者資料。</div>';

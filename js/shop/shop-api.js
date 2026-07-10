@@ -25,10 +25,26 @@
     return window.supabaseClient;
   }
 
-  function getUserProfile() {
-    return window.UserStore?.getUserProfile
-      ? window.UserStore.getUserProfile()
-      : { userId: "", nickname: "" };
+  async function getCurrentUserId() {
+    if (!window.userReadyPromise && window.UserStore?.initUser) {
+      window.userReadyPromise = window.UserStore.initUser();
+    }
+
+    const user = window.userReadyPromise
+      ? await window.userReadyPromise
+      : null;
+
+    let userId = String(user?.user_id || "").trim();
+
+    if (!userId && window.ClawUser?.getUserId) {
+      userId = String(await window.ClawUser.getUserId() || "").trim();
+    }
+
+    if (!userId) {
+      throw new Error("找不到 userId");
+    }
+
+    return userId;
   }
 
   function resolveAssetPath(value) {
@@ -84,6 +100,7 @@
   }
 
   async function getProducts() {
+    console.log("[shop-api] getProducts started");
     const { data, error } = await getSupabaseClient()
       .from(DB.products)
       .select("*")
@@ -92,9 +109,15 @@
 
     if (error) throw error;
 
-    return (data || [])
+    console.log("[shop-api] getProducts raw data =", data);
+    console.log("[shop-api] getProducts raw length =", Array.isArray(data) ? data.length : "not-array");
+
+    const products = (data || [])
       .map(normalizeProduct)
       .filter(Boolean);
+
+    console.log("[shop-api] getProducts normalized length =", products.length);
+    return products;
   }
 
   async function getProduct(productId) {
@@ -115,7 +138,7 @@
   }
 
   async function checkProductUnlocked(product) {
-    const profile = getUserProfile();
+    const userId = await getCurrentUserId();
 
     if (!product?.required_mascot_id) {
       return true;
@@ -124,7 +147,7 @@
     const { data, error } = await getSupabaseClient()
       .from(DB.userMascots)
       .select("mascot_id, obtain_count")
-      .eq("user_id", profile.userId)
+      .eq("user_id", userId)
       .eq("mascot_id", product.required_mascot_id)
       .maybeSingle();
 
@@ -135,11 +158,31 @@
   }
 
   async function addToCart(productId, quantity = 1) {
-    const profile = getUserProfile();
-
-    if (!profile.userId) {
-      throw new Error("找不到 userId");
+    if (!window.userReadyPromise && window.UserStore?.initUser) {
+      window.userReadyPromise = window.UserStore.initUser();
     }
+
+    const user = window.userReadyPromise
+      ? await window.userReadyPromise
+      : null;
+    const userId = String(user?.user_id || "").trim();
+
+    if (!userId) {
+      throw new Error("找不到 auth userId");
+    }
+
+    const { data: sessionData, error: sessionError } = await getSupabaseClient().auth.getSession();
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    const sessionUserId = String(sessionData?.session?.user?.id || "").trim();
+    if (!sessionUserId || sessionUserId !== userId) {
+      throw new Error("auth userId 與 session.user.id 不一致");
+    }
+
+    console.log("[shop cart] auth userId =", userId);
+    console.log("[shop cart] productId =", productId);
 
     const product = await getProduct(productId);
 
@@ -164,7 +207,7 @@
     const { data: existing, error: findError } = await getSupabaseClient()
       .from(DB.cart)
       .select("*")
-      .eq("user_id", profile.userId)
+      .eq("user_id", userId)
       .eq("product_id", productId)
       .maybeSingle();
 
@@ -172,7 +215,7 @@
 
     if (existing) {
       const nextQuantity =
-        Number(existing.quantity || 0) + Number(quantity || 1);
+        Number(existing.quantity || 0) + 1;
 
       if (nextQuantity > Number(product.stock || 0)) {
         throw new Error("加入數量超過庫存");
@@ -197,9 +240,9 @@
     const { data, error } = await getSupabaseClient()
       .from(DB.cart)
       .insert({
-        user_id: profile.userId,
+        user_id: userId,
         product_id: productId,
-        quantity: Number(quantity || 1),
+        quantity: 1,
         selected: true,
         unlock_verified: true,
         created_at: new Date().toISOString(),
@@ -213,11 +256,7 @@
   }
 
   async function getCart() {
-    const profile = getUserProfile();
-
-    if (!profile.userId) {
-      throw new Error("找不到 userId");
-    }
+    const userId = await getCurrentUserId();
 
     const { data, error } = await getSupabaseClient()
       .from(DB.cart)
@@ -225,7 +264,7 @@
         *,
         product:shop_products(*)
       `)
-      .eq("user_id", profile.userId)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -267,16 +306,12 @@
   }
 
   async function clearCart() {
-    const profile = getUserProfile();
-
-    if (!profile.userId) {
-      throw new Error("找不到 userId");
-    }
+    const userId = await getCurrentUserId();
 
     const { error } = await getSupabaseClient()
       .from(DB.cart)
       .delete()
-      .eq("user_id", profile.userId);
+      .eq("user_id", userId);
 
     if (error) throw error;
     return true;

@@ -73,16 +73,44 @@ async function loadCollectionData() {
     throw new Error("Api.getUserMascots 尚未建立");
   }
 
+  console.log(
+    "[collection] profile.userId =",
+    profile.userId
+  );
+
+  const authUser = await window.userReadyPromise;
+
+  console.log(
+    "[collection] auth.user_id =",
+    authUser.user_id
+  );
+
+  console.log(
+    "[collection] same =",
+    profile.userId === authUser.user_id
+  );
+
   const [mascots, ownedRows] = await Promise.all([
     api.getMascots(),
     api.getUserMascots(profile.userId)
   ]);
 
+  const data = ownedRows;
+  const error = null;
+
+  console.log("[collection] user_mascots data =", data);
+  console.log("[collection] user_mascots error =", error);
+  console.log("[collection] user_mascots length =", data?.length);
+
+  if (data?.length) {
+    console.log("[collection] first row =", data?.[0]);
+  }
+
   allMascots = Array.isArray(mascots) ? mascots : [];
   ownedMascotRows = Array.isArray(ownedRows) ? ownedRows : [];
 
   ownedMascotMap = new Map(
-    ownedMascotRows.map((item) => [item.mascot_id, item])
+    ownedMascotRows.map((item) => [String(item.mascot_id ?? ""), item])
   );
 }
 
@@ -103,11 +131,11 @@ function getOwnedIds() {
 }
 
 function getOwnedMascotRow(mascotId) {
-  return ownedMascotMap.get(mascotId) || null;
+  return ownedMascotMap.get(String(mascotId ?? "")) || null;
 }
 
 function isOwnedMascot(mascotId) {
-  return ownedMascotMap.has(mascotId);
+  return ownedMascotMap.has(String(mascotId ?? ""));
 }
 
 function getRarityMeta(rarityCode) {
@@ -146,18 +174,30 @@ function getRarityMeta(rarityCode) {
 
 function getSummaryState() {
   const mascots = getAllMascots();
-  const ownedIds = getOwnedIds();
+  const rows = getOwnedRows();
 
-  const ownedCount = mascots.filter((item) =>
-    ownedIds.includes(item.id)
-  ).length;
+  console.log("[collection] stats input rows =", rows);
+
+  const stats = {
+    ownedTypes: rows.length,
+    totalObtained: rows.reduce(
+      (sum, row) => sum + Number(row.obtain_count || 0),
+      0
+    ),
+    SSR: rows.filter((row) => row.rarity === "SSR").length,
+    SR: rows.filter((row) => row.rarity === "SR").length,
+    R: rows.filter((row) => row.rarity === "R").length,
+    N: rows.filter((row) => row.rarity === "N").length
+  };
+
+  console.log("[collection] stats =", stats);
+
+  const ownedCount = Number(stats.ownedTypes || 0);
 
   const totalCount = mascots.length;
   const lockedCount = Math.max(0, totalCount - ownedCount);
 
-  const ssrOwnedCount = mascots.filter(
-    (item) => item.rarity === "SSR" && ownedIds.includes(item.id)
-  ).length;
+  const ssrOwnedCount = Number(stats.SSR || 0);
 
   return {
     ownedCount,
@@ -170,21 +210,29 @@ function getSummaryState() {
 function renderSummary() {
   const state = getSummaryState();
 
-  if (collectionRefs.progressTextEl) {
-    collectionRefs.progressTextEl.textContent =
+  const progressEl = collectionRefs.progressTextEl || document.getElementById("collectionProgressText") || document.querySelector("#collectionProgressText");
+  console.log("[collection] stat element =", progressEl);
+  if (progressEl) {
+    progressEl.textContent =
       `${state.ownedCount} / ${state.totalCount}`;
   }
 
-  if (collectionRefs.ownedCountEl) {
-    collectionRefs.ownedCountEl.textContent = state.ownedCount;
+  const ownedEl = collectionRefs.ownedCountEl || document.getElementById("ownedCount") || document.querySelector("#ownedCount");
+  console.log("[collection] stat element =", ownedEl);
+  if (ownedEl) {
+    ownedEl.textContent = state.ownedCount;
   }
 
-  if (collectionRefs.lockedCountEl) {
-    collectionRefs.lockedCountEl.textContent = state.lockedCount;
+  const lockedEl = collectionRefs.lockedCountEl || document.getElementById("lockedCount") || document.querySelector("#lockedCount");
+  console.log("[collection] stat element =", lockedEl);
+  if (lockedEl) {
+    lockedEl.textContent = state.lockedCount;
   }
 
-  if (collectionRefs.ssrOwnedCountEl) {
-    collectionRefs.ssrOwnedCountEl.textContent = state.ssrOwnedCount;
+  const ssrEl = collectionRefs.ssrOwnedCountEl || document.getElementById("ssrOwnedCount") || document.querySelector("#ssrOwnedCount");
+  console.log("[collection] stat element =", ssrEl);
+  if (ssrEl) {
+    ssrEl.textContent = state.ssrOwnedCount;
   }
 }
 
@@ -283,9 +331,20 @@ function buildCollectionCard(mascot) {
 function renderGrid() {
   if (!collectionRefs.gridEl) return;
 
-  const mascots = getAllMascots().filter(matchesFilter);
+  const rows = getOwnedRows();
+  const gallery = getAllMascots().filter(matchesFilter);
 
-  if (!mascots.length) {
+  console.log("[gallery] rows =", rows);
+  console.log("[gallery] gallery =", gallery);
+  console.log("[gallery] gallery length =", gallery.length);
+  console.log("[gallery] first gallery =", gallery[0]);
+
+  if (!gallery.length) {
+    console.log("[gallery] activeFilter =", activeFilter);
+    console.log("[gallery] allMascots length =", getAllMascots().length);
+  }
+
+  if (!gallery.length) {
     collectionRefs.gridEl.innerHTML = `
       <div class="collection-empty">
         目前這個篩選條件下沒有可顯示的吉祥物。
@@ -295,7 +354,7 @@ function renderGrid() {
   }
 
   collectionRefs.gridEl.innerHTML =
-    mascots.map(buildCollectionCard).join("");
+    gallery.map(buildCollectionCard).join("");
 }
 
 /* ============================================================
@@ -330,6 +389,15 @@ function buildDetailImage(mascot, owned) {
 
 function renderDetail(mascotId) {
   if (!collectionRefs.detailEl) return;
+
+  const rows = getOwnedRows();
+  rows.forEach((row) => {
+    const mascotByRow = getAllMascots().find(
+      (item) => String(item.id ?? "") === String(row?.mascot_id ?? "")
+    );
+    console.log(row?.mascot_id);
+    console.log(mascotByRow?.id);
+  });
 
   const mascot = getAllMascots().find((item) => item.id === mascotId);
 

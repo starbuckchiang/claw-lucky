@@ -19,6 +19,7 @@
 
   async function loadCompletePage() {
     const orderId = getOrderId();
+    const orderNoEl = document.getElementById("completeOrderNo");
     const totalEl = document.getElementById("completeTotal");
     const countEl = document.getElementById("completeCount");
     const itemsEl = document.getElementById("completeItems");
@@ -26,6 +27,7 @@
     if (!orderId) {
       if (totalEl) totalEl.textContent = "NT$ 0";
       if (countEl) countEl.textContent = "0 件商品";
+      if (orderNoEl) orderNoEl.textContent = "訂單編號：—";
       if (itemsEl) {
         itemsEl.innerHTML = '<div class="good-product-empty">沒有找到這筆好運紀錄。</div>';
       }
@@ -37,13 +39,49 @@
         throw new Error("Supabase 尚未初始化");
       }
 
+      if (!window.userReadyPromise && window.UserStore?.initUser) {
+        window.userReadyPromise = window.UserStore.initUser();
+      }
+
+      const user = window.userReadyPromise
+        ? await window.userReadyPromise
+        : null;
+
+      let userId = String(user?.user_id || "").trim();
+
+      if (!userId && window.ClawUser?.getUserId) {
+        userId = String(await window.ClawUser.getUserId() || "").trim();
+      }
+
+      if (!userId) {
+        throw new Error("找不到使用者資料");
+      }
+
       const { data: order, error: orderError } = await window.supabaseClient
         .from("orders")
-        .select("*")
+        .select("id,order_no,user_id,total_amount,total_items,status,created_at")
         .eq("id", orderId)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (orderError) throw orderError;
+
+      if (!order) {
+        if (itemsEl) {
+          itemsEl.innerHTML = '<div class="good-product-empty">沒有找到這筆好運紀錄。</div>';
+        }
+        if (totalEl) totalEl.textContent = "NT$ 0";
+        if (countEl) countEl.textContent = "0 件商品";
+        if (orderNoEl) orderNoEl.textContent = "訂單編號：—";
+        return;
+      }
+
+      if (orderNoEl) {
+        const orderNo = String(order?.order_no || "").trim();
+        const legacyCode = String(order?.id || "").slice(0, 8);
+        const displayNo = orderNo || (legacyCode ? `舊訂單 ${legacyCode}` : "舊訂單");
+        orderNoEl.textContent = `訂單編號：${displayNo}`;
+      }
 
       const { data: items, error: itemsError } = await window.supabaseClient
         .from("order_items")
