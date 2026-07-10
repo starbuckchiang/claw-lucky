@@ -25,6 +25,8 @@ if (!window.supabaseClient) {
 // =========================
 
 window.APP_CONFIG = {
+  TURNSTILE_SITE_KEY: "0x4AAAAAADzEeqUja1PLlQeJ",
+
   // 廣告補給設定
   adRewardCoins: 20,
   adRewardBonusPlay: 1,
