@@ -6,15 +6,50 @@ function nowMs() {
   return Date.now();
 }
 
+function resolveImageUrl(rawResponse) {
+  const direct = String(rawResponse?.imageUrl || "").trim();
+  if (direct) {
+    return direct;
+  }
+
+  const resultImage = String(rawResponse?.result?.imageUrl || "").trim();
+  if (resultImage) {
+    return resultImage;
+  }
+
+  const dataImage = String(rawResponse?.data?.imageUrl || "").trim();
+  if (dataImage) {
+    return dataImage;
+  }
+
+  return null;
+}
+
 function normalizeSuccess(rawResponse, options) {
   const providerRequestId = String(
     rawResponse?.providerRequestId || rawResponse?.requestId || rawResponse?.id || ""
   ).trim() || null;
+  const imageUrl = resolveImageUrl(rawResponse);
+
+  if (!imageUrl) {
+    return {
+      providerRequestId,
+      provider: options.provider,
+      model: String(rawResponse?.model || options.model || "").trim() || null,
+      imageUrl: null,
+      result: null,
+      durationMs: options.durationMs,
+      retryable: false,
+      failureCode: "INVALID_RESPONSE",
+      failureMessage: "Provider response does not include a valid imageUrl."
+    };
+  }
 
   return {
     providerRequestId,
     provider: options.provider,
     model: String(rawResponse?.model || options.model || "").trim() || null,
+    imageUrl,
     result:
       rawResponse?.result !== undefined
         ? rawResponse.result
