@@ -2,6 +2,22 @@
 
 const { createGenerationErrorDto } = require("./response-dto");
 
+// Extracts ONLY safe, non-secret diagnostic fields from a raw
+// Supabase/Postgres error (never JWTs/API keys/service-role keys/full
+// request headers). `table`/`operation` are attached by the repository
+// layer (see job-repository.js) so the real failure point is visible even
+// though the public-facing error code stays normalized.
+function extractSafeErrorDiagnostics(error) {
+  return {
+    reason: error?.message || "unknown",
+    code: error?.code || null,
+    details: error?.details || null,
+    hint: error?.hint || null,
+    table: error?.table || null,
+    operation: error?.operation || null
+  };
+}
+
 const JOB_STATUS = Object.freeze({
   PENDING: "Pending",
   RUNNING: "Running",
@@ -34,7 +50,7 @@ function createJobService({
         code: "JOB_CREATION_FAILURE",
         message: "Failed to create generation job.",
         retryable: true,
-        details: { reason: error?.message || "unknown" }
+        details: extractSafeErrorDiagnostics(error)
       });
     }
   }
@@ -52,7 +68,7 @@ function createJobService({
         code: "PERSISTENCE_FAILURE",
         message: "Failed to update job status to Running.",
         retryable: true,
-        details: { reason: error?.message || "unknown", jobId }
+        details: { ...extractSafeErrorDiagnostics(error), jobId }
       });
     }
   }
@@ -71,7 +87,7 @@ function createJobService({
         code: "PERSISTENCE_FAILURE",
         message: "Failed to update job status to Success.",
         retryable: true,
-        details: { reason: error?.message || "unknown", jobId }
+        details: { ...extractSafeErrorDiagnostics(error), jobId }
       });
     }
   }
@@ -90,7 +106,7 @@ function createJobService({
         code: "PERSISTENCE_FAILURE",
         message: "Failed to update job status to Failed.",
         retryable: true,
-        details: { reason: error?.message || "unknown", jobId }
+        details: { ...extractSafeErrorDiagnostics(error), jobId }
       });
     }
   }

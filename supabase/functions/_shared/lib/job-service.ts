@@ -2,6 +2,23 @@
 
 import { createGenerationErrorDto } from "./response-dto.ts";
 
+// Extracts ONLY safe, non-secret diagnostic fields from a raw
+// Supabase/Postgres error (never JWTs/API keys/service-role keys/full
+// request headers). `table`/`operation` are attached by the repository
+// layer (see job-repository.ts) so the real failure point is visible even
+// though the public-facing error code stays normalized.
+// deno-lint-ignore no-explicit-any
+function extractSafeErrorDiagnostics(error: any) {
+  return {
+    reason: error?.message || "unknown",
+    code: error?.code || null,
+    details: error?.details || null,
+    hint: error?.hint || null,
+    table: error?.table || null,
+    operation: error?.operation || null
+  };
+}
+
 export const JOB_STATUS = Object.freeze({
   PENDING: "Pending",
   RUNNING: "Running",
@@ -43,7 +60,7 @@ export function createJobService({
         code: "JOB_CREATION_FAILURE",
         message: "Failed to create generation job.",
         retryable: true,
-        details: { reason: (error as Error)?.message || "unknown" }
+        details: extractSafeErrorDiagnostics(error)
       });
     }
   }
@@ -61,7 +78,7 @@ export function createJobService({
         code: "PERSISTENCE_FAILURE",
         message: "Failed to update job status to Running.",
         retryable: true,
-        details: { reason: (error as Error)?.message || "unknown", jobId }
+        details: { ...extractSafeErrorDiagnostics(error), jobId }
       });
     }
   }
@@ -81,7 +98,7 @@ export function createJobService({
         code: "PERSISTENCE_FAILURE",
         message: "Failed to update job status to Success.",
         retryable: true,
-        details: { reason: (error as Error)?.message || "unknown", jobId }
+        details: { ...extractSafeErrorDiagnostics(error), jobId }
       });
     }
   }
@@ -101,7 +118,7 @@ export function createJobService({
         code: "PERSISTENCE_FAILURE",
         message: "Failed to update job status to Failed.",
         retryable: true,
-        details: { reason: (error as Error)?.message || "unknown", jobId }
+        details: { ...extractSafeErrorDiagnostics(error), jobId }
       });
     }
   }

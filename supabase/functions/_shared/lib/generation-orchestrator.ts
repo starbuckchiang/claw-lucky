@@ -152,6 +152,11 @@ export function createGenerationOrchestrator({
         correlationId: trace.correlationId,
         payload: {
           error: generationTracing.buildErrorTrace(trace, createdJob.error.code),
+          // Safe diagnostics only (reason/code/details/hint/table/operation)
+          // surfaced from job-service.ts so the real underlying
+          // Supabase/Postgres error is visible in Edge Function logs
+          // instead of being fully swallowed behind JOB_CREATION_FAILURE.
+          diagnostics: createdJob.error.details || null,
           status: "failed"
         }
       });

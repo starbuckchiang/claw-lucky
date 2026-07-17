@@ -33,6 +33,19 @@ function toDbJobStatus(status) {
   return JOB_DB_STATUS[status] || String(status || "queued").toLowerCase();
 }
 
+// Attaches safe, non-secret diagnostic context (target table + operation
+// name) to a raw Supabase/Postgres error before it propagates, without
+// altering the error's own fields (message/code/details/hint stay intact).
+// This lets callers log the REAL underlying database error instead of a
+// swallowed/normalized generic failure.
+function withDiagnosticContext(error, table, operation) {
+  if (error && typeof error === "object") {
+    error.table = table;
+    error.operation = operation;
+  }
+  return error;
+}
+
 function createJobRepositoryFromSupabaseClient({
   supabaseClient,
   tableName = "wallpaper_generation_jobs"
@@ -58,7 +71,7 @@ function createJobRepositoryFromSupabaseClient({
         .single();
 
       if (error) {
-        throw error;
+        throw withDiagnosticContext(error, tableName, "insertJob");
       }
 
       return {
@@ -88,7 +101,7 @@ function createJobRepositoryFromSupabaseClient({
         .eq("id", jobId);
 
       if (error) {
-        throw error;
+        throw withDiagnosticContext(error, tableName, "updateJob");
       }
 
       return { jobId, ...updatePayload };
