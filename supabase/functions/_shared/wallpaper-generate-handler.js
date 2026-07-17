@@ -8,13 +8,21 @@
  * with no Deno-specific or HTTP-framework-specific code.
  *
  * Why this exists (P2-AI-02 runtime boundary):
- * - Supabase Edge Functions run on Deno. Deno's `node:module` `createRequire`
- *   can load plain CommonJS files that only `require()` other local,
- *   dependency-free CommonJS files (all of `js/services/wallpaper/*`,
- *   `js/services/logging/*`, `js/services/prompt/*`, `js/services/ai/gemini-provider.js`,
+ * - Supabase Edge Functions run on Deno. This file itself stays plain
+ *   CommonJS and only `require()`s other local, dependency-free CommonJS
+ *   files (all of `js/services/wallpaper/*`, `js/services/logging/*`,
+ *   `js/services/prompt/*`, `js/services/ai/gemini-provider.js`,
  *   `js/services/ai/provider-types.js`, `js/services/ai/wallpaper-provider-adapter.js`,
  *   and `js/services/storage/wallpaper-storage-uploader.js` qualify — none of
- *   them `require()` an npm package at module scope).
+ *   them `require()` an npm package at module scope). Deno's Node
+ *   compatibility layer resolves these ordinary `require()` calls at runtime
+ *   without issue.
+ * - This file is reached from Deno via a literal, static `import` of
+ *   `wallpaper-generate-handler-loader.cjs` in `node-require.ts` (NOT a
+ *   dynamic `createRequire(...)` call) — the static import is what lets
+ *   Supabase's Edge Function deploy bundler discover and include this file
+ *   (and this file's own require graph) in the deployed artifact. See the
+ *   comment at the top of `node-require.ts` for the full root-cause writeup.
  * - `js/services/ai/provider-adapter.js` only pulls in `@google/genai`
  *   (via `provider-factory.js`) when no provider is injected (see that file's
  *   constructor). The Deno entrypoint (`supabase/functions/wallpaper-generate/index.ts`)

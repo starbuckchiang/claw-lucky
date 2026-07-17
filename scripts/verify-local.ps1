@@ -31,6 +31,9 @@ node --check js/services/storage/wallpaper-storage-uploader.js
 node --check js/pages/wallpaper.js
 node --check supabase/functions/_shared/wallpaper-generate-handler.js
 node --check supabase/functions/_shared/wallpaper-status-handler.js
+node --check supabase/functions/_shared/wallpaper-generate-handler-loader.cjs
+node --check supabase/functions/_shared/wallpaper-status-handler-loader.cjs
+node --check supabase/functions/_shared/gemini-provider-loader.cjs
 
 Write-Host ""
 
