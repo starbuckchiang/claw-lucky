@@ -111,25 +111,57 @@
       container.style.boxShadow = "0 8px 30px rgba(0, 0, 0, 0.2)";
       document.body.appendChild(container);
 
+      let widgetId = null;
+
       const cleanup = () => {
         if (container.parentNode) {
           container.parentNode.removeChild(container);
         }
       };
 
+      // Reuse the SAME existing widget instance (never render a second one):
+      // reset it so it can be retried instead of leaving it in a stale
+      // expired/errored/empty-token state.
+      const resetWidget = () => {
+        if (widgetId !== null && typeof window.turnstile?.reset === "function") {
+          try {
+            window.turnstile.reset(widgetId);
+          } catch (_resetError) {
+            // Widget may already be gone; safe to ignore.
+          }
+        }
+      };
+
       try {
-        const widgetId = window.turnstile.render(container, {
+        widgetId = window.turnstile.render(container, {
           sitekey: siteKey,
           size: "normal",
           callback: (token) => {
+            const normalizedToken = String(token || "").trim();
+
+            // Cloudflare Turnstile should never call back with an empty
+            // token on success, but guard against it explicitly: an empty
+            // captchaToken passed to signInAnonymously() would otherwise
+            // surface as "captcha protection: request disallowed (no
+            // captcha_token found)" further downstream. Prevent sign-in and
+            // reset the widget for a retry instead of resolving.
+            if (!normalizedToken) {
+              resetWidget();
+              cleanup();
+              reject(new Error("Turnstile token 無效，請重新驗證"));
+              return;
+            }
+
             cleanup();
-            resolve(String(token || "").trim());
+            resolve(normalizedToken);
           },
           "error-callback": () => {
+            resetWidget();
             cleanup();
             reject(new Error("Turnstile 驗證失敗"));
           },
           "expired-callback": () => {
+            resetWidget();
             cleanup();
             reject(new Error("Turnstile 驗證逾期"));
           }
