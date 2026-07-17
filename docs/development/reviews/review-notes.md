@@ -161,3 +161,74 @@ Reference
 
 - reviews/P1-BIZ-03.md
 - ADR-005
+
+# P1-BIZ-04
+
+Status
+
+Approved
+
+Highlights
+
+- Generation Status API
+- Progress API
+- Ownership Enforcement
+- Status Mapping
+- Polling Contract
+
+Minor
+
+- Terminal Status Policy
+- Progress Stage Registry
+
+Reference
+
+- reviews/P1-BIZ-04.md
+- ADR-006
+
+# P1-BIZ-05
+
+Status
+
+Approved
+
+Highlights
+
+- Client Flow
+- Polling Service
+- HTTP Client
+- Result Presenter
+
+Minor
+
+- AbortController（Deferred）
+- Retry Policy（Deferred）
+
+Reference
+
+- reviews/P1-BIZ-05.md
+- ADR-007
+
+# P1-BIZ-06
+
+Status
+
+Approved
+
+Highlights
+
+- Correlation ID
+- Structured Logging
+- Error Tracing
+- Sensitive Data Masking
+- Cross-cutting Logging Layer
+
+Minor
+
+- Log Level Policy（Deferred）
+- X-Correlation-Id Header（Future）
+
+Reference
+
+- reviews/P1-BIZ-06.md
+- ADR-008

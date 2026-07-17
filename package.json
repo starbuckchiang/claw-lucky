@@ -1,0 +1,27 @@
+{
+  "name": "claw-lucky",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/starbuckchiang/claw-lucky.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/starbuckchiang/claw-lucky/issues"
+  },
+  "homepage": "https://github.com/starbuckchiang/claw-lucky#readme",
+  "devDependencies": {
+    "supabase": "^2.109.1"
+  }
+}

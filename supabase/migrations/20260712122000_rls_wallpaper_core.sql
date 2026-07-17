@@ -52,67 +52,67 @@ CREATE POLICY p_daily_generation_usage_select_owner
 -- These writes are intentionally blocked for authenticated clients and must run via
 -- Backend / Edge Functions / SECURITY DEFINER RPC.
 CREATE POLICY p_wallpaper_generations_deny_insert_authenticated
-    AS RESTRICTIVE
     ON public.wallpaper_generations
+    AS RESTRICTIVE
     FOR INSERT
     TO authenticated
     WITH CHECK (false);
 
 CREATE POLICY p_wallpaper_generations_deny_update_authenticated
-    AS RESTRICTIVE
     ON public.wallpaper_generations
+    AS RESTRICTIVE
     FOR UPDATE
     TO authenticated
     USING (false)
     WITH CHECK (false);
 
 CREATE POLICY p_wallpaper_generations_deny_delete_authenticated
-    AS RESTRICTIVE
     ON public.wallpaper_generations
+    AS RESTRICTIVE
     FOR DELETE
     TO authenticated
     USING (false);
 
 CREATE POLICY p_wallpaper_generation_jobs_deny_insert_authenticated
-    AS RESTRICTIVE
     ON public.wallpaper_generation_jobs
+    AS RESTRICTIVE
     FOR INSERT
     TO authenticated
     WITH CHECK (false);
 
 CREATE POLICY p_wallpaper_generation_jobs_deny_update_authenticated
-    AS RESTRICTIVE
     ON public.wallpaper_generation_jobs
+    AS RESTRICTIVE
     FOR UPDATE
     TO authenticated
     USING (false)
     WITH CHECK (false);
 
 CREATE POLICY p_wallpaper_generation_jobs_deny_delete_authenticated
-    AS RESTRICTIVE
     ON public.wallpaper_generation_jobs
+    AS RESTRICTIVE
     FOR DELETE
     TO authenticated
     USING (false);
 
 CREATE POLICY p_daily_generation_usage_deny_insert_authenticated
-    AS RESTRICTIVE
     ON public.daily_generation_usage
+    AS RESTRICTIVE
     FOR INSERT
     TO authenticated
     WITH CHECK (false);
 
 CREATE POLICY p_daily_generation_usage_deny_update_authenticated
-    AS RESTRICTIVE
     ON public.daily_generation_usage
+    AS RESTRICTIVE
     FOR UPDATE
     TO authenticated
     USING (false)
     WITH CHECK (false);
 
 CREATE POLICY p_daily_generation_usage_deny_delete_authenticated
-    AS RESTRICTIVE
     ON public.daily_generation_usage
+    AS RESTRICTIVE
     FOR DELETE
     TO authenticated
     USING (false);

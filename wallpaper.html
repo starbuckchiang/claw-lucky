@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lucky Wallpaper Studio</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/layout.css" />
+  <link rel="stylesheet" href="./css/components.css" />
+  <link rel="stylesheet" href="./css/pages/wallpaper.css" />
+</head>
+<body>
+  <main class="page-wrap wallpaper-page">
+    <section class="section">
+      <header class="panel wallpaper-header">
+        <a class="wallpaper-back" href="./index.html">← 回首頁</a>
+        <h1 class="wallpaper-title">AI Lucky Wallpaper Studio</h1>
+        <p class="wallpaper-subtitle">提交生成請求後，系統會自動輪詢進度並在完成後顯示圖片。</p>
+      </header>
+    </section>
+
+    <section class="section">
+      <form id="wallpaperForm" class="panel wallpaper-form" novalidate>
+        <h2 class="wallpaper-section-title">生成設定</h2>
+
+        <section class="wallpaper-picker" aria-labelledby="collectionTitle">
+          <div class="wallpaper-picker-head">
+            <h3 id="collectionTitle" class="wallpaper-picker-title">我的吉祥物</h3>
+            <span id="collectionStatus" class="wallpaper-picker-status">載入中...</span>
+          </div>
+          <div
+            id="collectionEmpty"
+            class="wallpaper-empty hidden"
+            role="status"
+          >你目前還沒有收藏吉祥物，請先前往抽蛋。</div>
+          <div
+            id="collectionError"
+            class="wallpaper-error-inline hidden"
+            role="alert"
+          >載入收藏失敗，請稍後再試。</div>
+          <div id="collectionCards" class="wallpaper-card-grid" role="listbox" aria-label="我的吉祥物"></div>
+        </section>
+
+        <section class="wallpaper-picker" aria-labelledby="giftTitle">
+          <div class="wallpaper-picker-head">
+            <h3 id="giftTitle" class="wallpaper-picker-title">可使用 Gift</h3>
+            <span id="giftStatus" class="wallpaper-picker-status">載入中...</span>
+          </div>
+          <div
+            id="giftEmpty"
+            class="wallpaper-empty hidden"
+            role="status"
+          >目前沒有可用 Gift，請先前往兌換頁。</div>
+          <div
+            id="giftError"
+            class="wallpaper-error-inline hidden"
+            role="alert"
+          >載入 Gift 失敗，請稍後再試。</div>
+          <div id="giftCards" class="wallpaper-card-grid" role="listbox" aria-label="可使用 Gift"></div>
+        </section>
+
+        <div class="wallpaper-grid">
+          <label class="wallpaper-field">
+            <span class="wallpaper-label">風格</span>
+            <select id="wallpaperStyle" name="wallpaperStyle" required>
+              <option value="Retro">Retro</option>
+              <option value="Cute">Cute</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Fantasy">Fantasy</option>
+              <option value="Minimal">Minimal</option>
+            </select>
+          </label>
+
+          <label class="wallpaper-field">
+            <span class="wallpaper-label">Lucky Theme</span>
+            <input id="luckyTheme" name="luckyTheme" type="text" required autocomplete="off" />
+          </label>
+        </div>
+
+        <label class="wallpaper-field wallpaper-field-full">
+          <span class="wallpaper-label">祝福文字</span>
+          <textarea id="blessing" name="blessing" rows="3" required></textarea>
+        </label>
+
+        <input id="promptType" name="promptType" type="hidden" value="wallpaper_generation" />
+
+        <div class="wallpaper-preview" aria-live="polite">
+          <h3 class="wallpaper-picker-title">目前選擇預覽</h3>
+          <p id="selectionPreviewText" class="wallpaper-preview-text">尚未選擇吉祥物與 Gift。</p>
+        </div>
+
+        <div class="wallpaper-actions">
+          <button id="submitGenerationBtn" class="btn btn-start" type="submit">開始生成</button>
+          <button id="resetGenerationBtn" class="btn btn-secondary" type="button">清空</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="section">
+      <div class="panel wallpaper-progress" aria-live="polite">
+        <h2 class="wallpaper-section-title">生成進度</h2>
+        <p id="progressText" class="wallpaper-progress-text">尚未開始。</p>
+        <div class="wallpaper-progressbar-wrap" aria-hidden="true">
+          <div id="progressBar" class="wallpaper-progressbar"></div>
+        </div>
+        <dl class="wallpaper-meta">
+          <div><dt>Generation ID</dt><dd id="metaGenerationId">—</dd></div>
+          <div><dt>狀態</dt><dd id="metaStatus">idle</dd></div>
+          <div><dt>建議下一次輪詢</dt><dd id="metaPollInterval">—</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="panel wallpaper-result" aria-live="polite">
+        <h2 class="wallpaper-section-title">生成結果</h2>
+        <div id="resultEmpty" class="wallpaper-empty">生成成功後會顯示圖片與資訊。</div>
+        <figure id="resultFigure" class="wallpaper-figure hidden">
+          <img id="resultImage" alt="Lucky Wallpaper 生成結果" />
+        </figure>
+        <dl class="wallpaper-meta">
+          <div><dt>Provider</dt><dd id="resultProvider">—</dd></div>
+          <div><dt>Model</dt><dd id="resultModel">—</dd></div>
+          <div><dt>Prompt Version</dt><dd id="resultPromptVersion">—</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="section">
+      <div id="errorBox" class="panel wallpaper-error hidden" role="alert">
+        <h2 class="wallpaper-section-title">生成失敗</h2>
+        <p id="errorMessage">—</p>
+      </div>
+    </section>
+    
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js?v=20260710-3"></script>
+  <script src="./js/api.js?v=20260705"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+  <script src="./js/user.js?v=20260710-2"></script>
+  <script src="./js/services/wallpaper/wallpaper-selection-service.js?v=20260717-2"></script>
+  <script src="./js/services/wallpaper/wallpaper-polling-service.js?v=20260717-2"></script>
+  <script src="./js/services/wallpaper/wallpaper-result-presenter.js?v=20260717-2"></script>
+  <script src="./js/services/wallpaper/wallpaper-generation-client.js?v=20260717-2"></script>
+  <script src="./js/pages/wallpaper.js?v=20260716-1"></script>
+</body>
+</html>

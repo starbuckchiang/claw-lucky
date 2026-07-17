@@ -21,6 +21,13 @@ if (!window.supabaseClient) {
   console.log("[config] Supabase client already exists");
 }
 
+// Supabase Edge Functions base URL (P2-AI-02).
+// GEMINI_API_KEY / SUPABASE_SERVICE_ROLE_KEY are never exposed here — only
+// the already-public anon/publishable key (SUPABASE_KEY) is used client-side,
+// to authenticate the caller when invoking these Functions.
+window.SUPABASE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
+window.SUPABASE_ANON_KEY = SUPABASE_KEY;
+
 // =========================
 // App Config / 全站設定值
 // index07 與 gift.html 後續都可共用

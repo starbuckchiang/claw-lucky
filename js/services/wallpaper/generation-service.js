@@ -5,6 +5,8 @@ const {
   createGenerationSuccessDto,
   createGenerationErrorDto
 } = require("./response-dto");
+const { createGenerationTracing } = require("../logging/generation-tracing");
+const { createGenerationLogger } = require("../logging/generation-logger");
 
 function defaultNow() {
   return new Date();
@@ -92,6 +94,31 @@ function normalizeProviderError(providerResult) {
     });
   }
 
+  // Gemini (P2-AI-01) raises PROVIDER_INVALID_RESPONSE specifically; kept as a
+  // distinct, additive normalized code (does not replace the legacy
+  // INVALID_RESPONSE contract approved in P1-BIZ-03).
+  if (failureCode === "PROVIDER_INVALID_RESPONSE") {
+    return createGenerationErrorDto({
+      code: "PROVIDER_INVALID_RESPONSE",
+      message: String(providerResult?.failureMessage || "Provider returned invalid response."),
+      retryable: false,
+      details: {
+        provider: providerResult?.provider || "unknown",
+        model: providerResult?.model || null,
+        providerRequestId: providerResult?.providerRequestId || null
+      }
+    });
+  }
+
+  // Pass-through provider/storage failure codes are intentionally NOT
+  // introduced as new top-level DTO codes here: the approved P1-BIZ-03
+  // contract folds all other provider failures into the generic
+  // `PROVIDER_FAILURE` code (see test "Provider Failure" — a raw
+  // `PROVIDER_UNAVAILABLE` failureCode must still surface as `PROVIDER_FAILURE`).
+  // The specific failureCode (PROVIDER_RATE_LIMIT / PROVIDER_AUTH_FAILED /
+  // PROVIDER_BAD_REQUEST / PROVIDER_UNAVAILABLE / STORAGE_UPLOAD_FAILED / ...)
+  // is preserved in `details.failureCode` below so the Edge Function can still
+  // map it to a precise HTTP status without changing this approved contract.
   return createGenerationErrorDto({
     code: "PROVIDER_FAILURE",
     message: String(providerResult?.failureMessage || "Provider failed to generate image."),
@@ -109,7 +136,9 @@ function createGenerationService({
   promptRegistryLoader,
   providerAdapter,
   generationRepository,
-  now = defaultNow
+  now = defaultNow,
+  generationTracing = createGenerationTracing(),
+  generationLogger = createGenerationLogger()
 }) {
   if (!promptRegistryLoader || typeof promptRegistryLoader.loadActivePrompt !== "function") {
     throw new Error("createGenerationService requires promptRegistryLoader.loadActivePrompt(promptType).");
@@ -124,8 +153,29 @@ function createGenerationService({
   }
 
   async function createWallpaperGeneration(request) {
+    const trace = generationTracing.startTrace({
+      correlationId: request?.correlationId
+    });
+
+    generationLogger.logInfo({
+      event: "generation_service_started",
+      correlationId: trace.correlationId,
+      payload: {
+        status: "started",
+        createdAt: trace.createdAt
+      }
+    });
+
     const validation = validateCreateGenerationRequest(request);
     if (!validation.ok) {
+      generationLogger.logWarn({
+        event: "generation_service_validation_failed",
+        correlationId: trace.correlationId,
+        payload: {
+          error: generationTracing.buildErrorTrace(trace, validation.error.code),
+          status: "failed"
+        }
+      });
       return createGenerationErrorDto({
         code: validation.error.code,
         message: validation.error.message,
@@ -139,10 +189,26 @@ function createGenerationService({
     try {
       prompt = await promptRegistryLoader.loadActivePrompt(validated.promptType);
     } catch (error) {
+      generationLogger.logWarn({
+        event: "generation_service_prompt_unavailable",
+        correlationId: trace.correlationId,
+        payload: {
+          error: generationTracing.buildErrorTrace(trace, "PROMPT_NOT_FOUND"),
+          status: "failed"
+        }
+      });
       return normalizePromptError(error);
     }
 
     if (!prompt || typeof prompt.template !== "string" || prompt.template.trim().length === 0) {
+      generationLogger.logWarn({
+        event: "generation_service_prompt_missing",
+        correlationId: trace.correlationId,
+        payload: {
+          error: generationTracing.buildErrorTrace(trace, "PROMPT_NOT_FOUND"),
+          status: "failed"
+        }
+      });
       return createGenerationErrorDto({
         code: "PROMPT_NOT_FOUND",
         message: "Prompt template is missing or empty.",
@@ -154,7 +220,10 @@ function createGenerationService({
     let providerResult;
 
     try {
-      providerResult = await providerAdapter.generateWallpaper(promptContext);
+      providerResult = await providerAdapter.generateWallpaper({
+        ...promptContext,
+        correlationId: trace.correlationId
+      });
     } catch (error) {
       const normalized =
         typeof providerAdapter.normalizeProviderError === "function"
@@ -176,11 +245,31 @@ function createGenerationService({
     }
 
     if (providerResult?.failureCode) {
+      generationLogger.logError({
+        event: "generation_service_provider_failure",
+        correlationId: trace.correlationId,
+        payload: {
+          error: generationTracing.buildErrorTrace(trace, providerResult.failureCode),
+          provider: providerResult?.provider || null,
+          model: providerResult?.model || null,
+          status: "failed"
+        }
+      });
       return normalizeProviderError(providerResult);
     }
 
     const imageUrl = String(providerResult?.imageUrl || "").trim();
     if (!imageUrl) {
+      generationLogger.logError({
+        event: "generation_service_invalid_response",
+        correlationId: trace.correlationId,
+        payload: {
+          error: generationTracing.buildErrorTrace(trace, "INVALID_RESPONSE"),
+          provider: providerResult?.provider || null,
+          model: providerResult?.model || null,
+          status: "failed"
+        }
+      });
       return createGenerationErrorDto({
         code: "INVALID_RESPONSE",
         message: "Image generation response does not include imageUrl.",
@@ -212,6 +301,10 @@ function createGenerationService({
         model: providerResult?.model || null,
         providerRequestId: providerResult?.providerRequestId || null,
         imageUrl,
+        storageBucket: providerResult?.storageBucket || null,
+        storagePath: providerResult?.storagePath || null,
+        mimeType: providerResult?.mimeType || null,
+        fileSize: Number.isFinite(Number(providerResult?.fileSize)) ? Number(providerResult.fileSize) : null,
         durationMs: Number(providerResult?.durationMs || 0),
         status: "succeeded",
         failureCode: null,
@@ -219,6 +312,14 @@ function createGenerationService({
         expiresAt: toIsoString(expiresAt)
       });
     } catch (error) {
+      generationLogger.logError({
+        event: "generation_service_persistence_failure",
+        correlationId: trace.correlationId,
+        payload: {
+          error: generationTracing.buildErrorTrace(trace, "IMAGE_GENERATION_FAILURE"),
+          status: "failed"
+        }
+      });
       return createGenerationErrorDto({
         code: "IMAGE_GENERATION_FAILURE",
         message: "Image was generated but persistence failed.",
@@ -230,6 +331,14 @@ function createGenerationService({
     }
 
     if (!persistedRecord?.generationId || !persistedRecord?.createdAt) {
+      generationLogger.logError({
+        event: "generation_service_incomplete_record",
+        correlationId: trace.correlationId,
+        payload: {
+          error: generationTracing.buildErrorTrace(trace, "IMAGE_GENERATION_FAILURE"),
+          status: "failed"
+        }
+      });
       return createGenerationErrorDto({
         code: "IMAGE_GENERATION_FAILURE",
         message: "Persisted generation result is incomplete.",
@@ -237,7 +346,7 @@ function createGenerationService({
       });
     }
 
-    return createGenerationSuccessDto({
+    const result = createGenerationSuccessDto({
       generationId: persistedRecord.generationId,
       provider: persistedRecord.provider || providerResult?.provider || "unknown",
       model: persistedRecord.model || providerResult?.model || null,
@@ -250,6 +359,14 @@ function createGenerationService({
       status: persistedRecord.status || "succeeded",
       createdAt: persistedRecord.createdAt || toIsoString(nowAt)
     });
+
+    generationLogger.logInfo({
+      event: "generation_service_succeeded",
+      correlationId: trace.correlationId,
+      payload: generationTracing.buildGenerationTrace(trace, result.data)
+    });
+
+    return result;
   }
 
   return {

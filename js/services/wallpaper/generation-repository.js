@@ -33,8 +33,8 @@ function createGenerationRepositoryFromSupabaseClient({
         status: payload.status,
         prompt_version: null,
         generation_seed: payload.generationSeed || null,
-        storage_bucket: null,
-        storage_path: null,
+        storage_bucket: payload.storageBucket || null,
+        storage_path: payload.storagePath || null,
         retry_count: 0,
         failure_code: payload.failureCode || null,
         failure_message: payload.failureMessage || null,
@@ -44,7 +44,8 @@ function createGenerationRepositoryFromSupabaseClient({
           promptSource: payload.promptSource,
           provider: payload.provider,
           providerRequestId: payload.providerRequestId,
-          imageUrl: payload.imageUrl || null,
+          mimeType: payload.mimeType || null,
+          fileSize: Number.isFinite(Number(payload.fileSize)) ? Number(payload.fileSize) : null,
           durationMs: Number.isFinite(Number(payload.durationMs)) ? Number(payload.durationMs) : 0
         },
         expires_at: payload.expiresAt
@@ -65,7 +66,7 @@ function createGenerationRepositoryFromSupabaseClient({
         status: data.status,
         provider: payload.provider,
         model: data.ai_model,
-        imageUrl: payload.imageUrl || data?.metadata_json?.imageUrl || null,
+        imageUrl: payload.imageUrl || null,
         promptVersion: payload.promptVersion,
         durationMs:
           Number.isFinite(Number(payload.durationMs))

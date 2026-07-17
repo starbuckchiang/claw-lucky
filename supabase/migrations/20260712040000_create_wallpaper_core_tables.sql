@@ -14,8 +14,8 @@ DO $$
 DECLARE
     users_pk_column TEXT;
     users_pk_type TEXT;
-    collection_pk_column TEXT;
-    collection_pk_type TEXT;
+    mascots_pk_column TEXT;
+    mascots_pk_type TEXT;
     gifts_pk_column TEXT;
     gifts_pk_type TEXT;
 BEGIN
@@ -33,13 +33,13 @@ BEGIN
      LIMIT 1;
 
     SELECT a.attname, format_type(a.atttypid, a.atttypmod)
-      INTO collection_pk_column, collection_pk_type
+      INTO mascots_pk_column, mascots_pk_type
       FROM pg_index i
       JOIN pg_class c ON c.oid = i.indrelid
       JOIN pg_namespace n ON n.oid = c.relnamespace
       JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey)
      WHERE n.nspname = 'public'
-       AND c.relname = 'collection'
+       AND c.relname = 'mascots'
        AND i.indisprimary
        AND i.indnatts = 1
        AND a.attname = ANY (ARRAY['user_id', 'mascot_id', 'gift_id', 'id'])
@@ -62,8 +62,8 @@ BEGIN
         RAISE EXCEPTION 'Cannot create wallpaper tables: public.users single-column PK with candidate name (user_id|mascot_id|gift_id|id) not found.';
     END IF;
 
-    IF collection_pk_column IS NULL OR collection_pk_type IS NULL THEN
-        RAISE EXCEPTION 'Cannot create wallpaper tables: public.collection single-column PK with candidate name (user_id|mascot_id|gift_id|id) not found.';
+    IF mascots_pk_column IS NULL OR mascots_pk_type IS NULL THEN
+        RAISE EXCEPTION 'Cannot create wallpaper tables: public.mascots single-column PK with candidate name (user_id|mascot_id|gift_id|id) not found.';
     END IF;
 
     IF gifts_pk_column IS NULL OR gifts_pk_type IS NULL THEN
@@ -97,11 +97,11 @@ BEGIN
             CONSTRAINT fk_wallpaper_generations_user FOREIGN KEY (user_id)
                 REFERENCES public.users(%4$I) ON DELETE RESTRICT,
             CONSTRAINT fk_wallpaper_generations_mascot FOREIGN KEY (mascot_id)
-                REFERENCES public.collection(%5$I) ON DELETE RESTRICT,
+                REFERENCES public.mascots(%5$I) ON DELETE RESTRICT,
             CONSTRAINT fk_wallpaper_generations_gift FOREIGN KEY (gift_id)
                 REFERENCES public.gifts(%6$I) ON DELETE RESTRICT
         );
-    $sql$, users_pk_type, collection_pk_type, gifts_pk_type, users_pk_column, collection_pk_column, gifts_pk_column);
+    $sql$, users_pk_type, mascots_pk_type, gifts_pk_type, users_pk_column, mascots_pk_column, gifts_pk_column);
 
     EXECUTE format($sql$
         CREATE TABLE IF NOT EXISTS public.wallpaper_generation_jobs (

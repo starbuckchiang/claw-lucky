@@ -1,130 +1,68 @@
-"use strict";
+// NOTE: `./provider-factory.js` (and therefore `@google/genai`) is required
+// lazily inside the constructor, only when no `injectedProvider` is supplied.
+// This keeps this module safe to `require()` from runtimes (e.g. Deno Edge
+// Functions via `node:module` createRequire) where a bare CommonJS
+// `require("@google/genai")` may not resolve. Node.js callers that rely on
+// the 2-argument constructor form are unaffected.
+// 依賴 provider-types.js
+const { NormalizedProviderError } = require("./provider-types.js");
 
-const { normalizeProviderError, classifyRetryability } = require("./error-normalizer");
+class ProviderAdapter {
+  #provider;
+  #config;
+  #logger;
 
-function nowMs() {
-  return Date.now();
-}
+  /**
+   * @param {object} logger
+   * @param {object} config
+   * @param {object} [injectedProvider] - Optional pre-constructed provider
+   *   (e.g. a GeminiProvider wired with a Deno-native GoogleGenAI client).
+   *   When supplied, `createProvider()` (which `require()`s the Node
+   *   `@google/genai` SDK) is skipped entirely. This is the server adapter /
+   *   runtime boundary used by Supabase Edge Functions (Deno) so the rest of
+   *   this module can remain plain CommonJS. Node.js callers (scripts, unit
+   *   tests, future backend workers) are unaffected and keep using the
+   *   2-argument form.
+   */
+  constructor(logger, config, injectedProvider) {
+    this.#logger = logger;
+    this.#config = config;
 
-function resolveImageUrl(rawResponse) {
-  const direct = String(rawResponse?.imageUrl || "").trim();
-  if (direct) {
-    return direct;
-  }
-
-  const resultImage = String(rawResponse?.result?.imageUrl || "").trim();
-  if (resultImage) {
-    return resultImage;
-  }
-
-  const dataImage = String(rawResponse?.data?.imageUrl || "").trim();
-  if (dataImage) {
-    return dataImage;
-  }
-
-  return null;
-}
-
-function normalizeSuccess(rawResponse, options) {
-  const providerRequestId = String(
-    rawResponse?.providerRequestId || rawResponse?.requestId || rawResponse?.id || ""
-  ).trim() || null;
-  const imageUrl = resolveImageUrl(rawResponse);
-
-  if (!imageUrl) {
-    return {
-      providerRequestId,
-      provider: options.provider,
-      model: String(rawResponse?.model || options.model || "").trim() || null,
-      imageUrl: null,
-      result: null,
-      durationMs: options.durationMs,
-      retryable: false,
-      failureCode: "INVALID_RESPONSE",
-      failureMessage: "Provider response does not include a valid imageUrl."
-    };
-  }
-
-  return {
-    providerRequestId,
-    provider: options.provider,
-    model: String(rawResponse?.model || options.model || "").trim() || null,
-    imageUrl,
-    result:
-      rawResponse?.result !== undefined
-        ? rawResponse.result
-        : rawResponse?.data !== undefined
-          ? rawResponse.data
-          : rawResponse,
-    durationMs: options.durationMs,
-    retryable: false,
-    failureCode: null,
-    failureMessage: null
-  };
-}
-
-function validateProviderContract(provider) {
-  if (!provider || typeof provider !== "object") {
-    throw new Error("Provider adapter requires a provider object.");
-  }
-
-  if (typeof provider.generateLuckyContext !== "function") {
-    throw new Error("Provider contract violation: generateLuckyContext(input) is required.");
-  }
-
-  if (typeof provider.generateWallpaper !== "function") {
-    throw new Error("Provider contract violation: generateWallpaper(input) is required.");
-  }
-}
-
-function createProviderAdapter({ providerName, model, provider }) {
-  const normalizedProviderName = String(providerName || "").trim();
-
-  if (!normalizedProviderName) {
-    throw new Error("providerName is required.");
-  }
-
-  validateProviderContract(provider);
-
-  async function execute(methodName, input) {
-    const startedAt = nowMs();
-
-    try {
-      const rawResponse = await provider[methodName](input);
-      const durationMs = Math.max(0, nowMs() - startedAt);
-
-      return normalizeSuccess(rawResponse, {
-        provider: normalizedProviderName,
-        model,
-        durationMs
-      });
-    } catch (error) {
-      const durationMs = Math.max(0, nowMs() - startedAt);
-      const normalizedError = normalizeProviderError(error, {
-        provider: normalizedProviderName,
-        model,
-        durationMs
-      });
-
-      return {
-        ...normalizedError,
-        retryable: classifyRetryability(normalizedError)
-      };
+    if (injectedProvider) {
+      this.#provider = injectedProvider;
+    } else {
+      // Lazy require: only Node.js callers that rely on the real
+      // `@google/genai` SDK pay the cost of resolving it.
+      const { createProvider } = require("./provider-factory.js");
+      this.#provider = createProvider(logger, config);
     }
   }
 
-  return {
-    generateLuckyContext(input) {
-      return execute("generateLuckyContext", input);
-    },
-    generateWallpaper(input) {
-      return execute("generateWallpaper", input);
-    },
-    classifyRetryability,
-    normalizeProviderError
-  };
+  async generateImage(input) {
+    const maxRetry = this.#config?.maxRetry ?? 2;
+    let attempt = 0;
+    let lastError;
+
+    while (attempt <= maxRetry) {
+      attempt++;
+      try {
+        return await this.#provider.generateWallpaper(input);
+      } catch (e) {
+        lastError = e;
+        if (e instanceof NormalizedProviderError && e.retryable && attempt <= maxRetry) {
+          this.#logger.info({
+            event: "provider.adapter.retry",
+            correlationId: input.correlationId,
+            attempt,
+            code: e.code,
+          });
+          continue;
+        }
+        break;
+      }
+    }
+    throw lastError;
+  }
 }
 
-module.exports = {
-  createProviderAdapter
-};
+module.exports = { ProviderAdapter };

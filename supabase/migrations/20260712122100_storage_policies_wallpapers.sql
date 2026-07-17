@@ -34,23 +34,23 @@ CREATE POLICY p_storage_wallpapers_select_owner
     );
 
 CREATE POLICY p_storage_wallpapers_block_insert
-    AS RESTRICTIVE
     ON storage.objects
+    AS RESTRICTIVE
     FOR INSERT
     TO authenticated
     WITH CHECK (bucket_id <> 'wallpapers');
 
 CREATE POLICY p_storage_wallpapers_block_update
-    AS RESTRICTIVE
     ON storage.objects
+    AS RESTRICTIVE
     FOR UPDATE
     TO authenticated
     USING (bucket_id <> 'wallpapers')
     WITH CHECK (bucket_id <> 'wallpapers');
 
 CREATE POLICY p_storage_wallpapers_block_delete
-    AS RESTRICTIVE
     ON storage.objects
+    AS RESTRICTIVE
     FOR DELETE
     TO authenticated
     USING (bucket_id <> 'wallpapers');
