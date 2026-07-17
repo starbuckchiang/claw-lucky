@@ -1,0 +1,25 @@
+如果你已經修改完成並要把程式推到 GitHub，依序執行：
+
+git status
+
+確認修改的檔案。
+
+然後：
+
+git add .
+
+提交：
+
+git commit -m "Fix wallpaper service global scope conflicts"
+
+最後推送：
+
+git push origin main
+
+如果你目前不是在 main 分支，先確認：
+
+git branch
+
+有 * 的那一行就是目前分支。如果例如是在 agents/speckit-specify-feature，就要改成：
+
+git push origin agents/speckit-specify-feature

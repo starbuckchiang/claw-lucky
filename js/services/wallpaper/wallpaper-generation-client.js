@@ -84,7 +84,7 @@ function createWallpaperHttpApiClient({
         headers: {
           "Content-Type": "application/json"
         },
-        credentials: "include",
+        credentials: "omit",
         body: JSON.stringify(requestPayload || {})
       });
     },
@@ -95,7 +95,7 @@ function createWallpaperHttpApiClient({
         headers: {
           "Content-Type": "application/json"
         },
-        credentials: "include"
+        credentials: "omit"
       });
     }
   };
