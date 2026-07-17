@@ -1,11 +1,14 @@
 "use strict";
 
 /**
- * Wallpaper Status — Shared Request Handler
+ * Wallpaper Status — Shared Request Handler (Node.js / CommonJS)
  *
- * Same runtime-boundary rationale as `wallpaper-generate-handler.js`: this is
- * plain, dependency-free CommonJS reused from both Node.js (unit tests) and
- * the Deno `wallpaper-status` Edge Function (via `node:module` createRequire).
+ * IMPORTANT: The Supabase Edge Runtime (Deno) does NOT load this file
+ * (strict ESM; no `require()`/`createRequire()`/`.cjs` support). Deno uses
+ * `wallpaper-status-handler.ts` — a line-for-line ESM twin — together with
+ * the ESM ports under `_shared/lib/*.ts`. This `.js` file remains the
+ * Node.js-testable source of truth for
+ * `supabase/functions/_shared/__tests__/wallpaper-status-handler.test.js`.
  *
  * Contains ONLY: request shape handling + HTTP status mapping. All actual
  * query/ownership/status-mapping/polling-interval business rules live in

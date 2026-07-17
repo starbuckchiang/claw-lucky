@@ -1,8 +1,13 @@
 // Supabase Edge Function: wallpaper-status
 //
 // Thin Deno HTTP boundary for the read-only Generation Status / Progress API
-// (ADR-006). All ownership/status-mapping/polling-interval rules live in the
-// reused `generation-query-service.js` (unchanged).
+// (ADR-006). All ownership/status-mapping/polling-interval rules live in
+// `supabase/functions/_shared/lib/generation-query-service.ts` (ESM port of
+// `generation-query-service.js`, unchanged logic). This file imports `.ts`
+// ESM modules directly instead of loading the CommonJS files under
+// `js/services/**` — see the header comment in
+// `supabase/functions/wallpaper-generate/index.ts` for the full root-cause
+// write-up.
 //
 // Request contract: GET /wallpaper-status?id=<generationId>
 // (Supabase Edge Functions do not route path params without extra config;
@@ -10,7 +15,7 @@
 
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient, resolveAuthenticatedUserId } from "../_shared/supabase-clients.ts";
-import { requireSharedStatusHandler } from "../_shared/node-require.ts";
+import { handleStatusRequest } from "../_shared/wallpaper-status-handler.ts";
 
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
@@ -29,8 +34,6 @@ Deno.serve(async (req: Request) => {
   const generationId = url.searchParams.get("id") || "";
 
   const userId = await resolveAuthenticatedUserId(req);
-
-  const { handleStatusRequest } = requireSharedStatusHandler();
 
   try {
     const supabaseClient = createServiceClient();

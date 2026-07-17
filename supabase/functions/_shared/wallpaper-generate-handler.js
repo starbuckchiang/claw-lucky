@@ -1,44 +1,30 @@
 "use strict";
 
 /**
- * Wallpaper Generate — Shared Request Handler
+ * Wallpaper Generate — Shared Request Handler (Node.js / CommonJS)
  *
- * This module contains the ENTIRE request-handling logic for the
- * `wallpaper-generate` Supabase Edge Function, expressed as plain CommonJS
- * with no Deno-specific or HTTP-framework-specific code.
+ * IMPORTANT: The Supabase Edge Runtime (Deno) does NOT actually load this
+ * file. It is strict ESM and rejects both dynamic `require()`/
+ * `createRequire()` loading (invisible to the deploy bundler's static
+ * module graph) and `.cjs` re-export shims (deploy-time "unsupported media
+ * type Cjs" rejection). The Deno runtime instead uses
+ * `wallpaper-generate-handler.ts` — a line-for-line ESM twin of this file —
+ * together with the ESM ports under `_shared/lib/*.ts`.
  *
- * Why this exists (P2-AI-02 runtime boundary):
- * - Supabase Edge Functions run on Deno. This file itself stays plain
- *   CommonJS and only `require()`s other local, dependency-free CommonJS
- *   files (all of `js/services/wallpaper/*`, `js/services/logging/*`,
- *   `js/services/prompt/*`, `js/services/ai/gemini-provider.js`,
- *   `js/services/ai/provider-types.js`, `js/services/ai/wallpaper-provider-adapter.js`,
- *   and `js/services/storage/wallpaper-storage-uploader.js` qualify — none of
- *   them `require()` an npm package at module scope). Deno's Node
- *   compatibility layer resolves these ordinary `require()` calls at runtime
- *   without issue.
- * - This file is reached from Deno via a literal, static `import` of
- *   `wallpaper-generate-handler-loader.cjs` in `node-require.ts` (NOT a
- *   dynamic `createRequire(...)` call) — the static import is what lets
- *   Supabase's Edge Function deploy bundler discover and include this file
- *   (and this file's own require graph) in the deployed artifact. See the
- *   comment at the top of `node-require.ts` for the full root-cause writeup.
- * - `js/services/ai/provider-adapter.js` only pulls in `@google/genai`
- *   (via `provider-factory.js`) when no provider is injected (see that file's
- *   constructor). The Deno entrypoint (`supabase/functions/wallpaper-generate/index.ts`)
- *   ALWAYS injects a `GeminiProvider` wired with a Deno-native
- *   `GoogleGenAI` client (imported via the `npm:@google/genai` specifier),
- *   so the Node-only `require("@google/genai")` path is never executed.
- * - This keeps 100% of the actual Business Rules (Orchestrator, Generation
- *   Service, Job/Usage/Points Services, Prompt Registry, error normalization)
- *   running as the SAME reviewed CommonJS modules used by Node.js unit tests
- *   and (future) other backends. No business logic is duplicated in Deno.
- * - The only Deno-side "thin wrapper" code is: CORS handling, JWT/user
- *   extraction, constructing the Deno-native Supabase clients + Gemini
- *   client, and translating this module's `{ statusCode, body }` result into
- *   a `Response`. See `supabase/functions/wallpaper-generate/index.ts`.
+ * This `.js` CommonJS file remains as the Node.js-testable source of truth:
+ * it is `require()`-able from `node --test` (see
+ * `supabase/functions/_shared/__tests__/wallpaper-generate-handler.test.js`)
+ * without needing a TypeScript toolchain. Whenever business logic changes
+ * here, mirror the change in `wallpaper-generate-handler.ts` (and vice
+ * versa) — same function names, same error codes, same HTTP status mapping.
  *
- * This module is directly `require()`-able (and unit-testable) from Node.js.
+ * Responsibilities (both files): validation, daily limit, points
+ * deduction, job/generation state machine, prompt registry, provider
+ * retry/error-normalization, storage upload — reusing the SAME reviewed
+ * business modules under `js/services/**` (this file, via ordinary
+ * `require()`) or their ESM ports under `_shared/lib/*.ts` (the `.ts` twin,
+ * via ordinary `import`). No business logic is duplicated between the two —
+ * they are kept behaviorally identical by convention/mirroring.
  */
 
 const { createGenerationOrchestrator } = require("../../../js/services/wallpaper/generation-orchestrator.js");

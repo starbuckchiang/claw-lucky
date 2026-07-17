@@ -31,9 +31,13 @@ node --check js/services/storage/wallpaper-storage-uploader.js
 node --check js/pages/wallpaper.js
 node --check supabase/functions/_shared/wallpaper-generate-handler.js
 node --check supabase/functions/_shared/wallpaper-status-handler.js
-node --check supabase/functions/_shared/wallpaper-generate-handler-loader.cjs
-node --check supabase/functions/_shared/wallpaper-status-handler-loader.cjs
-node --check supabase/functions/_shared/gemini-provider-loader.cjs
+# NOTE: supabase/functions/**/*.ts (the Deno ESM ports actually deployed to
+# Supabase Edge Functions) are intentionally NOT syntax-checked with
+# `node --check` here — they use TypeScript syntax Node cannot parse, and
+# are validated instead via `deno check`/`supabase functions deploy` (see
+# docs/testing/real-wallpaper-e2e.md). The Node.js-testable `.js` twins
+# above (and the unit tests below) cover the shared business-logic
+# contract on every `verify-local.ps1` run.
 
 Write-Host ""
 

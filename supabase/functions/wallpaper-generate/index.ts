@@ -2,8 +2,21 @@
 //
 // Thin Deno HTTP boundary ONLY. All Business Rules (validation, daily limit,
 // points deduction, job/generation state machine, prompt registry, provider
-// retry/error-normalization, storage upload) live in the reused CommonJS
-// modules under `js/services/**` and `supabase/functions/_shared/wallpaper-generate-handler.js`.
+// retry/error-normalization, storage upload) live in
+// `supabase/functions/_shared/wallpaper-generate-handler.ts` and its
+// `_shared/lib/*.ts` ESM ports — line-for-line equivalents of the reviewed
+// CommonJS modules under `js/services/**`, kept in sync with the
+// Node.js-testable `wallpaper-generate-handler.js`.
+//
+// --- Why ESM ports instead of reusing the CommonJS files directly ---
+// The Supabase Edge Runtime is strict ESM/Deno: it does not support loading
+// local CommonJS files via `require()`/`createRequire()` (invisible to the
+// deploy bundler's static module graph — the original
+// "Cannot find module" failure), NOR does it accept `.cjs` re-export shims
+// (deploy-time "unsupported media type Cjs" rejection). Every module
+// reached from this entrypoint is therefore a genuine `.ts` ESM file,
+// statically `import`-ed, with zero `require()` calls anywhere in the
+// runtime path.
 //
 // This file is responsible for, and ONLY for:
 // - CORS
@@ -18,7 +31,8 @@
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient, resolveAuthenticatedUserId } from "../_shared/supabase-clients.ts";
 import { createDenoGeminiClient, loadGeminiProviderConfig } from "../_shared/gemini-client.ts";
-import { requireGeminiProvider, requireSharedGenerateHandler } from "../_shared/node-require.ts";
+import { handleGenerateRequest } from "../_shared/wallpaper-generate-handler.ts";
+import { GeminiProvider } from "../_shared/lib/gemini-provider.ts";
 
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
@@ -45,13 +59,10 @@ Deno.serve(async (req: Request) => {
 
   const userId = await resolveAuthenticatedUserId(req);
 
-  const { handleGenerateRequest } = requireSharedGenerateHandler();
-
   try {
     const providerConfig = loadGeminiProviderConfig();
     const supabaseClient = createServiceClient();
 
-    const { GeminiProvider } = requireGeminiProvider();
     const geminiClient = createDenoGeminiClient(providerConfig.apiKey);
     const geminiProvider = new GeminiProvider({
       config: providerConfig,
