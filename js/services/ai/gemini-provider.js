@@ -1,12 +1,39 @@
 const { NormalizedProviderError } = require("./provider-types.js");
 
+// Best-effort extraction of a Google API-style error body
+// (`{"error":{"code":400,"message":"...","status":"INVALID_ARGUMENT"}}`)
+// that some SDK errors embed as plain text inside `Error.message` instead of
+// exposing as a structured `.response`/`.data` property. Never throws; never
+// returns anything beyond message/status/code text.
+function extractEmbeddedErrorBody(message) {
+  if (typeof message !== "string") return null;
+  const match = message.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+
+  try {
+    const parsed = JSON.parse(match[0]);
+    const body = parsed?.error || parsed;
+    if (!body || typeof body !== "object") return null;
+
+    return {
+      message: body.message ?? null,
+      status: body.status ?? null,
+      code: body.code ?? null
+    };
+  } catch (_parseError) {
+    return null;
+  }
+}
+
 function sanitizeErrorForDiagnostics(e) {
   if (!e) return null;
   const get = (obj, path) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
   const safePaths = [
     'name', 'message', 'code', 'status', 'statusText',
     'cause.name', 'cause.message', 'cause.code', 'cause.status',
+    'error.code', 'error.status', 'error.message',
     'response.status', 'response.statusText',
+    'response.error.code', 'response.error.status', 'response.error.message',
     'response.data.error.code', 'response.data.error.status', 'response.data.error.message'
   ];
   const diagnostics = {};
@@ -14,7 +41,57 @@ function sanitizeErrorForDiagnostics(e) {
     const value = get(e, path);
     if (value !== undefined) diagnostics[path.replace(/\./g, '_')] = value;
   }
+
+  // Some @google/genai / googleapis errors stringify the response body into
+  // `Error.message` (e.g. "[400 Bad Request] {\"error\":{...}}") instead of
+  // exposing it as a structured property. Recover it when present.
+  const embedded = extractEmbeddedErrorBody(e?.message);
+  if (embedded) {
+    if (diagnostics.responseBody_error_message === undefined) diagnostics.responseBody_error_message = embedded.message;
+    if (diagnostics.responseBody_error_status === undefined) diagnostics.responseBody_error_status = embedded.status;
+    if (diagnostics.responseBody_error_code === undefined) diagnostics.responseBody_error_code = embedded.code;
+  }
+
   return diagnostics;
+}
+
+// Extracts ONLY the specific, explicit, top-level diagnostic fields requested
+// for the pre-`generation_service_provider_failure` log line, read directly
+// from the ORIGINAL exception (before any normalization/wrapping). Never
+// touches API keys, Authorization headers, or the request body/prompt.
+function buildRawGeminiErrorFields(e) {
+  if (!e) {
+    return { httpStatus: null, geminiErrorMessage: null, geminiErrorStatus: null, geminiErrorCode: null };
+  }
+
+  const embedded = extractEmbeddedErrorBody(e?.message);
+
+  const httpStatus = e?.status ?? e?.response?.status ?? e?.statusCode ?? null;
+
+  const geminiErrorMessage =
+    e?.error?.message ??
+    e?.response?.error?.message ??
+    e?.response?.data?.error?.message ??
+    embedded?.message ??
+    e?.message ??
+    null;
+
+  const geminiErrorStatus =
+    e?.error?.status ??
+    e?.response?.error?.status ??
+    e?.response?.data?.error?.status ??
+    embedded?.status ??
+    null;
+
+  const geminiErrorCode =
+    e?.error?.code ??
+    e?.response?.error?.code ??
+    e?.response?.data?.error?.code ??
+    embedded?.code ??
+    e?.code ??
+    null;
+
+  return { httpStatus, geminiErrorMessage, geminiErrorStatus, geminiErrorCode };
 }
 
 function mapError(e) {
@@ -105,10 +182,27 @@ class GeminiProvider {
       };
     } catch (e) {
       const errorToThrow = (e instanceof NormalizedProviderError) ? e : mapError(e);
+      // Attach the model used for THIS call as safe, non-secret metadata so
+      // downstream normalization (wallpaper-provider-adapter.js) no longer
+      // has to report `model: null` when it only has the error to go on.
+      errorToThrow.model = this.#config.model;
+
+      // Read the explicit diagnostic fields directly from the ORIGINAL
+      // exception `e` (before normalization) so the real Gemini/HTTP error
+      // is visible in logs prior to `generation_service_provider_failure`.
+      // Never includes the API key, Authorization header, or request body.
+      const rawFields = buildRawGeminiErrorFields(e);
+
       this.#logger.error({
         event: "gemini.provider.error",
         correlationId,
         code: errorToThrow.code,
+        httpStatus: rawFields.httpStatus,
+        geminiErrorMessage: rawFields.geminiErrorMessage,
+        geminiErrorStatus: rawFields.geminiErrorStatus,
+        geminiErrorCode: rawFields.geminiErrorCode,
+        model: this.#config.model,
+        endpoint: "models.generateContent",
         message: errorToThrow.message,
         diagnostics: errorToThrow.diagnostics,
       });

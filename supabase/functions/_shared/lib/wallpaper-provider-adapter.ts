@@ -122,7 +122,10 @@ export function createWallpaperProviderAdapter({
     return {
       providerRequestId: null,
       provider: "gemini",
-      model: null,
+      // `error.model` is attached by GeminiProvider (see gemini-provider.ts's
+      // catch block) as safe, non-secret metadata. Falls back to null only
+      // if the error originated somewhere that never had a model in scope.
+      model: error?.model || null,
       imageUrl: null,
       durationMs: 0,
       retryable: Boolean(error?.retryable),

@@ -8,6 +8,10 @@ export class NormalizedProviderError extends Error {
   cause?: any;
   // deno-lint-ignore no-explicit-any
   diagnostics?: any;
+  // Attached by GeminiProvider after construction (safe, non-secret
+  // metadata) so downstream normalization doesn't have to hardcode a null
+  // model when all it has is the error. See gemini-provider.ts.
+  model?: string | null;
 
   constructor(
     code: string,
