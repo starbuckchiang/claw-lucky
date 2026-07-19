@@ -115,10 +115,18 @@ function createWallpaperProviderAdapter({ providerAdapter, storageUploader, logg
     return {
       providerRequestId: null,
       provider: "gemini",
-      // `error.model` is attached by GeminiProvider (see gemini-provider.js's
-      // catch block) as safe, non-secret metadata. Falls back to null only
-      // if the error originated somewhere that never had a model in scope.
+      // `error.model` / `error.httpStatus` / `error.providerStatus` /
+      // `error.providerMessage` / `error.providerCode` are attached by
+      // GeminiProvider (see gemini-provider.js's catch block) as safe,
+      // non-secret metadata on the error object itself. Preserving them here
+      // (rather than re-deriving them) is what lets
+      // `generation_service_provider_failure` log the real underlying
+      // Gemini/HTTP error instead of just the normalized failureCode.
       model: error?.model || null,
+      httpStatus: error?.httpStatus ?? null,
+      providerStatus: error?.providerStatus ?? null,
+      providerMessage: error?.providerMessage ?? null,
+      providerCode: error?.providerCode ?? null,
       imageUrl: null,
       durationMs: 0,
       retryable: Boolean(error?.retryable),

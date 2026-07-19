@@ -182,26 +182,34 @@ class GeminiProvider {
       };
     } catch (e) {
       const errorToThrow = (e instanceof NormalizedProviderError) ? e : mapError(e);
-      // Attach the model used for THIS call as safe, non-secret metadata so
-      // downstream normalization (wallpaper-provider-adapter.js) no longer
-      // has to report `model: null` when it only has the error to go on.
-      errorToThrow.model = this.#config.model;
 
       // Read the explicit diagnostic fields directly from the ORIGINAL
-      // exception `e` (before normalization) so the real Gemini/HTTP error
-      // is visible in logs prior to `generation_service_provider_failure`.
-      // Never includes the API key, Authorization header, or request body.
+      // exception `e` (before normalization). Never includes the API key,
+      // Authorization header, or request body.
       const rawFields = buildRawGeminiErrorFields(e);
+
+      // Attach these as properties ON THE ERROR OBJECT ITSELF (not just used
+      // for the local log call below) so they survive the trip through
+      // ProviderAdapter's retry loop and wallpaper-provider-adapter.js's
+      // normalizeProviderError() — otherwise this metadata is lost by the
+      // time `generation_service_provider_failure` is logged, since that
+      // log line only has `providerResult` (built from the error object) to
+      // read from, not the original exception `e`.
+      errorToThrow.model = this.#config.model;
+      errorToThrow.httpStatus = rawFields.httpStatus;
+      errorToThrow.providerStatus = rawFields.geminiErrorStatus;
+      errorToThrow.providerMessage = rawFields.geminiErrorMessage;
+      errorToThrow.providerCode = rawFields.geminiErrorCode;
 
       this.#logger.error({
         event: "gemini.provider.error",
         correlationId,
         code: errorToThrow.code,
-        httpStatus: rawFields.httpStatus,
-        geminiErrorMessage: rawFields.geminiErrorMessage,
-        geminiErrorStatus: rawFields.geminiErrorStatus,
-        geminiErrorCode: rawFields.geminiErrorCode,
-        model: this.#config.model,
+        httpStatus: errorToThrow.httpStatus,
+        geminiErrorMessage: errorToThrow.providerMessage,
+        geminiErrorStatus: errorToThrow.providerStatus,
+        geminiErrorCode: errorToThrow.providerCode,
+        model: errorToThrow.model,
         endpoint: "models.generateContent",
         message: errorToThrow.message,
         diagnostics: errorToThrow.diagnostics,

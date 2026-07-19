@@ -12,6 +12,14 @@ export class NormalizedProviderError extends Error {
   // metadata) so downstream normalization doesn't have to hardcode a null
   // model when all it has is the error. See gemini-provider.ts.
   model?: string | null;
+  // Attached by GeminiProvider: the real HTTP status / Gemini error
+  // status-string / message / code read directly from the original
+  // exception, preserved so `generation_service_provider_failure` can log
+  // the actual underlying failure instead of only the normalized code.
+  httpStatus?: number | string | null;
+  providerStatus?: string | number | null;
+  providerMessage?: string | null;
+  providerCode?: string | number | null;
 
   constructor(
     code: string,

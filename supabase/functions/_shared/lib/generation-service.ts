@@ -269,6 +269,14 @@ export function createGenerationService({
           error: generationTracing.buildErrorTrace(trace, providerResult.failureCode),
           provider: providerResult?.provider || null,
           model: providerResult?.model || null,
+          // Preserved from the original exception via GeminiProvider ->
+          // ProviderAdapter -> wallpaper-provider-adapter.normalizeProviderError
+          // (see gemini-provider.ts). Reveals the real Gemini/HTTP failure
+          // instead of only the normalized failureCode.
+          httpStatus: providerResult?.httpStatus ?? null,
+          providerStatus: providerResult?.providerStatus ?? null,
+          providerMessage: providerResult?.providerMessage ?? null,
+          providerCode: providerResult?.providerCode ?? null,
           status: "failed"
         }
       });
