@@ -191,7 +191,14 @@ export function buildOrchestrator({
       primary: { name: "gemini", adapter: primaryAdapter },
       fallback: fallbackEntry
     },
-    logger
+    // Same wrapping used for primaryAdapter/fallbackAdapter above: the
+    // Provider Resilience Agent expects a plain { info(entry), error(entry) }
+    // logger (like GeminiProvider/ReplicateFluxProvider), NOT the raw
+    // generationLogger (logInfo/logWarn/logError). Passing the raw logger
+    // here caused `safeLogger.info(...)` to throw a TypeError on the very
+    // first line of generateImage() — before Gemini was ever called and
+    // before isFallbackEligible() could run.
+    logger: wrapLoggerForProvider(logger)
   });
 
   const storageUploader = createWallpaperStorageUploader({ supabaseClient });
