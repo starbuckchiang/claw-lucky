@@ -42,14 +42,34 @@ function createWallpaperProviderAdapter({ providerAdapter, storageUploader, logg
 
     const started = Date.now();
 
-    const providerResponse = await providerAdapter.generateImage({
-      renderedPrompt,
-      correlationId,
-      metadata: {
-        promptType: promptContext?.promptType || null,
-        promptVersion: promptContext?.promptVersion || null
-      }
-    });
+    let providerResponse;
+    try {
+      providerResponse = await providerAdapter.generateImage({
+        renderedPrompt,
+        correlationId,
+        metadata: {
+          promptType: promptContext?.promptType || null,
+          promptVersion: promptContext?.promptVersion || null
+        }
+      });
+    } catch (rawError) {
+      // TEMPORARY diagnostic (P2-AI-03 PROVIDER_UNKNOWN investigation):
+      // logged via console.error directly (NOT the injected logger, which
+      // may itself be unwrapped/misconfigured) so this always emits even if
+      // the logger interface is the root cause. Never logs API keys,
+      // tokens, prompt text, or image data. The original error is rethrown
+      // completely unchanged — normalizeProviderError()'s existing behavior
+      // is untouched.
+      console.error(JSON.stringify({
+        level: "error",
+        event: "wallpaper_provider_adapter_raw_exception",
+        correlationId,
+        errorName: rawError?.name || null,
+        errorMessage: rawError?.message || null,
+        errorStack: rawError?.stack || null
+      }));
+      throw rawError;
+    }
 
     if (!providerResponse || !providerResponse.image || !providerResponse.image.base64) {
       const error = new Error("Provider did not return image data.");
