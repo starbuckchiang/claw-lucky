@@ -34,7 +34,20 @@ export function createWallpaperProviderAdapter({
     throw new Error("createWallpaperProviderAdapter requires storageUploader.uploadWallpaperImage(input).");
   }
 
-  const safeLogger: WallpaperProviderAdapterLogger = logger || { info: () => {}, warn: () => {}, error: () => {} };
+  const safeLogger: WallpaperProviderAdapterLogger = {
+    info:
+      typeof logger?.info === "function"
+        ? logger.info.bind(logger)
+        : () => {},
+    warn:
+      typeof logger?.warn === "function"
+        ? logger.warn.bind(logger)
+        : () => {},
+    error:
+      typeof logger?.error === "function"
+        ? logger.error.bind(logger)
+        : () => {}
+  };
 
   // deno-lint-ignore no-explicit-any
   async function generateWallpaper(promptContext: any) {

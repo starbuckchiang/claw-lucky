@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { createWallpaperProviderAdapter } = require("../wallpaper-provider-adapter");
+const { wrapLoggerForProvider } = require("../../../../supabase/functions/_shared/wallpaper-generate-handler");
 
 function promptContext(overrides = {}) {
   return {
@@ -134,3 +135,117 @@ test("normalizeProviderError maps errors without leaking secrets or raw exceptio
   assert.equal(normalized.imageUrl, null);
   assert.equal(JSON.stringify(normalized).includes("GEMINI_API_KEY"), false);
 });
+
+function successfulProviderAdapter() {
+  return {
+    async generateImage() {
+      return {
+        provider: "gemini",
+        model: "gemini-2.5-flash-image",
+        durationMs: 100,
+        providerRequestId: "req-1",
+        image: { base64: "ZmFrZS1iYXNlNjQ=", mimeType: "image/png" }
+      };
+    }
+  };
+}
+
+function successfulStorageUploader() {
+  return {
+    async uploadWallpaperImage() {
+      return {
+        bucket: "wallpapers",
+        path: "user-1/asset-1/wallpaper.png",
+        mimeType: "image/png",
+        fileSize: 9,
+        signedUrl: "https://signed.example/wallpapers/user-1/asset-1/wallpaper.png"
+      };
+    }
+  };
+}
+
+// Case A: a correctly wrapped generationLogger (logInfo/logWarn/logError only)
+// passed through wrapLoggerForProvider(), the SAME wrapper used by
+// buildOrchestrator() for the Resilience Agent / Gemini / Replicate.
+test("Case A: wrapLoggerForProvider(generationLogger) -> success path never throws, logInfo receives wallpaper_provider_adapter_succeeded", async () => {
+  const logInfoCalls = [];
+  const generationLogger = {
+    logInfo(entry) {
+      logInfoCalls.push(entry);
+    },
+    logWarn() {},
+    logError() {}
+  };
+
+  const adapter = createWallpaperProviderAdapter({
+    providerAdapter: successfulProviderAdapter(),
+    storageUploader: successfulStorageUploader(),
+    logger: wrapLoggerForProvider(generationLogger)
+  });
+
+  const result = await adapter.generateWallpaper(promptContext());
+
+  assert.equal(result.imageUrl, "https://signed.example/wallpapers/user-1/asset-1/wallpaper.png");
+  assert.ok(logInfoCalls.some((entry) => entry.event === "wallpaper_provider_adapter_succeeded"));
+});
+
+// Case B: an incomplete logger (only `error`, no `info`) passed DIRECTLY
+// (not wrapped) — the defensive per-method safeLogger must not throw.
+test("Case B: incomplete logger (error only, no info) -> success path still completes", async () => {
+  const errorCalls = [];
+  const partialLogger = {
+    error(entry) {
+      errorCalls.push(entry);
+    }
+    // no `info` — must not throw "safeLogger.info is not a function"
+  };
+
+  const adapter = createWallpaperProviderAdapter({
+    providerAdapter: successfulProviderAdapter(),
+    storageUploader: successfulStorageUploader(),
+    logger: partialLogger
+  });
+
+  const result = await adapter.generateWallpaper(promptContext());
+
+  assert.equal(result.imageUrl, "https://signed.example/wallpapers/user-1/asset-1/wallpaper.png");
+  assert.equal(errorCalls.length, 0);
+});
+
+// Case C: a logger missing `error` — storage upload failure must still
+// surface the ORIGINAL error (failureCode normalized, message/retryable
+// preserved), never masked/replaced by a logger TypeError.
+test("Case C: logger missing error() -> storage failure still throws the original error unchanged", async () => {
+  const infoCalls = [];
+  const partialLogger = {
+    info(entry) {
+      infoCalls.push(entry);
+    }
+    // no `error` — must not throw "safeLogger.error is not a function"
+  };
+
+  const storageUploader = {
+    async uploadWallpaperImage() {
+      const error = new Error("bucket unreachable");
+      throw error;
+    }
+  };
+
+  const adapter = createWallpaperProviderAdapter({
+    providerAdapter: successfulProviderAdapter(),
+    storageUploader,
+    logger: partialLogger
+  });
+
+  await assert.rejects(
+    () => adapter.generateWallpaper(promptContext()),
+    (error) => {
+      assert.equal(error.message, "bucket unreachable");
+      assert.equal(error.failureCode, "STORAGE_UPLOAD_FAILED");
+      assert.equal(error.retryable, true);
+      return true;
+    }
+  );
+  assert.equal(infoCalls.length, 0);
+});
+

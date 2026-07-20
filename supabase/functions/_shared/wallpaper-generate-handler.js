@@ -225,7 +225,13 @@ function buildOrchestrator({
   const providerAdapter = createWallpaperProviderAdapter({
     providerAdapter: rawProviderAdapter,
     storageUploader,
-    logger
+    // Same wrapping used for the Resilience Agent / GeminiProvider /
+    // ReplicateFluxProvider above: this adapter's own safeLogger calls
+    // `.info(entry)`/`.error(entry)`, NOT the raw generationLogger's
+    // `.logInfo(entry)`/`.logError(entry)`. Passing the raw logger here
+    // caused `safeLogger.info is not a function` on the success path (and
+    // `safeLogger.error is not a function` on a storage-upload failure).
+    logger: wrapLoggerForProvider(logger)
   });
 
   const generationRepository = createGenerationRepositoryFromSupabaseClient({ supabaseClient });
@@ -343,6 +349,7 @@ async function handleGenerateRequest({ body, userId, correlationId, deps = {} })
 module.exports = {
   handleGenerateRequest,
   buildOrchestrator,
+  wrapLoggerForProvider,
   validateRequestShape,
   toHttpStatus,
   ERROR_HTTP_STATUS,

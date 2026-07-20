@@ -33,7 +33,11 @@ function createWallpaperProviderAdapter({ providerAdapter, storageUploader, logg
     throw new Error("createWallpaperProviderAdapter requires storageUploader.uploadWallpaperImage(input).");
   }
 
-  const safeLogger = logger || { info: () => {}, warn: () => {}, error: () => {} };
+  const safeLogger = {
+    info: typeof logger?.info === "function" ? logger.info.bind(logger) : () => {},
+    warn: typeof logger?.warn === "function" ? logger.warn.bind(logger) : () => {},
+    error: typeof logger?.error === "function" ? logger.error.bind(logger) : () => {}
+  };
 
   async function generateWallpaper(promptContext) {
     const correlationId = String(promptContext?.correlationId || "").trim();
