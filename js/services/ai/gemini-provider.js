@@ -144,77 +144,98 @@ class GeminiProvider {
     const { renderedPrompt, correlationId, aspectRatio = "9:16" } = input;
     const started = Date.now();
 
+    // TEMPORARY diagnostic (P2-AI-03 silent-502 investigation): outermost
+    // safety net around the ENTIRE existing try/catch below. This does not
+    // change any flow/logic — if the inner catch block runs and rethrows
+    // normally, this outer catch just re-logs (via console.error, NOT
+    // this.#logger, in case the logger itself is implicated) and rethrows
+    // the SAME error unchanged. Its purpose is to surface a diagnostic even
+    // if something inside the inner catch's own handling (mapError /
+    // buildRawGeminiErrorFields / this.#logger.error) throws a secondary,
+    // otherwise-silent exception that would replace the original one.
     try {
-      this.#logger.info({ event: "gemini.provider.start", correlationId, model: this.#config.model });
+      try {
+        this.#logger.info({ event: "gemini.provider.start", correlationId, model: this.#config.model });
 
-      const result = await this.#client.models.generateContent({
-        model: this.#config.model,
-        contents: renderedPrompt,
-        config: {
-          responseModalities: ["TEXT", "IMAGE"],
-          imageConfig: {
-            aspectRatio,
+        const result = await this.#client.models.generateContent({
+          model: this.#config.model,
+          contents: renderedPrompt,
+          config: {
+            responseModalities: ["TEXT", "IMAGE"],
+            imageConfig: {
+              aspectRatio,
+            },
           },
-        },
-      });
+        });
 
-      const response = result.response ?? result;
-      const imagePart = response?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        const response = result.response ?? result;
+        const imagePart = response?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
-      if (!imagePart || !imagePart.inlineData.data) {
-        const finishReason = response?.candidates?.[0]?.finishReason || "NO_IMAGE";
-        const diagnostics = { finishReason, safetyRatings: response?.promptFeedback?.safetyRatings };
-        throw new NormalizedProviderError("PROVIDER_INVALID_RESPONSE", `Gemini did not return an image. Reason: ${finishReason}`, false, 200, null, diagnostics);
+        if (!imagePart || !imagePart.inlineData.data) {
+          const finishReason = response?.candidates?.[0]?.finishReason || "NO_IMAGE";
+          const diagnostics = { finishReason, safetyRatings: response?.promptFeedback?.safetyRatings };
+          throw new NormalizedProviderError("PROVIDER_INVALID_RESPONSE", `Gemini did not return an image. Reason: ${finishReason}`, false, 200, null, diagnostics);
+        }
+
+        return {
+          provider: "gemini",
+          model: this.#config.model,
+          durationMs: Date.now() - started,
+          image: {
+            base64: imagePart.inlineData.data,
+            mimeType: imagePart.inlineData.mimeType,
+          },
+          usage: response.usageMetadata,
+          finishReason: mapFinishReason(response.candidates?.[0]?.finishReason),
+          providerRequestId: response.headers?.['x-goog-request-id'],
+          correlationId,
+        };
+      } catch (e) {
+        const errorToThrow = (e instanceof NormalizedProviderError) ? e : mapError(e);
+
+        // Read the explicit diagnostic fields directly from the ORIGINAL
+        // exception `e` (before normalization). Never includes the API key,
+        // Authorization header, or request body.
+        const rawFields = buildRawGeminiErrorFields(e);
+
+        // Attach these as properties ON THE ERROR OBJECT ITSELF (not just used
+        // for the local log call below) so they survive the trip through
+        // ProviderAdapter's retry loop and wallpaper-provider-adapter.js's
+        // normalizeProviderError() — otherwise this metadata is lost by the
+        // time `generation_service_provider_failure` is logged, since that
+        // log line only has `providerResult` (built from the error object) to
+        // read from, not the original exception `e`.
+        errorToThrow.model = this.#config.model;
+        errorToThrow.httpStatus = rawFields.httpStatus;
+        errorToThrow.providerStatus = rawFields.geminiErrorStatus;
+        errorToThrow.providerMessage = rawFields.geminiErrorMessage;
+        errorToThrow.providerCode = rawFields.geminiErrorCode;
+
+        this.#logger.error({
+          event: "gemini.provider.error",
+          correlationId,
+          code: errorToThrow.code,
+          httpStatus: errorToThrow.httpStatus,
+          geminiErrorMessage: errorToThrow.providerMessage,
+          geminiErrorStatus: errorToThrow.providerStatus,
+          geminiErrorCode: errorToThrow.providerCode,
+          model: errorToThrow.model,
+          endpoint: "models.generateContent",
+          message: errorToThrow.message,
+          diagnostics: errorToThrow.diagnostics,
+        });
+        throw errorToThrow;
       }
-
-      return {
-        provider: "gemini",
-        model: this.#config.model,
-        durationMs: Date.now() - started,
-        image: {
-          base64: imagePart.inlineData.data,
-          mimeType: imagePart.inlineData.mimeType,
-        },
-        usage: response.usageMetadata,
-        finishReason: mapFinishReason(response.candidates?.[0]?.finishReason),
-        providerRequestId: response.headers?.['x-goog-request-id'],
+    } catch (unhandledError) {
+      console.error(JSON.stringify({
+        level: "error",
+        event: "gemini.provider.unhandled_exception",
         correlationId,
-      };
-    } catch (e) {
-      const errorToThrow = (e instanceof NormalizedProviderError) ? e : mapError(e);
-
-      // Read the explicit diagnostic fields directly from the ORIGINAL
-      // exception `e` (before normalization). Never includes the API key,
-      // Authorization header, or request body.
-      const rawFields = buildRawGeminiErrorFields(e);
-
-      // Attach these as properties ON THE ERROR OBJECT ITSELF (not just used
-      // for the local log call below) so they survive the trip through
-      // ProviderAdapter's retry loop and wallpaper-provider-adapter.js's
-      // normalizeProviderError() — otherwise this metadata is lost by the
-      // time `generation_service_provider_failure` is logged, since that
-      // log line only has `providerResult` (built from the error object) to
-      // read from, not the original exception `e`.
-      errorToThrow.model = this.#config.model;
-      errorToThrow.httpStatus = rawFields.httpStatus;
-      errorToThrow.providerStatus = rawFields.geminiErrorStatus;
-      errorToThrow.providerMessage = rawFields.geminiErrorMessage;
-      errorToThrow.providerCode = rawFields.geminiErrorCode;
-
-      this.#logger.error({
-        event: "gemini.provider.error",
-        correlationId,
-        code: errorToThrow.code,
-        httpStatus: errorToThrow.httpStatus,
-        geminiErrorMessage: errorToThrow.providerMessage,
-        geminiErrorStatus: errorToThrow.providerStatus,
-        geminiErrorCode: errorToThrow.providerCode,
-        model: errorToThrow.model,
-        endpoint: "models.generateContent",
-        message: errorToThrow.message,
-        diagnostics: errorToThrow.diagnostics,
-      });
-      throw errorToThrow;
+        errorName: unhandledError?.name || null,
+        errorMessage: unhandledError?.message || null,
+        stack: unhandledError?.stack || null
+      }));
+      throw unhandledError;
     }
   }
 }
