@@ -42,6 +42,7 @@ const {
 } = require("../../../js/services/prompt/prompt-registry-loader.js");
 const { ProviderAdapter } = require("../../../js/services/ai/provider-adapter.js");
 const { createWallpaperProviderAdapter } = require("../../../js/services/ai/wallpaper-provider-adapter.js");
+const { createProviderResilienceAgent } = require("../../../js/services/ai/agents/provider-resilience-agent.js");
 const { createWallpaperStorageUploader } = require("../../../js/services/storage/wallpaper-storage-uploader.js");
 const { createGenerationLogger } = require("../../../js/services/logging/generation-logger.js");
 const { createGenerationTracing } = require("../../../js/services/logging/generation-tracing.js");
@@ -158,8 +159,22 @@ function wrapLoggerForProvider(generationLogger) {
  *   GoogleGenAI client). MUST already implement `generateWallpaper(input)`.
  * @param {object} params.providerConfig - { maxRetry, ... } passed to ProviderAdapter
  * @param {object} [params.generationLogger]
+ * @param {object} [params.fallbackProvider] - OPTIONAL pre-constructed
+ *   fallback provider instance (e.g. a ReplicateFluxProvider wired with a
+ *   Deno-native Replicate client). When omitted (the default — no fallback
+ *   configured), the Provider Resilience Agent behaves EXACTLY like a bare
+ *   ProviderAdapter: any primary failure is rethrown immediately, unchanged.
+ * @param {object} [params.fallbackProviderConfig] - config passed to the
+ *   fallback's own ProviderAdapter retry wrapper (defaults to providerConfig).
  */
-function buildOrchestrator({ supabaseClient, geminiProvider, providerConfig, generationLogger }) {
+function buildOrchestrator({
+  supabaseClient,
+  geminiProvider,
+  providerConfig,
+  generationLogger,
+  fallbackProvider,
+  fallbackProviderConfig
+}) {
   const logger = generationLogger || createGenerationLogger();
   const generationTracing = createGenerationTracing();
 
@@ -167,11 +182,36 @@ function buildOrchestrator({ supabaseClient, geminiProvider, providerConfig, gen
     repository: createPromptRepositoryFromSupabaseClient({ supabaseClient })
   });
 
-  const rawProviderAdapter = new ProviderAdapter(
+  const primaryAdapter = new ProviderAdapter(
     wrapLoggerForProvider(logger),
     providerConfig,
     geminiProvider
   );
+
+  // Provider Resilience Agent: unifies primary execution + deterministic
+  // fallback decision behind ONE agent workflow (see
+  // js/services/ai/agents/provider-resilience-agent.js). This is the
+  // SMALLEST integration point — it exposes the exact same
+  // `generateImage(input)` contract a single ProviderAdapter exposes today,
+  // so it is a drop-in replacement for `rawProviderAdapter` below.
+  // `generation-service.js` / `generation-orchestrator.js` are UNCHANGED.
+  let fallbackEntry = null;
+  if (fallbackProvider) {
+    const fallbackAdapter = new ProviderAdapter(
+      wrapLoggerForProvider(logger),
+      fallbackProviderConfig || providerConfig,
+      fallbackProvider
+    );
+    fallbackEntry = { name: "replicate-flux", adapter: fallbackAdapter };
+  }
+
+  const rawProviderAdapter = createProviderResilienceAgent({
+    registry: {
+      primary: { name: "gemini", adapter: primaryAdapter },
+      fallback: fallbackEntry
+    },
+    logger
+  });
 
   const storageUploader = createWallpaperStorageUploader({ supabaseClient });
 

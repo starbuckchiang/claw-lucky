@@ -31,8 +31,35 @@
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient, resolveAuthenticatedUserId } from "../_shared/supabase-clients.ts";
 import { createDenoGeminiClient, loadGeminiProviderConfig } from "../_shared/gemini-client.ts";
+import { createDenoReplicateClient, loadReplicateProviderConfig } from "../_shared/replicate-client.ts";
 import { handleGenerateRequest } from "../_shared/wallpaper-generate-handler.ts";
 import { GeminiProvider } from "../_shared/lib/gemini-provider.ts";
+import { ReplicateFluxProvider } from "../_shared/lib/replicate-flux-provider.ts";
+
+/**
+ * Builds the OPTIONAL Replicate fallback provider dependencies for
+ * `handleGenerateRequest`'s `deps`. Returns `{}` (no fallback fields) when
+ * `REPLICATE_API_TOKEN` is not configured — the Provider Resilience Agent
+ * then behaves exactly as a bare primary-only ProviderAdapter.
+ */
+function buildFallbackProviderDeps(correlationId: string) {
+  const replicateConfig = loadReplicateProviderConfig();
+  if (!replicateConfig) {
+    return {};
+  }
+
+  const replicateClient = createDenoReplicateClient(replicateConfig.apiToken, replicateConfig.model);
+  const fallbackProvider = new ReplicateFluxProvider({
+    config: replicateConfig,
+    client: replicateClient,
+    logger: {
+      info: (entry: unknown) => console.log(JSON.stringify({ level: "info", correlationId, entry })),
+      error: (entry: unknown) => console.error(JSON.stringify({ level: "error", correlationId, entry })),
+    },
+  });
+
+  return { fallbackProvider, fallbackProviderConfig: replicateConfig };
+}
 
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
@@ -84,6 +111,13 @@ Deno.serve(async (req: Request) => {
         supabaseClient,
         geminiProvider,
         providerConfig,
+        // Fallback is entirely OPTIONAL and config-driven (Provider
+        // Resilience Agent, P2-AI-03). If REPLICATE_API_TOKEN /
+        // REPLICATE_MODEL are not set, `fallbackProvider` stays
+        // undefined and `buildOrchestrator()` falls back to its pre-existing
+        // primary-only behavior — zero change for deployments that haven't
+        // provisioned Replicate yet.
+        ...buildFallbackProviderDeps(correlationId),
       },
     });
 

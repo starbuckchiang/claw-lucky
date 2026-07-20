@@ -27,6 +27,13 @@ node --check js/services/ai/provider-factory.js
 node --check js/services/ai/gemini-provider.js
 node --check js/services/ai/provider-types.js
 node --check js/services/ai/wallpaper-provider-adapter.js
+node --check js/services/ai/contracts/provider-error.js
+node --check js/services/ai/fallback/fallback-policy.js
+node --check js/services/ai/predictions/prediction-runner.js
+node --check js/services/ai/providers/replicate-flux-provider.js
+node --check js/services/ai/providers/replicate-model-config.js
+node --check js/services/ai/providers/provider-registry.js
+node --check js/services/ai/agents/provider-resilience-agent.js
 node --check js/services/storage/wallpaper-storage-uploader.js
 node --check js/pages/wallpaper.js
 node --check supabase/functions/_shared/wallpaper-generate-handler.js

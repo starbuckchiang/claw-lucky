@@ -26,6 +26,7 @@ import { createPointsRepositoryFromSupabaseClient } from "./lib/points-repositor
 import { createPromptRegistryLoader, createPromptRepositoryFromSupabaseClient } from "./lib/prompt-registry-loader.ts";
 import { ProviderAdapter } from "./lib/provider-adapter.ts";
 import { createWallpaperProviderAdapter } from "./lib/wallpaper-provider-adapter.ts";
+import { createProviderResilienceAgent } from "./lib/provider-resilience-agent.ts";
 import { createWallpaperStorageUploader } from "./lib/wallpaper-storage-uploader.ts";
 import { createGenerationLogger } from "./lib/generation-logger.ts";
 import { createGenerationTracing } from "./lib/generation-tracing.ts";
@@ -133,7 +134,9 @@ export function buildOrchestrator({
   supabaseClient,
   geminiProvider,
   providerConfig,
-  generationLogger
+  generationLogger,
+  fallbackProvider,
+  fallbackProviderConfig
 }: {
   // deno-lint-ignore no-explicit-any
   supabaseClient: any;
@@ -143,6 +146,15 @@ export function buildOrchestrator({
   providerConfig: any;
   // deno-lint-ignore no-explicit-any
   generationLogger?: any;
+  // OPTIONAL pre-constructed fallback provider instance (e.g. a
+  // ReplicateFluxProvider wired with a Deno-native Replicate client). When
+  // omitted (the default — no fallback configured), the Provider Resilience
+  // Agent behaves EXACTLY like a bare ProviderAdapter: any primary failure
+  // is rethrown immediately, unchanged.
+  // deno-lint-ignore no-explicit-any
+  fallbackProvider?: any;
+  // deno-lint-ignore no-explicit-any
+  fallbackProviderConfig?: any;
 }) {
   const logger = generationLogger || createGenerationLogger();
   const generationTracing = createGenerationTracing();
@@ -151,11 +163,36 @@ export function buildOrchestrator({
     repository: createPromptRepositoryFromSupabaseClient({ supabaseClient })
   });
 
-  const rawProviderAdapter = new ProviderAdapter(
+  const primaryAdapter = new ProviderAdapter(
     wrapLoggerForProvider(logger),
     providerConfig,
     geminiProvider
   );
+
+  // Provider Resilience Agent: unifies primary execution + deterministic
+  // fallback decision behind ONE agent workflow (see
+  // _shared/lib/provider-resilience-agent.ts). This is the SMALLEST
+  // integration point — it exposes the exact same `generateImage(input)`
+  // contract a single ProviderAdapter exposes today, so it is a drop-in
+  // replacement for `rawProviderAdapter` below. `generation-service.ts` /
+  // `generation-orchestrator.ts` are UNCHANGED.
+  let fallbackEntry: { name: string; adapter: ProviderAdapter } | null = null;
+  if (fallbackProvider) {
+    const fallbackAdapter = new ProviderAdapter(
+      wrapLoggerForProvider(logger),
+      fallbackProviderConfig || providerConfig,
+      fallbackProvider
+    );
+    fallbackEntry = { name: "replicate-flux", adapter: fallbackAdapter };
+  }
+
+  const rawProviderAdapter = createProviderResilienceAgent({
+    registry: {
+      primary: { name: "gemini", adapter: primaryAdapter },
+      fallback: fallbackEntry
+    },
+    logger
+  });
 
   const storageUploader = createWallpaperStorageUploader({ supabaseClient });
 
