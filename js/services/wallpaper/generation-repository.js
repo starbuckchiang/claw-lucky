@@ -1,5 +1,19 @@
 "use strict";
 
+// Attaches safe, non-secret diagnostic context (target table + operation
+// name) to a raw Supabase/Postgres error before it propagates, without
+// altering the error's own fields (message/code/details/hint stay intact).
+// This lets callers log the REAL underlying database error instead of a
+// swallowed/normalized generic failure. Mirrors job-repository.js's
+// precedent (see JOB_CREATION_FAILURE diagnostics fix).
+function withDiagnosticContext(error, table, operation) {
+  if (error && typeof error === "object") {
+    error.table = table;
+    error.operation = operation;
+  }
+  return error;
+}
+
 function createGenerationRepository({ insertGeneration }) {
   if (typeof insertGeneration !== "function") {
     throw new Error("createGenerationRepository requires insertGeneration(payload).");
@@ -58,7 +72,7 @@ function createGenerationRepositoryFromSupabaseClient({
         .single();
 
       if (error) {
-        throw error;
+        throw withDiagnosticContext(error, tableName, "insertGeneration");
       }
 
       return {

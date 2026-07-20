@@ -156,6 +156,12 @@ function createGenerationOrchestrator({
         payload: {
           jobId,
           error: generationTracing.buildErrorTrace(trace, generationResult.error.code),
+          // Safe diagnostics only (reason/code/details/hint/table/operation),
+          // surfaced from generation-service.js when the failure is a
+          // persistence failure (IMAGE_GENERATION_FAILURE) so the real
+          // underlying Supabase/Postgres error is visible in Edge Function
+          // logs instead of being fully swallowed behind the normalized code.
+          diagnostics: generationResult.error.details || null,
           status: "failed"
         }
       });

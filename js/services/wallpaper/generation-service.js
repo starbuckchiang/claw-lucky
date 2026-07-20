@@ -22,6 +22,23 @@ function plusDays(baseDate, days) {
   return next;
 }
 
+// Extracts ONLY safe, non-secret diagnostic fields from a raw
+// Supabase/Postgres error (never JWTs/API keys/service-role keys/full
+// request headers). `table`/`operation` are attached by the repository
+// layer (see generation-repository.js's withDiagnosticContext) so the real
+// failure point is visible even though the public-facing error code stays
+// normalized as IMAGE_GENERATION_FAILURE. Mirrors job-service.js's precedent.
+function extractSafeErrorDiagnostics(error) {
+  return {
+    reason: error?.message || "unknown",
+    code: error?.code || null,
+    details: error?.details || null,
+    hint: error?.hint || null,
+    table: error?.table || null,
+    operation: error?.operation || null
+  };
+}
+
 function renderPrompt(template, variables) {
   let output = String(template || "");
 
@@ -344,11 +361,17 @@ function createGenerationService({
         expiresAt: toIsoString(expiresAt)
       });
     } catch (error) {
+      const diagnostics = extractSafeErrorDiagnostics(error);
       generationLogger.logError({
         event: "generation_service_persistence_failure",
         correlationId: trace.correlationId,
         payload: {
           error: generationTracing.buildErrorTrace(trace, "IMAGE_GENERATION_FAILURE"),
+          // Safe diagnostics only (reason/code/details/hint/table/operation)
+          // surfaced from generation-repository.js so the real underlying
+          // Supabase/Postgres error is visible instead of being fully
+          // swallowed behind IMAGE_GENERATION_FAILURE.
+          diagnostics,
           status: "failed"
         }
       });
@@ -356,9 +379,7 @@ function createGenerationService({
         code: "IMAGE_GENERATION_FAILURE",
         message: "Image was generated but persistence failed.",
         retryable: true,
-        details: {
-          reason: error?.message || "unknown"
-        }
+        details: diagnostics
       });
     }
 

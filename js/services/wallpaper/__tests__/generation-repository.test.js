@@ -85,3 +85,47 @@ test("persists storage_bucket/storage_path and never persists imageUrl/base64 in
   assert.equal(record.imageUrl, "https://signed.example/wallpapers/user-1/asset-1/wallpaper.png");
   assert.equal(record.generationId, "gen-1");
 });
+
+test("insertGeneration attaches safe diagnostic context (table/operation) to a raw Supabase error", async () => {
+  const dbError = new Error("duplicate key value violates unique constraint");
+  dbError.code = "23505";
+
+  const client = {
+    from(tableName) {
+      return {
+        insert() {
+          return {
+            select() {
+              return {
+                async single() {
+                  return { data: null, error: dbError };
+                }
+              };
+            }
+          };
+        }
+      };
+    }
+  };
+
+  const repository = createGenerationRepositoryFromSupabaseClient({ supabaseClient: client, tableName: "wallpaper_generations" });
+
+  await assert.rejects(
+    () => repository.createGenerationRecord({
+      userId: "user-1",
+      mascotId: "mascot-1",
+      giftId: "gift-1",
+      wallpaperStyle: "Retro",
+      luckyTheme: "Golden Day",
+      blessing: "Fortune follows you.",
+      status: "succeeded",
+      expiresAt: "2026-08-15T00:00:00.000Z"
+    }),
+    (error) => {
+      assert.equal(error.code, "23505");
+      assert.equal(error.table, "wallpaper_generations");
+      assert.equal(error.operation, "insertGeneration");
+      return true;
+    }
+  );
+});

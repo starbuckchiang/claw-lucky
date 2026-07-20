@@ -213,4 +213,32 @@ test("Image Generation Failure on persistence", async () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.error.code, "IMAGE_GENERATION_FAILURE");
+  // Safe diagnostics (reason/code/details/hint/table/operation) must be
+  // preserved so the real persistence failure is visible, not swallowed.
+  assert.equal(result.error.details.reason, "db write failed");
 });
+
+test("Image Generation Failure on persistence preserves table/operation diagnostics from the repository", async () => {
+  const dbError = new Error("duplicate key value violates unique constraint");
+  dbError.code = "23505";
+  dbError.details = "Key (id)=(gen-1) already exists.";
+  dbError.hint = null;
+  dbError.table = "wallpaper_generations";
+  dbError.operation = "insertGeneration";
+
+  const service = createGenerationService({
+    promptRegistryLoader: createPromptLoaderMock(),
+    providerAdapter: createProviderAdapterMock(),
+    generationRepository: createRepositoryMock({ error: dbError })
+  });
+
+  const result = await service.createWallpaperGeneration(baseRequest());
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "IMAGE_GENERATION_FAILURE");
+  assert.equal(result.error.details.code, "23505");
+  assert.equal(result.error.details.table, "wallpaper_generations");
+  assert.equal(result.error.details.operation, "insertGeneration");
+  assert.equal(result.error.details.hint, null);
+});
+
