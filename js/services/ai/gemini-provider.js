@@ -94,6 +94,18 @@ function buildRawGeminiErrorFields(e) {
   return { httpStatus, geminiErrorMessage, geminiErrorStatus, geminiErrorCode };
 }
 
+// TEMPORARY diagnostic helper (P2-AI-03 error-tracing investigation):
+// extracts the first stack frame that references this project's own files
+// (skipping the "ErrorName: message" header and node/Deno internal frames),
+// so we can pinpoint where an exception actually originated without ever
+// logging prompt/image/secret content.
+function firstProjectStackLine(stack) {
+  if (typeof stack !== "string") return null;
+  const lines = stack.split("\n").slice(1);
+  const projectLine = lines.find((line) => line.includes("services") || line.includes("supabase")) || lines[0];
+  return projectLine ? projectLine.trim() : null;
+}
+
 function mapError(e) {
   const diagnostics = sanitizeErrorForDiagnostics(e);
   const status = e?.status ?? e?.response?.status ?? e?.statusCode;
@@ -231,9 +243,13 @@ class GeminiProvider {
         level: "error",
         event: "gemini.provider.unhandled_exception",
         correlationId,
+        errorType: unhandledError?.constructor?.name || null,
         errorName: unhandledError?.name || null,
         errorMessage: unhandledError?.message || null,
-        stack: unhandledError?.stack || null
+        firstProjectStackLine: firstProjectStackLine(unhandledError?.stack),
+        causeName: unhandledError?.cause?.name || null,
+        causeMessage: unhandledError?.cause?.message || null,
+        causeStackLine: firstProjectStackLine(unhandledError?.cause?.stack)
       }));
       throw unhandledError;
     }

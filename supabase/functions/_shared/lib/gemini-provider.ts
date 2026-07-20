@@ -106,6 +106,18 @@ function buildRawGeminiErrorFields(e: any): {
   return { httpStatus, geminiErrorMessage, geminiErrorStatus, geminiErrorCode };
 }
 
+// TEMPORARY diagnostic helper (P2-AI-03 error-tracing investigation):
+// extracts the first stack frame that references this project's own files
+// (skipping the "ErrorName: message" header and Deno/npm internal frames),
+// so we can pinpoint where an exception actually originated without ever
+// logging prompt/image/secret content.
+function firstProjectStackLine(stack: unknown): string | null {
+  if (typeof stack !== "string") return null;
+  const lines = stack.split("\n").slice(1);
+  const projectLine = lines.find((line) => line.includes("services") || line.includes("supabase")) || lines[0];
+  return projectLine ? projectLine.trim() : null;
+}
+
 // deno-lint-ignore no-explicit-any
 function mapError(e: any): NormalizedProviderError {
   const diagnostics = sanitizeErrorForDiagnostics(e);
@@ -251,14 +263,18 @@ export class GeminiProvider {
         throw errorToThrow;
       }
     } catch (unhandledError) {
-      const err = unhandledError as { name?: string; message?: string; stack?: string };
+      const err = unhandledError as { name?: string; message?: string; stack?: string; constructor?: { name?: string }; cause?: { name?: string; message?: string; stack?: string } };
       console.error(JSON.stringify({
         level: "error",
         event: "gemini.provider.unhandled_exception",
         correlationId,
+        errorType: err?.constructor?.name || null,
         errorName: err?.name || null,
         errorMessage: err?.message || null,
-        stack: err?.stack || null
+        firstProjectStackLine: firstProjectStackLine(err?.stack),
+        causeName: err?.cause?.name || null,
+        causeMessage: err?.cause?.message || null,
+        causeStackLine: firstProjectStackLine(err?.cause?.stack)
       }));
       throw unhandledError;
     }

@@ -7,6 +7,17 @@
 // 依賴 provider-types.js
 const { NormalizedProviderError } = require("./provider-types.js");
 
+// TEMPORARY diagnostic helper (P2-AI-03 error-tracing investigation):
+// extracts the first stack frame that references this project's own files,
+// so we can pinpoint where an exception actually originated without ever
+// logging prompt/image/secret content.
+function firstProjectStackLine(stack) {
+  if (typeof stack !== "string") return null;
+  const lines = stack.split("\n").slice(1);
+  const projectLine = lines.find((line) => line.includes("services") || line.includes("supabase")) || lines[0];
+  return projectLine ? projectLine.trim() : null;
+}
+
 class ProviderAdapter {
   #provider;
   #config;
@@ -61,6 +72,21 @@ class ProviderAdapter {
         break;
       }
     }
+    // TEMPORARY diagnostic (P2-AI-03 error-tracing investigation): logged
+    // right before the final, unchanged rethrow. Never logs API keys,
+    // tokens, prompt text, or image data.
+    console.error(JSON.stringify({
+      level: "error",
+      event: "provider.adapter.exhausted",
+      correlationId: input?.correlationId || null,
+      errorType: lastError?.constructor?.name || null,
+      errorName: lastError?.name || null,
+      errorMessage: lastError?.message || null,
+      firstProjectStackLine: firstProjectStackLine(lastError?.stack),
+      causeName: lastError?.cause?.name || null,
+      causeMessage: lastError?.cause?.message || null,
+      causeStackLine: firstProjectStackLine(lastError?.cause?.stack)
+    }));
     throw lastError;
   }
 }

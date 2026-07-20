@@ -7,6 +7,37 @@ import { toProviderErrorInfo } from "./provider-error.ts";
 import { isFallbackEligible } from "./fallback-policy.ts";
 import type { ProviderAdapter } from "./provider-adapter.ts";
 
+// TEMPORARY diagnostic helper (P2-AI-03 error-tracing investigation):
+// extracts the first stack frame that references this project's own files,
+// so we can pinpoint where an exception actually originated without ever
+// logging prompt/image/secret content.
+function firstProjectStackLine(stack: unknown): string | null {
+  if (typeof stack !== "string") return null;
+  const lines = stack.split("\n").slice(1);
+  const projectLine = lines.find((line) => line.includes("services") || line.includes("supabase")) || lines[0];
+  return projectLine ? projectLine.trim() : null;
+}
+
+// TEMPORARY diagnostic (P2-AI-03 error-tracing investigation): logs the RAW
+// error's type/name/message/stack/cause BEFORE any normalization
+// (toProviderErrorInfo) or fallback-eligibility decision. Never logs API
+// keys, tokens, prompt text, or image data.
+// deno-lint-ignore no-explicit-any
+function logRawException(event: string, correlationId: string, error: any): void {
+  console.error(JSON.stringify({
+    level: "error",
+    event,
+    correlationId,
+    errorType: error?.constructor?.name || null,
+    errorName: error?.name || null,
+    errorMessage: error?.message || null,
+    firstProjectStackLine: firstProjectStackLine(error?.stack),
+    causeName: error?.cause?.name || null,
+    causeMessage: error?.cause?.message || null,
+    causeStackLine: firstProjectStackLine(error?.cause?.stack)
+  }));
+}
+
 export interface ProviderRegistryEntry {
   name: string;
   adapter: ProviderAdapter;
@@ -41,6 +72,10 @@ export function createProviderResilienceAgent({
     try {
       return await registry.primary.adapter.generateImage(input);
     } catch (primaryError) {
+      // Raw error logged BEFORE toProviderErrorInfo() normalizes it and
+      // BEFORE the fallback-eligibility decision below.
+      logRawException("generation_primary_failed_raw", correlationId, primaryError);
+
       safeLogger.error({
         event: "generation_primary_failed",
         ...toProviderErrorInfo(primaryError, primaryName, correlationId)
@@ -52,6 +87,18 @@ export function createProviderResilienceAgent({
         // deno-lint-ignore no-explicit-any
         diagnostics: (primaryError as any)?.diagnostics || null
       });
+
+      // TEMPORARY diagnostic: confirms the EXACT failureCode isFallbackEligible()
+      // actually received, and whether fallback was even configured.
+      console.error(JSON.stringify({
+        level: "error",
+        event: "generation_fallback_eligibility_check",
+        correlationId,
+        // deno-lint-ignore no-explicit-any
+        failureCode: (primaryError as any)?.code || null,
+        fallbackConfigured: Boolean(registry.fallback),
+        eligible
+      }));
 
       if (!eligible) {
         throw primaryError;
@@ -68,6 +115,8 @@ export function createProviderResilienceAgent({
 
         return fallbackResult;
       } catch (fallbackError) {
+        logRawException("generation_fallback_failed_raw", correlationId, fallbackError);
+
         safeLogger.error({
           event: "generation_fallback_failed",
           ...toProviderErrorInfo(fallbackError, fallbackName, correlationId)

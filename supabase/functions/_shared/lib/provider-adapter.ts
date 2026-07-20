@@ -11,6 +11,17 @@
 
 import { NormalizedProviderError } from "./provider-types.ts";
 
+// TEMPORARY diagnostic helper (P2-AI-03 error-tracing investigation):
+// extracts the first stack frame that references this project's own files,
+// so we can pinpoint where an exception actually originated without ever
+// logging prompt/image/secret content.
+function firstProjectStackLine(stack: unknown): string | null {
+  if (typeof stack !== "string") return null;
+  const lines = stack.split("\n").slice(1);
+  const projectLine = lines.find((line) => line.includes("services") || line.includes("supabase")) || lines[0];
+  return projectLine ? projectLine.trim() : null;
+}
+
 export class ProviderAdapter {
   // deno-lint-ignore no-explicit-any
   #provider: any;
@@ -61,6 +72,22 @@ export class ProviderAdapter {
         break;
       }
     }
+    // TEMPORARY diagnostic (P2-AI-03 error-tracing investigation): logged
+    // right before the final, unchanged rethrow. Never logs API keys,
+    // tokens, prompt text, or image data.
+    const err = lastError as { constructor?: { name?: string }; name?: string; message?: string; stack?: string; cause?: { name?: string; message?: string; stack?: string } };
+    console.error(JSON.stringify({
+      level: "error",
+      event: "provider.adapter.exhausted",
+      correlationId: input?.correlationId || null,
+      errorType: err?.constructor?.name || null,
+      errorName: err?.name || null,
+      errorMessage: err?.message || null,
+      firstProjectStackLine: firstProjectStackLine(err?.stack),
+      causeName: err?.cause?.name || null,
+      causeMessage: err?.cause?.message || null,
+      causeStackLine: firstProjectStackLine(err?.cause?.stack)
+    }));
     throw lastError;
   }
 }

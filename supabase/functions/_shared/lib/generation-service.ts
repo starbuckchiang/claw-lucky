@@ -242,6 +242,32 @@ export function createGenerationService({
         correlationId: trace.correlationId
       });
     } catch (error) {
+      // TEMPORARY diagnostic (P2-AI-03 error-tracing investigation): logs
+      // the RAW error's type/name/message/stack/cause BEFORE
+      // normalizeProviderError() runs, so this is the last point the
+      // original exception can still be inspected before it becomes a
+      // normalized DTO. Never logs API keys, tokens, prompt text, or image
+      // data. Logged via console.error directly (not generationLogger), so
+      // it always emits regardless of logger wiring.
+      // deno-lint-ignore no-explicit-any
+      const err = error as any;
+      console.error(JSON.stringify({
+        level: "error",
+        event: "generation_service_provider_failure_raw",
+        correlationId: trace.correlationId,
+        errorType: err?.constructor?.name || null,
+        errorName: err?.name || null,
+        errorMessage: err?.message || null,
+        firstProjectStackLine: (() => {
+          if (typeof err?.stack !== "string") return null;
+          const lines = err.stack.split("\n").slice(1);
+          const projectLine = lines.find((line: string) => line.includes("services") || line.includes("supabase")) || lines[0];
+          return projectLine ? projectLine.trim() : null;
+        })(),
+        causeName: err?.cause?.name || null,
+        causeMessage: err?.cause?.message || null
+      }));
+
       const normalized =
         typeof providerAdapter.normalizeProviderError === "function"
           ? providerAdapter.normalizeProviderError(error)
