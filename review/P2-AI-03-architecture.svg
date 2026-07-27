@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1300" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333333"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="1300" fill="#ffffff"/>
+
+  <text x="480" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#222222">
+    P2-AI-03 Shopkeeper Context Agent — Architecture (as implemented)
+  </text>
+
+  <!-- Legend -->
+  <rect x="300" y="1250" width="16" height="16" rx="3" fill="#fff8e1" stroke="#333333"/>
+  <text x="322" y="1263" font-size="12.5" fill="#444444">Fallback path</text>
+  <rect x="430" y="1250" width="16" height="16" rx="3" fill="#e8f5e9" stroke="#333333"/>
+  <text x="452" y="1263" font-size="12.5" fill="#444444">Merged Shopkeeper Context</text>
+  <rect x="640" y="1250" width="16" height="16" rx="3" fill="#e3f2fd" stroke="#333333"/>
+  <text x="662" y="1263" font-size="12.5" fill="#444444">Persisted snapshot (metadata_json)</text>
+
+  <!-- Edges -->
+  <path d="M450,110 L450,150" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M450,220 L450,280" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M450,340 L450,410" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M450,470 L450,560" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M600,440 L690,440" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M800,470 L800,515 L600,515 L600,560" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M600,590 L690,595" fill="none" stroke="#333333" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+  <path d="M450,620 L450,690" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M450,750 L450,810" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M450,870 L450,930" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M450,990 L450,1050" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M450,1110 L450,1170" fill="none" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Edge labels (with backing rects for legibility) -->
+  <rect x="463" y="367" width="168" height="16" fill="#ffffff" opacity="0.85"/>
+  <text x="465" y="379" font-size="12.5" fill="#555555">Structured Output JSON</text>
+
+  <rect x="463" y="507" width="42" height="16" fill="#ffffff" opacity="0.85"/>
+  <text x="465" y="519" font-size="12.5" fill="#555555">valid</text>
+
+  <rect x="547" y="417" width="196" height="16" fill="#ffffff" opacity="0.85"/>
+  <text x="645" y="429" text-anchor="middle" font-size="12.5" fill="#555555">invalid / error / timeout</text>
+
+  <rect x="588" y="569" width="120" height="16" fill="#ffffff" opacity="0.85"/>
+  <text x="645" y="581" text-anchor="middle" font-size="12.5" fill="#555555">shopkeeperSnapshot</text>
+
+  <!-- A: Generation Service -->
+  <rect x="300" y="20" width="300" height="60" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="55" text-anchor="middle" font-size="15" fill="#222222">Generation Service</text>
+
+  <!-- B: Mascot/Gift Repository -->
+  <rect x="300" y="150" width="300" height="70" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="178" text-anchor="middle" font-size="15" fill="#222222">
+    <tspan x="450" dy="0">Mascot Repository / Gift Repository</tspan>
+    <tspan x="450" dy="18">(queried ONCE)</tspan>
+  </text>
+
+  <!-- C: Shopkeeper Context Agent -->
+  <rect x="300" y="280" width="300" height="60" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="315" text-anchor="middle" font-size="15" fill="#222222">Shopkeeper Context Agent</text>
+
+  <!-- D: Shopkeeper Context Validator -->
+  <rect x="300" y="410" width="300" height="60" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="445" text-anchor="middle" font-size="15" fill="#222222">Shopkeeper Context Validator</text>
+
+  <!-- F: Fallback Context -->
+  <rect x="690" y="410" width="220" height="60" rx="10" fill="#fff8e1" stroke="#333333" stroke-width="1.5"/>
+  <text x="800" y="445" text-anchor="middle" font-size="15" fill="#222222">Fallback Context</text>
+
+  <!-- E: Shopkeeper Context (merged) -->
+  <rect x="300" y="560" width="300" height="60" rx="10" fill="#e8f5e9" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="595" text-anchor="middle" font-size="15" fill="#222222">Shopkeeper Context</text>
+
+  <!-- L: Persisted snapshot (cylinder / DB shape) -->
+  <rect x="690" y="560" width="220" height="70" fill="#e3f2fd"/>
+  <line x1="690" y1="560" x2="690" y2="630" stroke="#333333" stroke-width="1.5"/>
+  <line x1="910" y1="560" x2="910" y2="630" stroke="#333333" stroke-width="1.5"/>
+  <ellipse cx="800" cy="630" rx="110" ry="12" fill="#e3f2fd" stroke="#333333" stroke-width="1.5"/>
+  <ellipse cx="800" cy="560" rx="110" ry="12" fill="#e3f2fd" stroke="#333333" stroke-width="1.5"/>
+  <text x="800" y="592" text-anchor="middle" font-size="13.5" fill="#222222">
+    <tspan x="800" dy="0">generation_repository</tspan>
+    <tspan x="800" dy="16">metadata_json</tspan>
+  </text>
+
+  <!-- G: Prompt Context Resolver -->
+  <rect x="300" y="690" width="300" height="60" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="725" text-anchor="middle" font-size="15" fill="#222222">Prompt Context Resolver</text>
+
+  <!-- H: Prompt Validator -->
+  <rect x="300" y="810" width="300" height="60" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="845" text-anchor="middle" font-size="15" fill="#222222">Prompt Validator</text>
+
+  <!-- I: Wallpaper Prompt Builder -->
+  <rect x="300" y="930" width="300" height="60" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="965" text-anchor="middle" font-size="15" fill="#222222">Wallpaper Prompt Builder</text>
+
+  <!-- J: Prompt Snapshot -->
+  <rect x="300" y="1050" width="300" height="60" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="1085" text-anchor="middle" font-size="15" fill="#222222">Prompt Snapshot</text>
+
+  <!-- K: Provider Adapter -> Gemini -->
+  <rect x="300" y="1170" width="300" height="60" rx="10" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="450" y="1205" text-anchor="middle" font-size="15" fill="#222222">Provider Adapter → Gemini</text>
+</svg>

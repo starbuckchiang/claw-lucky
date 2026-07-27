@@ -7,6 +7,9 @@ const {
 } = require("./response-dto");
 const { createGenerationTracing } = require("../logging/generation-tracing");
 const { createGenerationLogger } = require("../logging/generation-logger");
+const { validateWallpaperPromptInput, PromptValidationError } = require("../prompt/prompt-validator");
+const { buildWallpaperPrompt } = require("../prompt/wallpaper-prompt-builder");
+const { buildPromptSnapshot } = require("../prompt/prompt-snapshot");
 
 function defaultNow() {
   return new Date();
@@ -36,38 +39,6 @@ function extractSafeErrorDiagnostics(error) {
     hint: error?.hint || null,
     table: error?.table || null,
     operation: error?.operation || null
-  };
-}
-
-function renderPrompt(template, variables) {
-  let output = String(template || "");
-
-  for (const [key, value] of Object.entries(variables)) {
-    const placeholder = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g");
-    output = output.replace(placeholder, String(value ?? ""));
-  }
-
-  return output.trim();
-}
-
-function buildPromptContext(validated, prompt) {
-  const variables = {
-    userId: validated.userId,
-    mascotId: validated.mascotId,
-    giftId: validated.giftId,
-    wallpaperStyle: validated.wallpaperStyle,
-    luckyTheme: validated.luckyTheme,
-    blessing: validated.blessing
-  };
-
-  return {
-    promptType: prompt.promptType,
-    promptVersion: prompt.version,
-    promptSource: prompt.source,
-    promptTemplate: prompt.template,
-    promptMetadata: prompt.metadata || {},
-    promptText: renderPrompt(prompt.template, variables),
-    variables
   };
 }
 
@@ -151,6 +122,10 @@ function normalizeProviderError(providerResult) {
 
 function createGenerationService({
   promptRegistryLoader,
+  promptContextResolver,
+  mascotRepository,
+  giftRepository,
+  shopkeeperContextAgent,
   providerAdapter,
   generationRepository,
   now = defaultNow,
@@ -159,6 +134,22 @@ function createGenerationService({
 }) {
   if (!promptRegistryLoader || typeof promptRegistryLoader.loadActivePrompt !== "function") {
     throw new Error("createGenerationService requires promptRegistryLoader.loadActivePrompt(promptType).");
+  }
+
+  if (!promptContextResolver || typeof promptContextResolver.resolve !== "function") {
+    throw new Error("createGenerationService requires promptContextResolver.resolve(request).");
+  }
+
+  if (!mascotRepository || typeof mascotRepository.findMascotById !== "function") {
+    throw new Error("createGenerationService requires mascotRepository.findMascotById(mascotId).");
+  }
+
+  if (!giftRepository || typeof giftRepository.findGiftById !== "function") {
+    throw new Error("createGenerationService requires giftRepository.findGiftById(giftId).");
+  }
+
+  if (!shopkeeperContextAgent || typeof shopkeeperContextAgent.generate !== "function") {
+    throw new Error("createGenerationService requires shopkeeperContextAgent.generate(input).");
   }
 
   if (!providerAdapter || typeof providerAdapter.generateWallpaper !== "function") {
@@ -233,7 +224,97 @@ function createGenerationService({
       });
     }
 
-    const promptContext = buildPromptContext(validated, prompt);
+    // AI Constitution-compliant pipeline (P2-AI-03 Shopkeeper Context Agent):
+    // Generation Service -> [query Mascot/Gift ONCE, shared below] ->
+    // Shopkeeper Context Agent -> Prompt Context Resolver -> Prompt
+    // Validator -> Wallpaper Prompt Builder -> Prompt Snapshot -> Provider
+    // Adapter. The Prompt Registry's `prompt.template` field is loaded
+    // above (kept for backward-compatible promptType/version/source
+    // tracking) but is no longer used to assemble the actual image prompt
+    // text — the Wallpaper Prompt Builder is the ONLY module allowed to do
+    // that (Principle 5).
+    let promptContext;
+    let shopkeeperContext;
+    try {
+      // Mascot/Gift are queried EXACTLY ONCE here and shared with both the
+      // Shopkeeper Context Agent and the Prompt Context Resolver below —
+      // per P2-AI-03 Product Decision, neither of those two components may
+      // query the repositories themselves.
+      const [mascot, gift] = await Promise.all([
+        mascotRepository.findMascotById(validated.mascotId),
+        giftRepository.findGiftById(validated.giftId)
+      ]);
+
+      // Shopkeeper Context Agent NEVER throws — any AI failure (timeout,
+      // rate limit, provider failure, invalid/incomplete JSON) resolves
+      // internally to the deterministic Fallback Context, so a Shopkeeper
+      // failure can never block wallpaper generation.
+      shopkeeperContext = await shopkeeperContextAgent.generate({
+        mascot,
+        gift,
+        wallpaperStyle: validated.wallpaperStyle,
+        correlationId: trace.correlationId
+      });
+
+      const context = await promptContextResolver.resolve({
+        mascot,
+        gift,
+        wallpaperStyle: validated.wallpaperStyle,
+        luckyTheme: shopkeeperContext.luckyTheme,
+        blessing: shopkeeperContext.blessing
+      });
+
+      validateWallpaperPromptInput(context);
+
+      const promptResult = buildWallpaperPrompt(context);
+      const promptSnapshot = buildPromptSnapshot({
+        promptResult,
+        contextVersion: context.contextVersion
+      });
+
+      promptContext = {
+        promptText: promptResult.promptText,
+        promptType: prompt.promptType,
+        promptVersion: prompt.version,
+        promptSource: prompt.source,
+        variables: { userId: validated.userId },
+        ...promptSnapshot
+      };
+    } catch (error) {
+      if (error instanceof PromptValidationError) {
+        generationLogger.logWarn({
+          event: "generation_service_prompt_validation_failed",
+          correlationId: trace.correlationId,
+          payload: {
+            error: generationTracing.buildErrorTrace(trace, "PROMPT_VALIDATION_FAILED"),
+            details: error.details || null,
+            status: "failed"
+          }
+        });
+        return createGenerationErrorDto({
+          code: "PROMPT_VALIDATION_FAILED",
+          message: error.message,
+          retryable: false,
+          details: error.details || null
+        });
+      }
+
+      generationLogger.logWarn({
+        event: "generation_service_prompt_context_failed",
+        correlationId: trace.correlationId,
+        payload: {
+          error: generationTracing.buildErrorTrace(trace, "PROMPT_CONTEXT_FAILURE"),
+          status: "failed"
+        }
+      });
+      return createGenerationErrorDto({
+        code: "PROMPT_CONTEXT_FAILURE",
+        message: "Failed to resolve mascot/gift context for prompt generation.",
+        retryable: true,
+        details: { reason: error?.message || "unknown" }
+      });
+    }
+
     let providerResult;
 
     try {
@@ -341,11 +422,25 @@ function createGenerationService({
         mascotId: validated.mascotId,
         giftId: validated.giftId,
         wallpaperStyle: validated.wallpaperStyle,
-        luckyTheme: validated.luckyTheme,
-        blessing: validated.blessing,
+        // Persist the SHOPKEEPER's authoritative luckyTheme/blessing (what
+        // was actually used to build the image prompt), not the raw
+        // request fields — those are superseded once the Shopkeeper
+        // Context Agent runs (P2-AI-03).
+        luckyTheme: shopkeeperContext.luckyTheme,
+        blessing: shopkeeperContext.blessing,
         promptType: promptContext.promptType,
         promptVersion: promptContext.promptVersion,
         promptSource: promptContext.promptSource,
+        // Prompt Snapshot fields (P2-AI-02): what was actually sent to the
+        // image provider, plus which context/builder version produced it.
+        promptSnapshot: promptContext.promptSnapshot,
+        contextVersion: promptContext.contextVersion,
+        builderVersion: promptContext.builderVersion,
+        // Shopkeeper Snapshot fields (P2-AI-03): full Lucky Context +
+        // which version/source (ai|fallback) produced it, for observability.
+        shopkeeperVersion: shopkeeperContext.version,
+        shopkeeperSnapshot: shopkeeperContext,
+        source: shopkeeperContext.source,
         provider: providerResult?.provider || "unknown",
         model: providerResult?.model || null,
         providerRequestId: providerResult?.providerRequestId || null,

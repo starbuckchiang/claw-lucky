@@ -56,6 +56,19 @@ function createGenerationRepositoryFromSupabaseClient({
           promptType: payload.promptType,
           promptVersion: payload.promptVersion,
           promptSource: payload.promptSource,
+          // Prompt Snapshot (AI Constitution Principle 9 / Observability):
+          // reuses this existing metadata_json column rather than a new
+          // table. Lets a later "why did it draw a fox today?" question be
+          // answered directly from the persisted row.
+          promptSnapshot: payload.promptSnapshot || null,
+          contextVersion: payload.contextVersion || null,
+          builderVersion: payload.builderVersion || null,
+          // Shopkeeper Snapshot (P2-AI-03 / Observability): reuses this
+          // SAME metadata_json column — no new table. `source` (ai|fallback)
+          // makes AI vs Fallback distinguishable from the persisted row.
+          shopkeeperVersion: payload.shopkeeperVersion || null,
+          shopkeeperSnapshot: payload.shopkeeperSnapshot || null,
+          source: payload.source || null,
           provider: payload.provider,
           providerRequestId: payload.providerRequestId,
           mimeType: payload.mimeType || null,

@@ -98,6 +98,22 @@ function createMockPromptLoader() {
   };
 }
 
+function createMockPromptContextResolver() {
+  return {
+    async resolve() {
+      return {
+        mascot: { id: "mascot-1", species: "Penguin", title: "Lucky Penguin", appearance: "A small round penguin.", colors: null },
+        gift: { id: "gift-1", name: "Lucky Charm", description: "A small guardian charm." },
+        wallpaperStyle: "Retro",
+        luckyTheme: "Golden Day",
+        blessing: "Fortune follows you.",
+        date: "2026.07.21",
+        contextVersion: "wallpaper-prompt-context-v1"
+      };
+    }
+  };
+}
+
 function createMockGenerationRepository() {
   return {
     async createGenerationRecord(payload) {
@@ -110,6 +126,40 @@ function createMockGenerationRepository() {
         durationMs: payload.durationMs,
         status: payload.status,
         createdAt: "2026-07-19T00:00:00.000Z"
+      };
+    }
+  };
+}
+
+// P2-AI-03: Generation Service now queries mascot/gift itself and requires
+// a Shopkeeper Context Agent dependency.
+function createMockMascotRepository() {
+  return {
+    async findMascotById() {
+      return { id: "mascot-1", species: "Penguin", title: "Lucky Penguin", appearance: "A small round penguin.", colors: null };
+    }
+  };
+}
+
+function createMockGiftRepository() {
+  return {
+    async findGiftById() {
+      return { id: "gift-1", name: "Lucky Charm", description: "A small guardian charm." };
+    }
+  };
+}
+
+function createMockShopkeeperContextAgent() {
+  return {
+    async generate() {
+      return {
+        luckyTheme: "Golden Day",
+        blessing: "Fortune follows you.",
+        story: "A tiny lucky story.",
+        oneLiner: "Shine on.",
+        shopkeeperMessage: "Hi there!",
+        version: "shopkeeper-mock-v1",
+        source: "ai"
       };
     }
   };
@@ -142,6 +192,10 @@ function buildOrchestratorWithResilienceAgent(registry) {
   const jobService = createMockJobService();
   const generationService = createGenerationService({
     promptRegistryLoader: createMockPromptLoader(),
+    promptContextResolver: createMockPromptContextResolver(),
+    mascotRepository: createMockMascotRepository(),
+    giftRepository: createMockGiftRepository(),
+    shopkeeperContextAgent: createMockShopkeeperContextAgent(),
     providerAdapter,
     generationRepository: createMockGenerationRepository(),
     generationLogger

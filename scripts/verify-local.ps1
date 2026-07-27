@@ -35,6 +35,17 @@ node --check js/services/ai/providers/replicate-model-config.js
 node --check js/services/ai/providers/provider-registry.js
 node --check js/services/ai/agents/provider-resilience-agent.js
 node --check js/services/storage/wallpaper-storage-uploader.js
+node --check js/services/wallpaper/mascot-repository.js
+node --check js/services/wallpaper/gift-repository.js
+node --check js/services/prompt/prompt-context-resolver.js
+node --check js/services/prompt/wallpaper-prompt-builder.js
+node --check js/services/prompt/prompt-validator.js
+node --check js/services/prompt/prompt-snapshot.js
+node --check js/services/prompt/fallback-templates.js
+node --check js/services/ai/gemini-text-provider.js
+node --check js/services/shopkeeper/shopkeeper-fallback-context.js
+node --check js/services/shopkeeper/shopkeeper-context-validator.js
+node --check js/services/shopkeeper/shopkeeper-context-agent.js
 node --check js/pages/wallpaper.js
 node --check supabase/functions/_shared/wallpaper-generate-handler.js
 node --check supabase/functions/_shared/wallpaper-status-handler.js
@@ -53,6 +64,7 @@ Write-Host "== Unit Tests =="
 node --test `
   "js/services/ai/__tests__/*.test.js" `
   "js/services/prompt/__tests__/*.test.js" `
+  "js/services/shopkeeper/__tests__/*.test.js" `
   "js/services/wallpaper/__tests__/*.test.js" `
   "js/services/storage/__tests__/*.test.js" `
   "supabase/functions/_shared/__tests__/*.test.js"

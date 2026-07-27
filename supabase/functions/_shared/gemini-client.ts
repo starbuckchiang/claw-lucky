@@ -47,3 +47,30 @@ export function loadGeminiProviderConfig(): GeminiProviderConfig {
 export function createDenoGeminiClient(apiKey: string) {
   return new GoogleGenAI({ apiKey });
 }
+
+// P2-AI-03 Shopkeeper Context Agent config: a TEXT model (never the
+// image-generation model above) used ONLY to produce the Lucky Context
+// JSON. Reuses the SAME GEMINI_API_KEY/timeout/retry envs — only the model
+// name differs, defaulting to a fast text model distinct from
+// AI_PROVIDER_MODEL (which defaults to an image model).
+export interface GeminiTextProviderConfig {
+  model: string;
+  timeoutMs: number;
+  maxRetry: number;
+  apiKey: string;
+}
+
+export function loadShopkeeperTextProviderConfig(): GeminiTextProviderConfig {
+  const apiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY secret is not configured for this Edge Function.");
+  }
+
+  return {
+    model: Deno.env.get("SHOPKEEPER_MODEL") ?? "gemini-2.5-flash",
+    timeoutMs: Number(Deno.env.get("SHOPKEEPER_TIMEOUT_MS") ?? Deno.env.get("AI_PROVIDER_TIMEOUT_MS") ?? "20000"),
+    maxRetry: Number(Deno.env.get("SHOPKEEPER_MAX_RETRY") ?? "0"),
+    apiKey,
+  };
+}
+

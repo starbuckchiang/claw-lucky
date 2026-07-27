@@ -129,3 +129,72 @@ test("insertGeneration attaches safe diagnostic context (table/operation) to a r
     }
   );
 });
+
+// Required Test #8 (P2-AI-03 working prompt "Tests" list / Gate Review
+// gap): "metadata_json Persist" — `metadata_json` must include
+// shopkeeperSnapshot/shopkeeperVersion/source, AND must NOT clobber the
+// existing P2-AI-02 promptSnapshot/contextVersion/builderVersion fields
+// that already live in the same JSONB column (no new table).
+test("P2-AI-03: metadata_json includes shopkeeperSnapshot/shopkeeperVersion/source without overwriting promptSnapshot/contextVersion/builderVersion", async () => {
+  const { client, inserted } = createMockSupabaseClient();
+  const repository = createGenerationRepositoryFromSupabaseClient({ supabaseClient: client });
+
+  const shopkeeperSnapshot = {
+    luckyTheme: "Golden Day",
+    blessing: "Fortune follows you.",
+    story: "A tiny lucky story.",
+    oneLiner: "Shine on.",
+    shopkeeperMessage: "Hi there!",
+    version: "shopkeeper-context-v1",
+    source: "ai"
+  };
+
+  await repository.createGenerationRecord({
+    userId: "user-1",
+    mascotId: "mascot-1",
+    giftId: "gift-1",
+    wallpaperStyle: "Retro",
+    luckyTheme: "Golden Day",
+    blessing: "Fortune follows you.",
+    promptType: "wallpaper_generation",
+    promptVersion: "v1",
+    promptSource: "database",
+    // P2-AI-02 Prompt Snapshot fields — must survive P2-AI-03's addition.
+    promptSnapshot: "Draw a Penguin holding Lucky Charm...",
+    contextVersion: "wallpaper-prompt-context-v1",
+    builderVersion: "wallpaper-prompt-builder-v1",
+    // P2-AI-03 Shopkeeper Snapshot fields.
+    shopkeeperVersion: shopkeeperSnapshot.version,
+    shopkeeperSnapshot,
+    source: shopkeeperSnapshot.source,
+    provider: "gemini",
+    model: "gemini-2.5-flash-image",
+    providerRequestId: "req-1",
+    imageUrl: "https://signed.example/wallpapers/user-1/asset-1/wallpaper.png",
+    storageBucket: "wallpapers",
+    storagePath: "user-1/asset-1/wallpaper.png",
+    mimeType: "image/png",
+    fileSize: 12345,
+    durationMs: 900,
+    status: "succeeded",
+    failureCode: null,
+    failureMessage: null,
+    expiresAt: "2026-08-15T00:00:00.000Z"
+  });
+
+  assert.equal(inserted.length, 1);
+  const { payload } = inserted[0];
+
+  // New P2-AI-03 fields present and correctly shaped.
+  assert.equal(payload.metadata_json.shopkeeperVersion, "shopkeeper-context-v1");
+  assert.deepEqual(payload.metadata_json.shopkeeperSnapshot, shopkeeperSnapshot);
+  assert.equal(payload.metadata_json.source, "ai");
+
+  // Pre-existing P2-AI-02 fields are NOT clobbered/overwritten.
+  assert.equal(payload.metadata_json.promptSnapshot, "Draw a Penguin holding Lucky Charm...");
+  assert.equal(payload.metadata_json.contextVersion, "wallpaper-prompt-context-v1");
+  assert.equal(payload.metadata_json.builderVersion, "wallpaper-prompt-builder-v1");
+
+  // Still no new table — everything lives in the same metadata_json column.
+  assert.equal(inserted[0].tableName, "wallpaper_generations");
+});

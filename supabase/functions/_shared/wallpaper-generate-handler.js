@@ -36,10 +36,14 @@ const { createGenerationRepositoryFromSupabaseClient } = require("../../../js/se
 const { createJobRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/job-repository.js");
 const { createUsageRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/usage-repository.js");
 const { createPointsRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/points-repository.js");
+const { createMascotRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/mascot-repository.js");
+const { createGiftRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/gift-repository.js");
 const {
   createPromptRegistryLoader,
   createPromptRepositoryFromSupabaseClient
 } = require("../../../js/services/prompt/prompt-registry-loader.js");
+const { createPromptContextResolver } = require("../../../js/services/prompt/prompt-context-resolver.js");
+const { createShopkeeperContextAgent } = require("../../../js/services/shopkeeper/shopkeeper-context-agent.js");
 const { ProviderAdapter } = require("../../../js/services/ai/provider-adapter.js");
 const { createWallpaperProviderAdapter } = require("../../../js/services/ai/wallpaper-provider-adapter.js");
 const { createProviderResilienceAgent } = require("../../../js/services/ai/agents/provider-resilience-agent.js");
@@ -62,7 +66,9 @@ const ERROR_HTTP_STATUS = Object.freeze({
   GENERATION_FAILURE: 502,
   JOB_CREATION_FAILURE: 503,
   POINTS_DEDUCTION_FAILURE: 502,
-  PROMPT_NOT_FOUND: 500
+  PROMPT_NOT_FOUND: 500,
+  PROMPT_VALIDATION_FAILED: 400,
+  PROMPT_CONTEXT_FAILURE: 502
 });
 
 // `generation-service.js` (approved P1-BIZ-03 contract) folds every provider
@@ -157,6 +163,10 @@ function wrapLoggerForProvider(generationLogger) {
  * @param {object} params.geminiProvider - a pre-constructed GeminiProvider
  *   instance (constructed by the Deno entrypoint with a Deno-native
  *   GoogleGenAI client). MUST already implement `generateWallpaper(input)`.
+ * @param {object} params.geminiTextProvider - a pre-constructed
+ *   GeminiTextProvider instance (P2-AI-03), reusing the SAME GoogleGenAI
+ *   client as `geminiProvider` but for TEXT/Structured-Output generation
+ *   only. MUST already implement `generateContext({promptText, correlationId})`.
  * @param {object} params.providerConfig - { maxRetry, ... } passed to ProviderAdapter
  * @param {object} [params.generationLogger]
  * @param {object} [params.fallbackProvider] - OPTIONAL pre-constructed
@@ -170,6 +180,7 @@ function wrapLoggerForProvider(generationLogger) {
 function buildOrchestrator({
   supabaseClient,
   geminiProvider,
+  geminiTextProvider,
   providerConfig,
   generationLogger,
   fallbackProvider,
@@ -239,8 +250,27 @@ function buildOrchestrator({
   const usageRepository = createUsageRepositoryFromSupabaseClient({ supabaseClient });
   const pointsRepository = createPointsRepositoryFromSupabaseClient({ supabaseClient });
 
+  // P2-AI-02 Prompt Architecture / P2-AI-03 Shopkeeper Context Agent: the
+  // Generation Service is now the ONLY place that queries mascot/gift
+  // repositories — it shares the resulting DTOs with BOTH the Shopkeeper
+  // Context Agent and the (DB-free) Prompt Context Resolver below. The
+  // (pure, DB-free) Wallpaper Prompt Builder never touches the database.
+  const mascotRepository = createMascotRepositoryFromSupabaseClient({ supabaseClient });
+  const giftRepository = createGiftRepositoryFromSupabaseClient({ supabaseClient });
+  const promptContextResolver = createPromptContextResolver({});
+
+  const shopkeeperContextAgent = createShopkeeperContextAgent({
+    textProvider: geminiTextProvider,
+    promptRegistryLoader,
+    logger: wrapLoggerForProvider(logger)
+  });
+
   const generationService = createGenerationService({
     promptRegistryLoader,
+    promptContextResolver,
+    mascotRepository,
+    giftRepository,
+    shopkeeperContextAgent,
     providerAdapter,
     generationRepository,
     generationTracing,

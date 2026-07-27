@@ -30,10 +30,11 @@
 
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 import { createServiceClient, resolveAuthenticatedUserId } from "../_shared/supabase-clients.ts";
-import { createDenoGeminiClient, loadGeminiProviderConfig } from "../_shared/gemini-client.ts";
+import { createDenoGeminiClient, loadGeminiProviderConfig, loadShopkeeperTextProviderConfig } from "../_shared/gemini-client.ts";
 import { createDenoReplicateClient, loadReplicateProviderConfig } from "../_shared/replicate-client.ts";
 import { handleGenerateRequest } from "../_shared/wallpaper-generate-handler.ts";
 import { GeminiProvider } from "../_shared/lib/gemini-provider.ts";
+import { GeminiTextProvider } from "../_shared/lib/gemini-text-provider.ts";
 import { ReplicateFluxProvider } from "../_shared/lib/replicate-flux-provider.ts";
 
 /**
@@ -103,6 +104,19 @@ Deno.serve(async (req: Request) => {
       },
     });
 
+    // P2-AI-03 Shopkeeper Context Agent: reuses the SAME GoogleGenAI client
+    // as `geminiProvider` above, but wrapped by GeminiTextProvider for
+    // TEXT/Structured-Output generation only (never images).
+    const shopkeeperTextProviderConfig = loadShopkeeperTextProviderConfig();
+    const geminiTextProvider = new GeminiTextProvider({
+      config: shopkeeperTextProviderConfig,
+      client: geminiClient,
+      logger: {
+        info: (entry: unknown) => console.log(JSON.stringify({ level: "info", correlationId, entry })),
+        error: (entry: unknown) => console.error(JSON.stringify({ level: "error", correlationId, entry })),
+      },
+    });
+
     const result = await handleGenerateRequest({
       body,
       userId,
@@ -110,6 +124,7 @@ Deno.serve(async (req: Request) => {
       deps: {
         supabaseClient,
         geminiProvider,
+        geminiTextProvider,
         providerConfig,
         // Fallback is entirely OPTIONAL and config-driven (Provider
         // Resilience Agent, P2-AI-03). If REPLICATE_API_TOKEN /

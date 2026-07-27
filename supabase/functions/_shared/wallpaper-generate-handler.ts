@@ -23,7 +23,11 @@ import { createGenerationRepositoryFromSupabaseClient } from "./lib/generation-r
 import { createJobRepositoryFromSupabaseClient } from "./lib/job-repository.ts";
 import { createUsageRepositoryFromSupabaseClient } from "./lib/usage-repository.ts";
 import { createPointsRepositoryFromSupabaseClient } from "./lib/points-repository.ts";
+import { createMascotRepositoryFromSupabaseClient } from "./lib/mascot-repository.ts";
+import { createGiftRepositoryFromSupabaseClient } from "./lib/gift-repository.ts";
 import { createPromptRegistryLoader, createPromptRepositoryFromSupabaseClient } from "./lib/prompt-registry-loader.ts";
+import { createPromptContextResolver } from "./lib/prompt-context-resolver.ts";
+import { createShopkeeperContextAgent } from "./lib/shopkeeper-context-agent.ts";
 import { ProviderAdapter } from "./lib/provider-adapter.ts";
 import { createWallpaperProviderAdapter } from "./lib/wallpaper-provider-adapter.ts";
 import { createProviderResilienceAgent } from "./lib/provider-resilience-agent.ts";
@@ -46,7 +50,9 @@ export const ERROR_HTTP_STATUS: Record<string, number> = Object.freeze({
   GENERATION_FAILURE: 502,
   JOB_CREATION_FAILURE: 503,
   POINTS_DEDUCTION_FAILURE: 502,
-  PROMPT_NOT_FOUND: 500
+  PROMPT_NOT_FOUND: 500,
+  PROMPT_VALIDATION_FAILED: 400,
+  PROMPT_CONTEXT_FAILURE: 502
 });
 
 // See `wallpaper-generate-handler.js` for the full rationale: the approved
@@ -133,6 +139,7 @@ export function wrapLoggerForProvider(generationLogger: any) {
 export function buildOrchestrator({
   supabaseClient,
   geminiProvider,
+  geminiTextProvider,
   providerConfig,
   generationLogger,
   fallbackProvider,
@@ -142,6 +149,11 @@ export function buildOrchestrator({
   supabaseClient: any;
   // deno-lint-ignore no-explicit-any
   geminiProvider: any;
+  // A pre-constructed GeminiTextProvider instance (P2-AI-03), reusing the
+  // SAME GoogleGenAI client as `geminiProvider` but for TEXT/
+  // Structured-Output generation only.
+  // deno-lint-ignore no-explicit-any
+  geminiTextProvider: any;
   // deno-lint-ignore no-explicit-any
   providerConfig: any;
   // deno-lint-ignore no-explicit-any
@@ -220,8 +232,27 @@ export function buildOrchestrator({
   const usageRepository = createUsageRepositoryFromSupabaseClient({ supabaseClient });
   const pointsRepository = createPointsRepositoryFromSupabaseClient({ supabaseClient });
 
+  // P2-AI-02 Prompt Architecture / P2-AI-03 Shopkeeper Context Agent: the
+  // Generation Service is now the ONLY place that queries mascot/gift
+  // repositories — it shares the resulting DTOs with BOTH the Shopkeeper
+  // Context Agent and the (DB-free) Prompt Context Resolver below. The
+  // (pure, DB-free) Wallpaper Prompt Builder never touches the database.
+  const mascotRepository = createMascotRepositoryFromSupabaseClient({ supabaseClient });
+  const giftRepository = createGiftRepositoryFromSupabaseClient({ supabaseClient });
+  const promptContextResolver = createPromptContextResolver({});
+
+  const shopkeeperContextAgent = createShopkeeperContextAgent({
+    textProvider: geminiTextProvider,
+    promptRegistryLoader,
+    logger: wrapLoggerForProvider(logger)
+  });
+
   const generationService = createGenerationService({
     promptRegistryLoader,
+    promptContextResolver,
+    mascotRepository,
+    giftRepository,
+    shopkeeperContextAgent,
     providerAdapter,
     generationRepository,
     generationTracing,

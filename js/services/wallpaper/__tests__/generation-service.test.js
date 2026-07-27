@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { createGenerationService } = require("../generation-service");
+const { createPromptContextResolver } = require("../../prompt/prompt-context-resolver");
 
 function baseRequest() {
   return {
@@ -91,9 +92,73 @@ function createRepositoryMock({ error = null } = {}) {
   };
 }
 
+// Default resolved context is already-complete (mascot/gift found), so
+// these Generation Service tests exercise everything AFTER the Prompt
+// Context Resolver/Validator/Builder stage without needing real
+// mascot/gift repositories. See prompt-context-resolver.test.js /
+// prompt-validator.test.js / wallpaper-prompt-builder.test.js for
+// dedicated coverage of that stage itself.
+function createPromptContextResolverMock() {
+  return {
+    async resolve() {
+      return {
+        mascot: { id: "mascot-1", species: "Penguin", title: "Lucky Penguin", appearance: "A small round penguin with a red scarf.", colors: null },
+        gift: { id: "gift-1", name: "Lucky Charm", description: "A small guardian charm." },
+        wallpaperStyle: "Retro",
+        luckyTheme: "Golden Day",
+        blessing: "Fortune follows you.",
+        date: "2026.07.21",
+        contextVersion: "wallpaper-prompt-context-v1"
+      };
+    }
+  };
+}
+
+// P2-AI-03: Generation Service now queries mascot/gift ONCE itself (shared
+// with the Shopkeeper Context Agent and the Prompt Context Resolver), so
+// these tests need their own mascot/gift repository + Shopkeeper Context
+// Agent mocks. Defaults return an already-found mascot/gift and an
+// AI-sourced Shopkeeper context, so tests that don't care about this stage
+// can just use the defaults.
+function createMascotRepositoryMock(mascot = { id: "mascot-1", species: "Penguin", title: "Lucky Penguin", appearance: "A small round penguin with a red scarf.", colors: null }) {
+  return {
+    async findMascotById() {
+      return mascot;
+    }
+  };
+}
+
+function createGiftRepositoryMock(gift = { id: "gift-1", name: "Lucky Charm", description: "A small guardian charm." }) {
+  return {
+    async findGiftById() {
+      return gift;
+    }
+  };
+}
+
+function createShopkeeperContextAgentMock(context = {
+  luckyTheme: "Golden Day",
+  blessing: "Fortune follows you.",
+  story: "A tiny lucky story.",
+  oneLiner: "Shine on.",
+  shopkeeperMessage: "Hi there!",
+  version: "shopkeeper-mock-v1",
+  source: "ai"
+}) {
+  return {
+    async generate() {
+      return context;
+    }
+  };
+}
+
 test("Happy Path", async () => {
   const service = createGenerationService({
     promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
     providerAdapter: createProviderAdapterMock(),
     generationRepository: createRepositoryMock()
   });
@@ -113,6 +178,10 @@ test("Happy Path", async () => {
 test("Provider Timeout", async () => {
   const service = createGenerationService({
     promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
     providerAdapter: createProviderAdapterMock({
       result: {
         providerRequestId: "req-timeout",
@@ -137,6 +206,10 @@ test("Provider Timeout", async () => {
 test("Provider Failure", async () => {
   const service = createGenerationService({
     promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
     providerAdapter: createProviderAdapterMock({
       result: {
         providerRequestId: "req-fail",
@@ -166,6 +239,10 @@ test("Prompt Missing", async () => {
         message: "not found"
       }
     }),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
     providerAdapter: createProviderAdapterMock(),
     generationRepository: createRepositoryMock()
   });
@@ -179,6 +256,10 @@ test("Prompt Missing", async () => {
 test("Invalid Response", async () => {
   const service = createGenerationService({
     promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
     providerAdapter: createProviderAdapterMock({
       result: {
         providerRequestId: "req-invalid",
@@ -203,6 +284,10 @@ test("Invalid Response", async () => {
 test("Image Generation Failure on persistence", async () => {
   const service = createGenerationService({
     promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
     providerAdapter: createProviderAdapterMock(),
     generationRepository: createRepositoryMock({
       error: new Error("db write failed")
@@ -228,6 +313,10 @@ test("Image Generation Failure on persistence preserves table/operation diagnost
 
   const service = createGenerationService({
     promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
     providerAdapter: createProviderAdapterMock(),
     generationRepository: createRepositoryMock({ error: dbError })
   });
@@ -241,4 +330,164 @@ test("Image Generation Failure on persistence preserves table/operation diagnost
   assert.equal(result.error.details.operation, "insertGeneration");
   assert.equal(result.error.details.hint, null);
 });
+
+test("P2-AI-02: mascot not found -> PROMPT_VALIDATION_FAILED (never generates an incomplete prompt)", async () => {
+  const service = createGenerationService({
+    promptRegistryLoader: createPromptLoaderMock(),
+    // P2-AI-03: use the REAL (pass-through) resolver here, since the mock
+    // resolver ignores its input and would mask the "not found" case.
+    promptContextResolver: createPromptContextResolver(),
+    // P2-AI-03: the mascot is now queried by Generation Service itself (not
+    // the Resolver), so "not found" is simulated at the repository mock.
+    mascotRepository: createMascotRepositoryMock(null),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
+    providerAdapter: createProviderAdapterMock(),
+    generationRepository: createRepositoryMock()
+  });
+
+  const result = await service.createWallpaperGeneration(baseRequest());
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "PROMPT_VALIDATION_FAILED");
+  assert.ok(result.error.details.errors.some((message) => message.includes("mascot")));
+});
+
+test("P2-AI-02: provider receives the mascot's actual species in the rendered prompt, never just an opaque mascotId", async () => {
+  let capturedPromptText = null;
+  const providerAdapter = {
+    async generateWallpaper(input) {
+      capturedPromptText = input.promptText;
+      return {
+        providerRequestId: "req-001",
+        provider: "mock-provider",
+        model: "mock-model",
+        imageUrl: "https://mock.example/image.png",
+        durationMs: 1200,
+        retryable: false,
+        failureCode: null,
+        failureMessage: null
+      };
+    }
+  };
+
+  const service = createGenerationService({
+    promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
+    providerAdapter,
+    generationRepository: createRepositoryMock()
+  });
+
+  const result = await service.createWallpaperGeneration(baseRequest());
+
+  assert.equal(result.ok, true);
+  assert.ok(capturedPromptText.includes("Penguin"));
+  assert.equal(capturedPromptText.includes("mascot-1"), false);
+});
+
+// Required Test #7 (P2-AI-03 working prompt "Tests" list / Gate Review
+// gap): "Snapshot Persist" — the payload passed into
+// `generationRepository.createGenerationRecord()` must include
+// `shopkeeperSnapshot`/`shopkeeperVersion`/`source`, sourced directly from
+// the Shopkeeper Context Agent's output (not the raw request).
+test("P2-AI-03: Snapshot Persist -> createGenerationRecord payload includes shopkeeperSnapshot/shopkeeperVersion/source", async () => {
+  let capturedPayload = null;
+  const generationRepository = {
+    async createGenerationRecord(payload) {
+      capturedPayload = payload;
+      return {
+        generationId: "gen-001",
+        provider: payload.provider,
+        model: payload.model,
+        imageUrl: payload.imageUrl,
+        promptVersion: payload.promptVersion,
+        durationMs: payload.durationMs,
+        status: payload.status,
+        createdAt: "2026-07-13T12:00:00.000Z"
+      };
+    }
+  };
+
+  const shopkeeperContext = {
+    luckyTheme: "Golden Day",
+    blessing: "Fortune follows you.",
+    story: "A tiny lucky story.",
+    oneLiner: "Shine on.",
+    shopkeeperMessage: "Hi there!",
+    version: "shopkeeper-context-v1",
+    source: "ai"
+  };
+
+  const service = createGenerationService({
+    promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(shopkeeperContext),
+    providerAdapter: createProviderAdapterMock(),
+    generationRepository
+  });
+
+  const result = await service.createWallpaperGeneration(baseRequest());
+
+  assert.equal(result.ok, true);
+  assert.ok(capturedPayload, "createGenerationRecord must have been called");
+  assert.equal(capturedPayload.shopkeeperVersion, "shopkeeper-context-v1");
+  assert.deepEqual(capturedPayload.shopkeeperSnapshot, shopkeeperContext);
+  assert.equal(capturedPayload.source, "ai");
+  // The persisted lucky_theme/blessing must be the Shopkeeper's
+  // authoritative values, not the raw request's.
+  assert.equal(capturedPayload.luckyTheme, "Golden Day");
+  assert.equal(capturedPayload.blessing, "Fortune follows you.");
+});
+
+test("P2-AI-03: Snapshot Persist -> Fallback source is persisted too (source distinguishes ai vs fallback)", async () => {
+  let capturedPayload = null;
+  const generationRepository = {
+    async createGenerationRecord(payload) {
+      capturedPayload = payload;
+      return {
+        generationId: "gen-001",
+        provider: payload.provider,
+        model: payload.model,
+        imageUrl: payload.imageUrl,
+        promptVersion: payload.promptVersion,
+        durationMs: payload.durationMs,
+        status: payload.status,
+        createdAt: "2026-07-13T12:00:00.000Z"
+      };
+    }
+  };
+
+  const fallbackContext = {
+    luckyTheme: "穩穩接住今天的好運",
+    blessing: "今天每一次努力都會更靠近成功。",
+    story: "今天的你，會被幸運悄悄眷顧，一路平穩前行。",
+    oneLiner: "穩穩接住，今天的好運。",
+    shopkeeperMessage: "嗨，今天我也為你準備了一份小小的幸運～",
+    version: "shopkeeper-fallback-v1",
+    source: "fallback"
+  };
+
+  const service = createGenerationService({
+    promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(fallbackContext),
+    providerAdapter: createProviderAdapterMock(),
+    generationRepository
+  });
+
+  const result = await service.createWallpaperGeneration(baseRequest());
+
+  assert.equal(result.ok, true);
+  assert.equal(capturedPayload.source, "fallback");
+  assert.equal(capturedPayload.shopkeeperVersion, "shopkeeper-fallback-v1");
+  assert.deepEqual(capturedPayload.shopkeeperSnapshot, fallbackContext);
+});
+
 

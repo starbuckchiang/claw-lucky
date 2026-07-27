@@ -93,12 +93,40 @@ function createFakeSupabaseClient() {
     }
   };
 
+  const mascotsTable = {
+    select() {
+      return {
+        eq: () => ({
+          maybeSingle: async () => ({
+            data: { id: "mascot-1", name: "Penguin", title: "Lucky Penguin", description: "A small round penguin with a red scarf." },
+            error: null
+          })
+        })
+      };
+    }
+  };
+
+  const giftsTable = {
+    select() {
+      return {
+        eq: () => ({
+          maybeSingle: async () => ({
+            data: { id: "gift-1", name: "Lucky Charm", description: "A small guardian charm." },
+            error: null
+          })
+        })
+      };
+    }
+  };
+
   const TABLES = {
     wallpaper_generation_jobs: jobsTable,
     daily_generation_usage: usageTable,
     users: usersTable,
     generation_cost_config: costConfigTable,
-    prompt_versions: promptTable
+    prompt_versions: promptTable,
+    mascots: mascotsTable,
+    gifts: giftsTable
   };
 
   return {
@@ -132,6 +160,29 @@ function baseRequest(correlationId) {
     correlationId
   };
 }
+
+// P2-AI-03: buildOrchestrator() now requires a geminiTextProvider (Shopkeeper
+// Context Agent dependency). These resilience tests only exercise the image
+// generation failure/fallback paths, so a simple always-succeeding text
+// provider keeps the Shopkeeper stage out of the way.
+function createMockGeminiTextProvider() {
+  return {
+    async generateContext() {
+      return {
+        text: JSON.stringify({
+          luckyTheme: "Golden Day",
+          blessing: "Fortune follows you.",
+          story: "A tiny lucky story.",
+          oneLiner: "Shine on.",
+          shopkeeperMessage: "Hi there!",
+          version: "shopkeeper-mock-v1"
+        }),
+        durationMs: 5
+      };
+    }
+  };
+}
+
 
 test("buildOrchestrator(): resilience agent logger wiring does not throw, and Gemini failure reaches isFallbackEligible()", async () => {
   const capturedEvents = [];
@@ -169,6 +220,7 @@ test("buildOrchestrator(): resilience agent logger wiring does not throw, and Ge
   const orchestrator = buildOrchestrator({
     supabaseClient: createFakeSupabaseClient(),
     geminiProvider: failingGeminiProvider,
+    geminiTextProvider: createMockGeminiTextProvider(),
     providerConfig: { maxRetry: 0 },
     generationLogger,
     fallbackProvider,
@@ -229,6 +281,7 @@ test("buildOrchestrator(): non-fallback-eligible Gemini failure never starts a f
   const orchestrator = buildOrchestrator({
     supabaseClient: createFakeSupabaseClient(),
     geminiProvider: failingGeminiProvider,
+    geminiTextProvider: createMockGeminiTextProvider(),
     providerConfig: { maxRetry: 0 },
     generationLogger,
     fallbackProvider,
