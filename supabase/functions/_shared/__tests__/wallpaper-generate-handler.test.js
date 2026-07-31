@@ -234,3 +234,57 @@ test("validateRequestShape / toHttpStatus helpers", () => {
   assert.equal(toHttpStatus("PROVIDER_FAILURE", { failureCode: "PROVIDER_UNAVAILABLE" }), 503);
   assert.equal(toHttpStatus("UNKNOWN_CODE_NOT_MAPPED"), 500);
 });
+
+// P2-AI-04 Lite: the client no longer sends luckyTheme/blessing (the
+// Shopkeeper Context Agent generates these authoritatively server-side).
+// The request shape must be considered valid WITHOUT these two fields.
+test("P2-AI-04 Lite: request shape is valid without luckyTheme/blessing", () => {
+  const body = validBody();
+  delete body.luckyTheme;
+  delete body.blessing;
+
+  assert.equal(validateRequestShape(body).length, 0);
+});
+
+test("P2-AI-04 Lite: Edge handler succeeds end-to-end when luckyTheme/blessing are absent", async () => {
+  const orchestrator = mockOrchestrator((request) => {
+    // Confirms the orchestrator is invoked even though these fields were
+    // never present in the client request.
+    assert.equal(request.luckyTheme, undefined);
+    assert.equal(request.blessing, undefined);
+    return {
+      ok: true,
+      data: {
+        generationId: "gen-1",
+        status: "succeeded",
+        provider: "gemini",
+        model: "m",
+        imageUrl: "https://x/y.png",
+        promptVersion: "v1",
+        durationMs: 10,
+        createdAt: "now",
+        luckyTheme: "Golden Day",
+        blessing: "Fortune follows you.",
+        story: "A tiny lucky story.",
+        oneLiner: "Shine on.",
+        shopkeeperMessage: "Hi there!"
+      }
+    };
+  });
+
+  const body = validBody();
+  delete body.luckyTheme;
+  delete body.blessing;
+
+  const response = await handleGenerateRequest({
+    body,
+    userId: "user-1",
+    correlationId: "corr-13",
+    deps: { orchestrator }
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.data.luckyTheme, "Golden Day");
+  assert.equal(response.body.data.shopkeeperMessage, "Hi there!");
+});
+

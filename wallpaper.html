@@ -70,17 +70,7 @@
               <option value="Minimal">Minimal</option>
             </select>
           </label>
-
-          <label class="wallpaper-field">
-            <span class="wallpaper-label">Lucky Theme</span>
-            <input id="luckyTheme" name="luckyTheme" type="text" required autocomplete="off" />
-          </label>
         </div>
-
-        <label class="wallpaper-field wallpaper-field-full">
-          <span class="wallpaper-label">祝福文字</span>
-          <textarea id="blessing" name="blessing" rows="3" required></textarea>
-        </label>
 
         <input id="promptType" name="promptType" type="hidden" value="wallpaper_generation" />
 
@@ -114,10 +104,38 @@
     <section class="section">
       <div class="panel wallpaper-result" aria-live="polite">
         <h2 class="wallpaper-section-title">生成結果</h2>
-        <div id="resultEmpty" class="wallpaper-empty">生成成功後會顯示圖片與資訊。</div>
+        <div id="resultEmpty" class="wallpaper-empty">生成成功後會顯示圖片與店長的祝福。</div>
+
+        <div id="blessingCard" class="wallpaper-blessing-card hidden">
+          <div class="wallpaper-blessing-row">
+            <span class="wallpaper-blessing-label">今日幸運主題</span>
+            <p id="blessingLuckyTheme" class="wallpaper-blessing-value">—</p>
+          </div>
+          <div class="wallpaper-blessing-row">
+            <span class="wallpaper-blessing-label">祝福</span>
+            <p id="blessingText" class="wallpaper-blessing-value">—</p>
+          </div>
+          <div class="wallpaper-blessing-row">
+            <span class="wallpaper-blessing-label">小故事</span>
+            <p id="blessingStory" class="wallpaper-blessing-value">—</p>
+          </div>
+          <div class="wallpaper-blessing-row">
+            <span class="wallpaper-blessing-label">一句話</span>
+            <p id="blessingOneLiner" class="wallpaper-blessing-value">—</p>
+          </div>
+          <div class="wallpaper-blessing-row">
+            <span class="wallpaper-blessing-label">店長的話</span>
+            <p id="blessingShopkeeperMessage" class="wallpaper-blessing-value">—</p>
+          </div>
+        </div>
+
         <figure id="resultFigure" class="wallpaper-figure hidden">
           <img id="resultImage" alt="Lucky Wallpaper 生成結果" />
         </figure>
+        <div id="downloadActions" class="wallpaper-actions hidden">
+          <button id="downloadBtn" class="btn btn-start" type="button">下載桌布圖片</button>
+          <span id="downloadStatus" class="wallpaper-picker-status" role="status">—</span>
+        </div>
         <dl class="wallpaper-meta">
           <div><dt>Provider</dt><dd id="resultProvider">—</dd></div>
           <div><dt>Model</dt><dd id="resultModel">—</dd></div>
@@ -132,7 +150,7 @@
         <p id="errorMessage">—</p>
       </div>
     </section>
-    
+
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

@@ -137,7 +137,12 @@ function createGenerationQueryService({
       failureCode: row.failureCode,
       failureMessage: row.failureMessage,
       createdAt: row.createdAt,
-      updatedAt
+      updatedAt,
+      luckyTheme: row.luckyTheme,
+      blessing: row.blessing,
+      story: row.story,
+      oneLiner: row.oneLiner,
+      shopkeeperMessage: row.shopkeeperMessage
     });
   }
 

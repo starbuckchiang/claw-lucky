@@ -97,7 +97,7 @@ function toHttpStatus(code, details) {
   return ERROR_HTTP_STATUS[code] || 500;
 }
 
-const REQUIRED_FIELDS = ["mascotId", "giftId", "wallpaperStyle", "luckyTheme", "blessing", "promptType"];
+const REQUIRED_FIELDS = ["mascotId", "giftId", "wallpaperStyle", "promptType"];
 
 // Client MUST NOT be able to control identity, secrets, storage location or
 // the prompt template. Reject the request outright if present.

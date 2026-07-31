@@ -7,8 +7,6 @@
     submitBtn: document.getElementById("submitGenerationBtn"),
     resetBtn: document.getElementById("resetGenerationBtn"),
     wallpaperStyle: document.getElementById("wallpaperStyle"),
-    luckyTheme: document.getElementById("luckyTheme"),
-    blessing: document.getElementById("blessing"),
     promptType: document.getElementById("promptType"),
     selectionPreviewText: document.getElementById("selectionPreviewText"),
     collectionCards: document.getElementById("collectionCards"),
@@ -30,6 +28,15 @@
     resultProvider: document.getElementById("resultProvider"),
     resultModel: document.getElementById("resultModel"),
     resultPromptVersion: document.getElementById("resultPromptVersion"),
+    blessingCard: document.getElementById("blessingCard"),
+    blessingLuckyTheme: document.getElementById("blessingLuckyTheme"),
+    blessingText: document.getElementById("blessingText"),
+    blessingStory: document.getElementById("blessingStory"),
+    blessingOneLiner: document.getElementById("blessingOneLiner"),
+    blessingShopkeeperMessage: document.getElementById("blessingShopkeeperMessage"),
+    downloadActions: document.getElementById("downloadActions"),
+    downloadBtn: document.getElementById("downloadBtn"),
+    downloadStatus: document.getElementById("downloadStatus"),
     errorBox: document.getElementById("errorBox"),
     errorMessage: document.getElementById("errorMessage"),
     debugProvider: document.getElementById("debugProvider"),
@@ -37,6 +44,12 @@
     debugCorrelationId: document.getElementById("debugCorrelationId"),
     debugGenerationId: document.getElementById("debugGenerationId")
   };
+
+  // Holds the current successful result's imageUrl/generationId so the
+  // download button can re-fetch on demand (fetch→Blob→object URL), without
+  // depending on the <img> element's possibly-stale `src`.
+  let currentResult = null;
+  let isDownloading = false;
 
   // Last correlation id observed from the `X-Correlation-Id` response header
   // (ADR-008). Debug-only; never used for business logic.
@@ -130,6 +143,15 @@
     if (refs.resultProvider) refs.resultProvider.textContent = "—";
     if (refs.resultModel) refs.resultModel.textContent = "—";
     if (refs.resultPromptVersion) refs.resultPromptVersion.textContent = "—";
+    if (refs.blessingCard) refs.blessingCard.classList.add("hidden");
+    if (refs.blessingLuckyTheme) refs.blessingLuckyTheme.textContent = "—";
+    if (refs.blessingText) refs.blessingText.textContent = "—";
+    if (refs.blessingStory) refs.blessingStory.textContent = "—";
+    if (refs.blessingOneLiner) refs.blessingOneLiner.textContent = "—";
+    if (refs.blessingShopkeeperMessage) refs.blessingShopkeeperMessage.textContent = "—";
+    if (refs.downloadActions) refs.downloadActions.classList.add("hidden");
+    if (refs.downloadStatus) refs.downloadStatus.textContent = "—";
+    currentResult = null;
   }
 
   function showResult(data) {
@@ -139,12 +161,85 @@
     if (refs.resultProvider) refs.resultProvider.textContent = data.provider || "unknown";
     if (refs.resultModel) refs.resultModel.textContent = data.model || "—";
     if (refs.resultPromptVersion) refs.resultPromptVersion.textContent = data.promptVersion || "—";
+
+    const hasBlessingContent = Boolean(data.luckyTheme || data.blessing || data.story || data.oneLiner || data.shopkeeperMessage);
+    if (refs.blessingCard) refs.blessingCard.classList.toggle("hidden", !hasBlessingContent);
+    if (refs.blessingLuckyTheme) refs.blessingLuckyTheme.textContent = data.luckyTheme || "—";
+    if (refs.blessingText) refs.blessingText.textContent = data.blessing || "—";
+    if (refs.blessingStory) refs.blessingStory.textContent = data.story || "—";
+    if (refs.blessingOneLiner) refs.blessingOneLiner.textContent = data.oneLiner || "—";
+    if (refs.blessingShopkeeperMessage) refs.blessingShopkeeperMessage.textContent = data.shopkeeperMessage || "—";
+
+    currentResult = {
+      imageUrl: data.imageUrl,
+      generationId: data.generationId
+    };
+    if (refs.downloadActions) refs.downloadActions.classList.toggle("hidden", !data.imageUrl);
+    if (refs.downloadStatus) refs.downloadStatus.textContent = "—";
+
     updateDebugPanel({
       provider: data.provider,
       model: data.model,
       generationId: data.generationId,
       correlationId: lastCorrelationId
     });
+  }
+
+  function buildDownloadFilename(generationId) {
+    const shortId = String(generationId || "wallpaper").replace(/-/g, "").slice(0, 8) || "wallpaper";
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    return `claw-lucky-${shortId}-${yyyy}${mm}${dd}.png`;
+  }
+
+  // Download flow: fetch signed URL → Blob → object URL → programmatic <a
+  // download> click → revokeObjectURL. Chosen over a plain `<a href download>`
+  // because the `download` attribute is unreliable across origins (the
+  // signed URL points at the Supabase Storage domain, not this page's
+  // origin) — once converted to a `blob:` object URL it is same-origin to
+  // the page and `download` is honored reliably. Never logs the signed URL
+  // itself (only HTTP status / generic failure reasons).
+  async function handleDownloadClick() {
+    if (isDownloading) return;
+    if (!currentResult || !currentResult.imageUrl) {
+      if (refs.downloadStatus) refs.downloadStatus.textContent = "目前沒有可下載的圖片。";
+      return;
+    }
+
+    isDownloading = true;
+    if (refs.downloadBtn) refs.downloadBtn.disabled = true;
+    if (refs.downloadStatus) refs.downloadStatus.textContent = "下載中...";
+
+    let objectUrl = null;
+    try {
+      const response = await fetch(currentResult.imageUrl, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      objectUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = buildDownloadFilename(currentResult.generationId);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      if (refs.downloadStatus) refs.downloadStatus.textContent = "下載完成。";
+    } catch (_error) {
+      // Never log the signed URL (contains a token) — only a generic reason.
+      if (refs.downloadStatus) refs.downloadStatus.textContent = "下載失敗，請重新整理頁面後再試一次。";
+    } finally {
+      if (objectUrl) {
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+      }
+      isDownloading = false;
+      if (refs.downloadBtn) refs.downloadBtn.disabled = false;
+    }
   }
 
   function setLoadingStates() {
@@ -290,12 +385,13 @@
     // NOTE: `userId` is intentionally omitted — the Edge Function derives the
     // authenticated user from the verified Supabase session (Authorization
     // header), never from client-supplied request fields.
+    // NOTE: `luckyTheme`/`blessing` are intentionally NOT sent (P2-AI-04
+    // Lite) — the backend's Shopkeeper Context Agent generates these
+    // authoritatively; any client-supplied values would be ignored anyway.
     return {
       mascotId: dataState.selection.mascotId,
       giftId: dataState.selection.giftId,
       wallpaperStyle: String(refs.wallpaperStyle?.value || "").trim(),
-      luckyTheme: String(refs.luckyTheme?.value || "").trim(),
-      blessing: String(refs.blessing?.value || "").trim(),
       promptType: String(refs.promptType?.value || "wallpaper_generation").trim()
     };
   }
@@ -371,6 +467,7 @@
   function bindEvents() {
     refs.form?.addEventListener("submit", handleSubmit);
     refs.resetBtn?.addEventListener("click", handleReset);
+    refs.downloadBtn?.addEventListener("click", handleDownloadClick);
   }
 
   async function initWallpaperPage() {

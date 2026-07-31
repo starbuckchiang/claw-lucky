@@ -78,7 +78,7 @@ export function toHttpStatus(code: string, details?: { failureCode?: string } | 
   return ERROR_HTTP_STATUS[code] || 500;
 }
 
-export const REQUIRED_FIELDS = ["mascotId", "giftId", "wallpaperStyle", "luckyTheme", "blessing", "promptType"];
+export const REQUIRED_FIELDS = ["mascotId", "giftId", "wallpaperStyle", "promptType"];
 
 export const FORBIDDEN_FIELDS = [
   "userId",

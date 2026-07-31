@@ -96,7 +96,15 @@ function createStatusSuccessDto(payload) {
       createdAt: String(payload.createdAt),
       updatedAt: String(payload.updatedAt),
       recommendedPollIntervalMs: getRecommendedPollIntervalMs(status, isCancelledJob),
-      terminal: isTerminal
+      terminal: isTerminal,
+      // Safe Shopkeeper display fields (P2-AI-04 Lite) — passed through
+      // unchanged so polling never loses them once they first appear.
+      // Deliberately excludes `source`/`shopkeeperVersion` (internal only).
+      luckyTheme: payload.luckyTheme ? String(payload.luckyTheme) : null,
+      blessing: payload.blessing ? String(payload.blessing) : null,
+      story: payload.story ? String(payload.story) : null,
+      oneLiner: payload.oneLiner ? String(payload.oneLiner) : null,
+      shopkeeperMessage: payload.shopkeeperMessage ? String(payload.shopkeeperMessage) : null
     }
   };
 }

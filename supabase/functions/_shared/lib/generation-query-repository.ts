@@ -87,6 +87,13 @@ export function createGenerationQueryRepositoryFromSupabaseClient({
       const metadata = generation.metadata_json && typeof generation.metadata_json === "object"
         ? generation.metadata_json
         : {};
+      // Safe Shopkeeper display fields (P2-AI-04 Lite): extracted from the
+      // existing shopkeeperSnapshot metadata column. Deliberately picks ONLY
+      // these 5 display fields — never passes through `source`/`version`/
+      // the raw snapshot object itself, so those stay internal-only.
+      const shopkeeperSnapshot = metadata.shopkeeperSnapshot && typeof metadata.shopkeeperSnapshot === "object"
+        ? metadata.shopkeeperSnapshot
+        : {};
 
       const imageUrl = await resolveImageUrl(generation);
 
@@ -106,7 +113,12 @@ export function createGenerationQueryRepositoryFromSupabaseClient({
         progressPercent: job?.progress_percent ?? null,
         progressStage: job?.progress_stage || null,
         estimatedRemainingSeconds: job?.estimated_remaining_seconds ?? null,
-        jobUpdatedAt: job?.updated_at || null
+        jobUpdatedAt: job?.updated_at || null,
+        luckyTheme: shopkeeperSnapshot.luckyTheme || null,
+        blessing: shopkeeperSnapshot.blessing || null,
+        story: shopkeeperSnapshot.story || null,
+        oneLiner: shopkeeperSnapshot.oneLiner || null,
+        shopkeeperMessage: shopkeeperSnapshot.shopkeeperMessage || null
       };
     }
   });

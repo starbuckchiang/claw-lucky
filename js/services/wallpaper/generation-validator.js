@@ -30,8 +30,6 @@ function validateCreateGenerationRequest(request) {
     "mascotId",
     "giftId",
     "wallpaperStyle",
-    "luckyTheme",
-    "blessing",
     "promptType"
   ];
 
@@ -69,8 +67,13 @@ function validateCreateGenerationRequest(request) {
       mascotId: String(request.mascotId).trim(),
       giftId: String(request.giftId).trim(),
       wallpaperStyle: String(request.wallpaperStyle).trim(),
-      luckyTheme: String(request.luckyTheme).trim(),
-      blessing: String(request.blessing).trim(),
+      // luckyTheme/blessing are NO LONGER required from the client (P2-AI-04
+      // Lite): the Shopkeeper Context Agent generates its own authoritative
+      // values inside generation-service.js, which are what actually get
+      // used/persisted. If a legacy client still sends these fields, they
+      // are normalized here but MUST NOT be trusted/used downstream.
+      luckyTheme: isNonEmptyString(request.luckyTheme) ? String(request.luckyTheme).trim() : "",
+      blessing: isNonEmptyString(request.blessing) ? String(request.blessing).trim() : "",
       promptType: String(request.promptType).trim()
     }
   };

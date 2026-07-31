@@ -173,6 +173,35 @@ test("Happy Path", async () => {
   assert.equal(result.data.promptVersion, "v1");
   assert.equal(result.data.durationMs, 1200);
   assert.equal(result.data.status, "succeeded");
+  // P2-AI-04 Lite: success DTO carries the 5 safe Shopkeeper display fields,
+  // sourced from the SAME shopkeeperContext used to build the prompt.
+  assert.equal(result.data.luckyTheme, "Golden Day");
+  assert.equal(result.data.blessing, "Fortune follows you.");
+  assert.equal(result.data.story, "A tiny lucky story.");
+  assert.equal(result.data.oneLiner, "Shine on.");
+  assert.equal(result.data.shopkeeperMessage, "Hi there!");
+});
+
+test("P2-AI-04 Lite: request without luckyTheme/blessing still generates successfully, using the Shopkeeper Agent's own values", async () => {
+  const service = createGenerationService({
+    promptRegistryLoader: createPromptLoaderMock(),
+    promptContextResolver: createPromptContextResolverMock(),
+    mascotRepository: createMascotRepositoryMock(),
+    giftRepository: createGiftRepositoryMock(),
+    shopkeeperContextAgent: createShopkeeperContextAgentMock(),
+    providerAdapter: createProviderAdapterMock(),
+    generationRepository: createRepositoryMock()
+  });
+
+  const request = baseRequest();
+  delete request.luckyTheme;
+  delete request.blessing;
+
+  const result = await service.createWallpaperGeneration(request);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.data.luckyTheme, "Golden Day");
+  assert.equal(result.data.blessing, "Fortune follows you.");
 });
 
 test("Provider Timeout", async () => {

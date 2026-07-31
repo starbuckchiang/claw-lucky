@@ -505,7 +505,16 @@ function createGenerationService({
           ? Number(persistedRecord.durationMs)
           : Number(providerResult?.durationMs || 0),
       status: persistedRecord.status || "succeeded",
-      createdAt: persistedRecord.createdAt || toIsoString(nowAt)
+      createdAt: persistedRecord.createdAt || toIsoString(nowAt),
+      // Safe Shopkeeper display fields (P2-AI-04 Lite): taken directly from
+      // the SAME shopkeeperContext already used to build the prompt for this
+      // generation (never re-derived), so the value shown to the user is
+      // guaranteed to match what was actually used.
+      luckyTheme: shopkeeperContext.luckyTheme,
+      blessing: shopkeeperContext.blessing,
+      story: shopkeeperContext.story,
+      oneLiner: shopkeeperContext.oneLiner,
+      shopkeeperMessage: shopkeeperContext.shopkeeperMessage
     });
 
     generationLogger.logInfo({

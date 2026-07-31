@@ -218,6 +218,36 @@
   background: #fff;
 }
 
+.wallpaper-blessing-card {
+  border: 1px solid rgba(92, 52, 28, 0.2);
+  background: #fff;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wallpaper-blessing-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wallpaper-blessing-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7a4a30;
+}
+
+.wallpaper-blessing-value {
+  margin: 0;
+  color: #3f2417;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 .wallpaper-error {
   border-color: rgba(153, 30, 30, 0.3);
   background: #fff1f1;

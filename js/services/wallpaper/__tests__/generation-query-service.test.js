@@ -224,6 +224,11 @@ test("progress payload 欄位完整", async () => {
     "createdAt",
     "updatedAt",
     "recommendedPollIntervalMs",
-    "terminal"
+    "terminal",
+    "luckyTheme",
+    "blessing",
+    "story",
+    "oneLiner",
+    "shopkeeperMessage"
   ]);
 });
