@@ -1,6 +1,20 @@
 (function () {
   const selectionService = window.WallpaperSelectionService;
   const generationClientApi = window.WallpaperGenerationClient;
+  const canvasComposer = window.WallpaperCanvasComposer;
+
+  // Object URL lifecycle (P2-AI-04 Lite-4): each tracker auto-revokes its
+  // previous URL whenever a new one is tracked (repeat-generation safety),
+  // and `.clear()` revokes on page unload. Raw (fetched AI image) and
+  // composited (final downloadable) URLs are tracked independently since
+  // they have independent lifetimes.
+  const rawUrlTracker = canvasComposer ? canvasComposer.createObjectUrlTracker() : null;
+  const compositedUrlTracker = canvasComposer ? canvasComposer.createObjectUrlTracker() : null;
+
+  window.addEventListener("beforeunload", () => {
+    if (rawUrlTracker) rawUrlTracker.clear();
+    if (compositedUrlTracker) compositedUrlTracker.clear();
+  });
 
   const refs = {
     form: document.getElementById("wallpaperForm"),
@@ -23,6 +37,7 @@
     metaStatus: document.getElementById("metaStatus"),
     metaPollInterval: document.getElementById("metaPollInterval"),
     resultEmpty: document.getElementById("resultEmpty"),
+    resultCompositing: document.getElementById("resultCompositing"),
     resultFigure: document.getElementById("resultFigure"),
     resultImage: document.getElementById("resultImage"),
     resultProvider: document.getElementById("resultProvider"),
@@ -138,6 +153,7 @@
 
   function clearResult() {
     if (refs.resultEmpty) refs.resultEmpty.classList.remove("hidden");
+    if (refs.resultCompositing) refs.resultCompositing.classList.add("hidden");
     if (refs.resultFigure) refs.resultFigure.classList.add("hidden");
     if (refs.resultImage) refs.resultImage.removeAttribute("src");
     if (refs.resultProvider) refs.resultProvider.textContent = "—";
@@ -151,13 +167,24 @@
     if (refs.blessingShopkeeperMessage) refs.blessingShopkeeperMessage.textContent = "—";
     if (refs.downloadActions) refs.downloadActions.classList.add("hidden");
     if (refs.downloadStatus) refs.downloadStatus.textContent = "—";
+    if (rawUrlTracker) rawUrlTracker.clear();
+    if (compositedUrlTracker) compositedUrlTracker.clear();
     currentResult = null;
   }
 
-  function showResult(data) {
+  // Compositing flow (P2-AI-04 Lite-4): Gemini now returns a text-free
+  // background (see wallpaper-prompt-builder.js). This fetches that raw
+  // image as a Blob (same CORS pattern as the old download flow, signed URL
+  // never logged), composites the real Traditional Chinese one-liner/date/
+  // brand text onto it via the self-hosted-font Canvas compositor, and uses
+  // THE SAME composited Blob for both the on-page preview and the download
+  // button (never the raw Gemini image). The raw AI image is kept only in
+  // memory (`currentResult.rawImageUrl`) for debugging — never rendered,
+  // never offered as a download, never logged.
+  async function showResult(data) {
     if (refs.resultEmpty) refs.resultEmpty.classList.add("hidden");
-    if (refs.resultFigure) refs.resultFigure.classList.remove("hidden");
-    if (refs.resultImage) refs.resultImage.src = data.imageUrl;
+    if (refs.resultFigure) refs.resultFigure.classList.add("hidden");
+    if (refs.resultImage) refs.resultImage.removeAttribute("src");
     if (refs.resultProvider) refs.resultProvider.textContent = data.provider || "unknown";
     if (refs.resultModel) refs.resultModel.textContent = data.model || "—";
     if (refs.resultPromptVersion) refs.resultPromptVersion.textContent = data.promptVersion || "—";
@@ -171,10 +198,11 @@
     if (refs.blessingShopkeeperMessage) refs.blessingShopkeeperMessage.textContent = data.shopkeeperMessage || "—";
 
     currentResult = {
-      imageUrl: data.imageUrl,
-      generationId: data.generationId
+      generationId: data.generationId,
+      rawImageUrl: data.imageUrl || null,
+      compositedBlob: null
     };
-    if (refs.downloadActions) refs.downloadActions.classList.toggle("hidden", !data.imageUrl);
+    if (refs.downloadActions) refs.downloadActions.classList.add("hidden");
     if (refs.downloadStatus) refs.downloadStatus.textContent = "—";
 
     updateDebugPanel({
@@ -183,6 +211,46 @@
       generationId: data.generationId,
       correlationId: lastCorrelationId
     });
+
+    if (!data.imageUrl) return;
+    if (!canvasComposer) {
+      showError({ code: "WALLPAPER_COMPOSITE_UNAVAILABLE", message: "圖片處理元件載入失敗，請重新整理頁面後再試一次。" });
+      return;
+    }
+
+    if (refs.resultCompositing) refs.resultCompositing.classList.remove("hidden");
+
+    try {
+      const rawResponse = await fetch(data.imageUrl, { mode: "cors" });
+      if (!rawResponse.ok) throw new Error(`HTTP ${rawResponse.status}`);
+      const rawBlob = await rawResponse.blob();
+      const rawObjectUrl = rawUrlTracker.track(URL.createObjectURL(rawBlob));
+
+      const composed = await canvasComposer.composeWallpaperImage({
+        sourceObjectUrl: rawObjectUrl,
+        oneLiner: data.oneLiner,
+        createdAt: data.createdAt,
+        doc: document,
+        win: window
+      });
+
+      const compositedObjectUrl = compositedUrlTracker.track(composed.previewUrl);
+      currentResult.compositedBlob = composed.blob;
+
+      if (refs.resultImage) refs.resultImage.src = compositedObjectUrl;
+      if (refs.resultFigure) refs.resultFigure.classList.remove("hidden");
+      if (refs.downloadActions) refs.downloadActions.classList.remove("hidden");
+    } catch (_error) {
+      // Never log the signed URL / object URL / error internals — only a
+      // generic, user-facing reason. Never falls back to showing/downloading
+      // the raw AI image or a blank canvas.
+      showError({
+        code: "WALLPAPER_COMPOSITE_FAILED",
+        message: "圖片處理失敗，請重新整理頁面後再試一次。"
+      });
+    } finally {
+      if (refs.resultCompositing) refs.resultCompositing.classList.add("hidden");
+    }
   }
 
   function buildDownloadFilename(generationId) {
@@ -194,16 +262,14 @@
     return `claw-lucky-${shortId}-${yyyy}${mm}${dd}.png`;
   }
 
-  // Download flow: fetch signed URL → Blob → object URL → programmatic <a
-  // download> click → revokeObjectURL. Chosen over a plain `<a href download>`
-  // because the `download` attribute is unreliable across origins (the
-  // signed URL points at the Supabase Storage domain, not this page's
-  // origin) — once converted to a `blob:` object URL it is same-origin to
-  // the page and `download` is honored reliably. Never logs the signed URL
-  // itself (only HTTP status / generic failure reasons).
+  // Download flow (P2-AI-04 Lite-4): downloads the already-composited Blob
+  // directly — NEVER re-fetches or downloads the raw Gemini signed URL.
+  // Blob → object URL → programmatic <a download> click → revokeObjectURL.
+  // Never logs any URL (signed or object) — only HTTP status / generic
+  // failure reasons.
   async function handleDownloadClick() {
     if (isDownloading) return;
-    if (!currentResult || !currentResult.imageUrl) {
+    if (!currentResult || !currentResult.compositedBlob) {
       if (refs.downloadStatus) refs.downloadStatus.textContent = "目前沒有可下載的圖片。";
       return;
     }
@@ -214,13 +280,7 @@
 
     let objectUrl = null;
     try {
-      const response = await fetch(currentResult.imageUrl, { mode: "cors" });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      objectUrl = URL.createObjectURL(blob);
+      objectUrl = URL.createObjectURL(currentResult.compositedBlob);
 
       const link = document.createElement("a");
       link.href = objectUrl;
@@ -231,7 +291,6 @@
 
       if (refs.downloadStatus) refs.downloadStatus.textContent = "下載完成。";
     } catch (_error) {
-      // Never log the signed URL (contains a token) — only a generic reason.
       if (refs.downloadStatus) refs.downloadStatus.textContent = "下載失敗，請重新整理頁面後再試一次。";
     } finally {
       if (objectUrl) {
@@ -444,7 +503,7 @@
 
       if (refs.metaGenerationId) refs.metaGenerationId.textContent = result.data.generationId || "—";
       setProgress("生成完成。", 100, "succeeded", "terminal");
-      showResult(result.data);
+      await showResult(result.data);
     } finally {
       setSubmitting(false);
     }

@@ -11,6 +11,7 @@ node --check js/api/wallpaper-generation-status-controller.js
 node --check js/services/wallpaper/wallpaper-generation-client.js
 node --check js/services/wallpaper/wallpaper-polling-service.js
 node --check js/services/wallpaper/wallpaper-result-presenter.js
+node --check js/services/wallpaper/wallpaper-canvas-composer.js
 node --check js/services/wallpaper/wallpaper-selection-service.js
 node --check js/services/wallpaper/job-repository.js
 node --check js/services/wallpaper/job-service.js

@@ -37,14 +37,22 @@ test("same input always produces the exact same prompt (deterministic, pure func
   assert.equal(first.builderVersion, BUILDER_VERSION);
 });
 
-test("prompt always includes species, appearance, gift, blessing, and date", () => {
+test("prompt always includes species, appearance, gift, and the mood/theme reference — new policy: image contains no rendered text", () => {
   const result = buildWallpaperPrompt(baseInput());
 
   assert.ok(result.promptText.includes("Penguin"));
   assert.ok(result.promptText.includes("A small round penguin with a red scarf and orange beak."));
   assert.ok(result.promptText.includes("Lucky Table-Tennis Charm"));
-  assert.ok(result.promptText.includes("Fortune follows you wherever you go."));
-  assert.ok(result.promptText.includes("2026.07.21"));
+  assert.ok(result.promptText.includes("Golden Day"));
+
+  // P2-AI-04 Lite-4: blessing text and the date are NEVER sent to Gemini as
+  // literal on-image text anymore — Gemini only produces a text-free
+  // background; the blessing/date/oneLiner are composited by the frontend
+  // Canvas layer instead (see wallpaper-canvas-composer.js).
+  assert.equal(result.promptText.includes("Fortune follows you wherever you go."), false);
+  assert.equal(result.promptText.includes("2026.07.21"), false);
+  assert.ok(/STRICTLY NO TEXT/.test(result.promptText));
+  assert.ok(/Text-Safe Zone/.test(result.promptText));
 });
 
 test("prompt includes an explicit character consistency rule (mascot must not be replaced)", () => {

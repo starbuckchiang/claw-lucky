@@ -82,15 +82,18 @@ test("Gate 3 / Test 2: Single Change — only the Gift section changes when Gift
   assert.ok(differingLines[0].a.includes("幸運乒乓守護吊飾"));
   assert.ok(differingLines[0].b.includes("招財貓掌吊飾"));
 
-  // Mascot / Theme / Blessing / Date sections are untouched.
+  // Mascot / Theme sections are untouched. New policy (P2-AI-04 Lite-4):
+  // image contains no rendered text — blessing and date are NEVER echoed
+  // into the literal prompt text sent to Gemini (composited by the
+  // frontend Canvas layer instead), so they must NOT appear here.
   assert.ok(resultA.promptText.includes("轉運小企鵝"));
   assert.ok(resultB.promptText.includes("轉運小企鵝"));
   assert.ok(resultA.promptText.includes("穩穩接住今天的好運"));
   assert.ok(resultB.promptText.includes("穩穩接住今天的好運"));
-  assert.ok(resultA.promptText.includes("今天每一次努力都會更靠近成功。"));
-  assert.ok(resultB.promptText.includes("今天每一次努力都會更靠近成功。"));
-  assert.ok(resultA.promptText.includes("2026.07.21"));
-  assert.ok(resultB.promptText.includes("2026.07.21"));
+  assert.equal(resultA.promptText.includes("今天每一次努力都會更靠近成功。"), false);
+  assert.equal(resultB.promptText.includes("今天每一次努力都會更靠近成功。"), false);
+  assert.equal(resultA.promptText.includes("2026.07.21"), false);
+  assert.equal(resultB.promptText.includes("2026.07.21"), false);
 });
 
 // --- Test 3: Character Identity ------------------------------------------
@@ -106,16 +109,24 @@ test("Gate 3 / Test 3: Character Identity — prompt includes Species/Appearance
   assert.equal(result.promptText.includes("mascot-penguin-01"), false);
 });
 
-// --- Test 4: Date ----------------------------------------------------------
+// --- Test 4: Date (new policy: image contains no rendered text) -----------
 
-test("Gate 3 / Test 4: Date — resolved as Asia/Taipei, formatted 2026.07.21, and appears verbatim in the prompt", () => {
+test("Gate 3 / Test 4: Date — resolved as Asia/Taipei (2026.07.21), but new policy means it is NEVER rendered as on-image text", () => {
   // 2026-07-20T16:05:00Z is 2026-07-21 00:05 in Asia/Taipei (UTC+8) — a
-  // deliberate UTC-day-boundary case to prove Asia/Taipei (not UTC) is used.
+  // deliberate UTC-day-boundary case to prove Asia/Taipei (not UTC) is used
+  // for the date the rest of the system (e.g. the Canvas compositor) relies
+  // on. The Wallpaper Prompt Builder itself, however, must NEVER echo this
+  // date into the literal prompt text sent to Gemini — Gemini only produces
+  // a text-free background; the date is composited by the frontend Canvas
+  // layer afterward (see wallpaper-canvas-composer.js), which is where date
+  // correctness is actually verified end-to-end.
   const taipeiDate = resolveTaipeiDate(new Date("2026-07-20T16:05:00.000Z"));
   assert.equal(taipeiDate, "2026.07.21");
 
   const result = buildWallpaperPrompt(fixedInput({ date: taipeiDate }));
-  assert.ok(result.promptText.includes("Date Watermark (small, tasteful, bottom corner, exactly this text): 2026.07.21"));
+  assert.equal(result.promptText.includes("2026.07.21"), false);
+  assert.equal(result.promptText.includes("Date Watermark"), false);
+  assert.ok(/STRICTLY NO TEXT/.test(result.promptText));
 });
 
 // --- Test 5: Validation -----------------------------------------------------

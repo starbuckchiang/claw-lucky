@@ -29,16 +29,22 @@ export function buildWallpaperPrompt(input: WallpaperPromptInput): WallpaperProm
     `- ${gift?.name || ""}${gift?.description ? `: ${gift.description}` : ""}`,
     "",
     `Wallpaper Style: ${input?.wallpaperStyle || ""}`,
-    `Today's Lucky Theme: ${input?.luckyTheme || ""}`,
-    `Today's Blessing: ${input?.blessing || ""}`,
-    `Date Watermark (small, tasteful, bottom corner, exactly this text): ${input?.date || ""}`,
+    `Mood / Theme Reference (for color palette and atmosphere ONLY — never render this phrase as visible text): ${input?.luckyTheme || ""}`,
     "",
     "Character Consistency Rules:",
     "- Do not substitute the mascot species with a different animal or character.",
     "- Preserve the mascot's species, title, and appearance exactly as described above.",
     "- The mascot is the primary visual identity of this wallpaper.",
     "",
-    "Composition: clean background, no extra on-image text besides the date watermark, no logos, no copyrighted characters."
+    "STRICTLY NO TEXT — this image must contain absolutely no rendered text or writing-like marks of any kind:",
+    "- No text, no letters, no numbers, no Chinese characters, no Japanese characters.",
+    "- No calligraphy, no captions, no signatures, no logos, no watermarks.",
+    "- No stamps, no seals, no labels, no plaques, no writing-like symbols or glyphs.",
+    "- Do not render the Mood/Theme phrase above (or any other words) as visible text anywhere in the image.",
+    "",
+    "Text-Safe Zone: keep the bottom area of the composition calm, clean, and low-detail (soft gradient or simple background only — no objects, patterns, or marks there) — this space is reserved for text to be added afterward outside of this image.",
+    "",
+    "Composition: clean background, no on-image text of any kind, no logos, no copyrighted characters."
   ].filter((line): line is string => line !== null);
 
   return {
