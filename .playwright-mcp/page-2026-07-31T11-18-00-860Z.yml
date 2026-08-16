@@ -1,0 +1,74 @@
+- main [ref=f1e2]:
+  - generic [ref=f1e4]:
+    - link "← 回首頁" [ref=f1e5] [cursor=pointer]:
+      - /url: ./index.html
+    - heading "AI Lucky Wallpaper Studio" [level=1] [ref=f1e6]
+    - paragraph [ref=f1e7]: 提交生成請求後，系統會自動輪詢進度並在完成後顯示圖片。
+  - generic [ref=f1e9]:
+    - heading "生成設定" [level=2] [ref=f1e10]
+    - region [ref=f1e11]:
+      - generic [ref=f1e12]:
+        - heading "我的吉祥物" [level=3] [ref=f1e13]
+        - generic [ref=f1e14]: 2 筆
+      - listbox "我的吉祥物" [ref=f1e58]:
+        - option "福屁柯基 福屁柯基 稀有度：R" [ref=f1e80] [cursor=pointer]:
+          - img "福屁柯基" [ref=f1e82]
+          - generic [ref=f1e83]: 福屁柯基
+          - generic [ref=f1e84]: 稀有度：R
+        - option "星砂海豹 星砂海豹 稀有度：SR" [ref=f1e85] [cursor=pointer]:
+          - img "星砂海豹" [ref=f1e87]
+          - generic [ref=f1e88]: 星砂海豹
+          - generic [ref=f1e89]: 稀有度：SR
+    - region [ref=f1e15]:
+      - generic [ref=f1e16]:
+        - heading "可使用 Gift" [level=3] [ref=f1e17]
+        - generic [ref=f1e18]: 2 筆
+      - listbox "可使用 Gift" [ref=f1e69]:
+        - option "幸運乒乓守護吊飾 幸運乒乓守護吊飾 Gift ID：gift001" [ref=f1e70] [cursor=pointer]:
+          - img "幸運乒乓守護吊飾" [ref=f1e72]
+          - generic [ref=f1e73]: 幸運乒乓守護吊飾
+          - generic [ref=f1e74]: Gift ID：gift001
+        - option "Kuromi Kuromi Gift ID：gift002" [ref=f1e75] [cursor=pointer]:
+          - img "Kuromi" [ref=f1e77]
+          - generic [ref=f1e78]: Kuromi
+          - generic [ref=f1e79]: Gift ID：gift002
+    - generic [ref=f1e20]:
+      - generic [ref=f1e21]: 風格
+      - combobox "風格" [ref=f1e22]:
+        - option "Retro" [selected]
+        - option "Cute"
+        - option "Japanese"
+        - option "Fantasy"
+        - option "Minimal"
+    - generic [ref=f1e23]:
+      - heading "目前選擇預覽" [level=3] [ref=f1e24]
+      - paragraph [ref=f1e25]: 已選擇：福屁柯基 + 未選擇 Gift
+    - generic [ref=f1e26]:
+      - button "開始生成" [ref=f1e27] [cursor=pointer]
+      - button "清空" [ref=f1e28] [cursor=pointer]
+  - generic [ref=f1e30]:
+    - heading "生成進度" [level=2] [ref=f1e31]
+    - paragraph [ref=f1e32]: 尚未開始。
+    - generic [ref=f1e34]:
+      - generic [ref=f1e35]:
+        - term [ref=f1e36]: Generation ID
+        - definition [ref=f1e37]: —
+      - generic [ref=f1e38]:
+        - term [ref=f1e39]: 狀態
+        - definition [ref=f1e40]: idle
+      - generic [ref=f1e41]:
+        - term [ref=f1e42]: 建議下一次輪詢
+        - definition [ref=f1e43]: —
+  - generic [ref=f1e45]:
+    - heading "生成結果" [level=2] [ref=f1e46]
+    - generic [ref=f1e47]: 生成成功後會顯示圖片與店長的祝福。
+    - generic [ref=f1e48]:
+      - generic [ref=f1e49]:
+        - term [ref=f1e50]: Provider
+        - definition [ref=f1e51]: —
+      - generic [ref=f1e52]:
+        - term [ref=f1e53]: Model
+        - definition [ref=f1e54]: —
+      - generic [ref=f1e55]:
+        - term [ref=f1e56]: Prompt Version
+        - definition [ref=f1e57]: —

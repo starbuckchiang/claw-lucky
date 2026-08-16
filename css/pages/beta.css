@@ -1,0 +1,150 @@
+/* =========================
+ Beta Entry Page / 封閉測試導覽頁
+ 獨立樣式檔，僅供 beta.html 使用
+ 不影響既有頁面的 CSS
+ ========================= */
+
+:root {
+  --beta-bg-top: #8b5734;
+  --beta-bg-bottom: #6c4024;
+  --beta-paper: #ecd9af;
+  --beta-paper-soft: #f7e9c8;
+  --beta-ink: #4f2c1a;
+  --beta-ink-soft: rgba(79, 44, 26, 0.78);
+  --beta-line: rgba(92, 52, 28, 0.22);
+  --beta-brown: #7a3f22;
+  --beta-brown-dark: #5b2d19;
+  --beta-warning: #8b5d2a;
+  --beta-warning-soft: #f3e1bc;
+  --beta-shadow: 0 16px 34px rgba(54, 28, 14, 0.18);
+  --beta-radius-lg: 20px;
+  --beta-radius-md: 14px;
+}
+
+body {
+  background: linear-gradient(180deg, var(--beta-bg-top) 0%, var(--beta-bg-bottom) 100%);
+  color: var(--beta-ink);
+}
+
+.beta-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.beta-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.beta-kicker {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--beta-paper-soft);
+  opacity: 0.85;
+}
+
+.beta-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--beta-paper-soft);
+  margin: 0;
+}
+
+.beta-subtitle {
+  font-size: 14px;
+  color: var(--beta-paper-soft);
+  opacity: 0.9;
+  margin: 0;
+}
+
+.beta-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.beta-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(180deg, var(--beta-paper) 0%, #e2c78f 100%);
+  border-radius: var(--beta-radius-lg);
+  box-shadow: var(--beta-shadow);
+  padding: 14px 16px;
+}
+
+.beta-step-index {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--beta-brown);
+  color: var(--beta-paper-soft);
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.beta-step-button {
+  flex: 1 1 auto;
+  display: block;
+  text-align: center;
+  padding: 14px 16px;
+  border-radius: var(--beta-radius-md);
+  background: var(--beta-brown);
+  color: var(--beta-paper-soft);
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.beta-step-button:hover,
+.beta-step-button:focus-visible {
+  background: var(--beta-brown-dark);
+}
+
+.beta-step-button:focus-visible {
+  outline: 3px solid var(--beta-paper-soft);
+  outline-offset: 2px;
+}
+
+.beta-flow-note {
+  text-align: center;
+  font-size: 14px;
+  color: var(--beta-paper-soft);
+  margin: 0;
+}
+
+.beta-notice {
+  background: var(--beta-warning-soft);
+  color: var(--beta-warning);
+  border: 1px solid var(--beta-line);
+  border-radius: var(--beta-radius-md);
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+  margin: 0;
+}
+
+@media (min-width: 600px) {
+  .beta-page {
+    padding-top: 56px;
+  }
+
+  .beta-title {
+    font-size: 30px;
+  }
+}

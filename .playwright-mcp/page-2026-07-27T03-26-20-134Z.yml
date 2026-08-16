@@ -1,0 +1,40 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - link "福 Lucky Buddies" [ref=e4] [cursor=pointer]:
+      - /url: ./index.html
+      - generic [ref=e5]: 福
+      - generic [ref=e6]: Lucky Buddies
+    - generic [ref=e7]:
+      - generic [ref=e8]: ⌕
+      - searchbox "搜尋" [ref=e9]
+      - button "搜尋" [ref=e10] [cursor=pointer]
+  - generic [ref=e11]:
+    - link "抽吉祥物" [ref=e12] [cursor=pointer]:
+      - /url: ./gacha.html
+    - link "許願池" [ref=e14] [cursor=pointer]:
+      - /url: ./wanted.html
+    - link "送出願望" [ref=e16] [cursor=pointer]:
+      - /url: ./wanted-form.html
+    - link "好運兌換" [ref=e18] [cursor=pointer]:
+      - /url: ./gift.html
+    - link "🛍️ 好運商城" [ref=e20] [cursor=pointer]:
+      - /url: ./good.html
+    - link "FAQ" [ref=e22] [cursor=pointer]:
+      - /url: ./qa.html
+  - region "主視覺輪播" [ref=e24]:
+    - img "主視覺 1" [ref=e27]
+    - button "上一張" [ref=e28] [cursor=pointer]: ‹
+    - button "下一張" [ref=e29] [cursor=pointer]: ›
+    - generic [ref=e30]:
+      - button "第 1 張" [ref=e31] [cursor=pointer]
+      - button "第 2 張" [ref=e32] [cursor=pointer]
+      - button "第 3 張" [ref=e33] [cursor=pointer]
+      - button "第 4 張" [ref=e34] [cursor=pointer]
+    - generic [ref=e35]: 本週主打吉祥物
+  - generic [ref=e38]:
+    - generic [ref=e39]: Buy Alpaca a Coffee
+    - heading "請羊駝喝杯咖啡" [level=2] [ref=e40]
+    - paragraph [ref=e41]: 如果你喜歡這個小小空間， 也歡迎請羊駝喝杯咖啡，給這個計畫一點溫柔鼓勵。
+    - link "請羊駝喝杯咖啡" [ref=e42] [cursor=pointer]:
+      - /url: ./support.html
+      - img "請羊駝喝杯咖啡" [ref=e43]

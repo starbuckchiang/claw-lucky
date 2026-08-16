@@ -47,9 +47,24 @@ node --check js/services/ai/gemini-text-provider.js
 node --check js/services/shopkeeper/shopkeeper-fallback-context.js
 node --check js/services/shopkeeper/shopkeeper-context-validator.js
 node --check js/services/shopkeeper/shopkeeper-context-agent.js
+node --check js/services/auth/auth-service.js
+node --check js/services/auth/email-otp-service.js
+node --check js/services/auth/account-merge-service.js
+node --check js/services/auth/account-merge-repository.js
+node --check js/services/auth/merge-claim-crypto.js
+node --check js/services/auth/subscription-entry-guard.js
+node --check js/services/subscription/checkout-authorization-service.js
+node --check js/pages/subscription-entry.js
 node --check js/pages/wallpaper.js
 node --check supabase/functions/_shared/wallpaper-generate-handler.js
 node --check supabase/functions/_shared/wallpaper-status-handler.js
+node --check supabase/functions/_shared/subscription-checkout-handler.js
+node --check supabase/functions/_shared/account-merge-handler.js
+node --check js/services/wallet/wallet-ops-repository.js
+node --check supabase/functions/_shared/wallet-ops-handler.js
+node --check js/api.js
+node --check js/gift.js
+node --check js/pages/gacha.js
 # NOTE: supabase/functions/**/*.ts (the Deno ESM ports actually deployed to
 # Supabase Edge Functions) are intentionally NOT syntax-checked with
 # `node --check` here — they use TypeScript syntax Node cannot parse, and
@@ -68,7 +83,12 @@ node --test `
   "js/services/shopkeeper/__tests__/*.test.js" `
   "js/services/wallpaper/__tests__/*.test.js" `
   "js/services/storage/__tests__/*.test.js" `
-  "supabase/functions/_shared/__tests__/*.test.js"
+  "js/services/auth/__tests__/*.test.js" `
+  "js/services/subscription/__tests__/*.test.js" `
+  "js/services/wallet/__tests__/*.test.js" `
+  "js/__tests__/*.test.js" `
+  "supabase/functions/_shared/__tests__/*.test.js" `
+  "supabase/migrations/__tests__/*.test.js"
 
 Write-Host ""
 

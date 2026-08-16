@@ -68,10 +68,7 @@
   }
 
   async function grantReward({ refs, refreshTopbar, isDrawing = false } = {}) {
-    const config = getAdConfig();
     const storage = getAdStorage();
-
-    const state = storage.getState();
     const remaining = storage.getRemaining();
 
     if (remaining <= 0) {
@@ -80,40 +77,23 @@
       return null;
     }
 
-    const profile = getUserProfile();
-
-    if (!profile.userId) {
-      throw new Error("找不到 userId");
-    }
-
-    try {
-      await getApi().adjustBalance({
-        userId: profile.userId,
-        nickname: profile.nickname,
-        coinsDelta: Number(config.adRewardCoins || 20),
-        source: "watch_ad",
-        note: "觀看廣告獎勵",
-        actionType: "watch_ad"
-      });
-
-      state.count += 1;
-      storage.saveState(state);
-
-      const remoteUser =
-        typeof refreshTopbar === "function"
-          ? await refreshTopbar()
-          : null;
-
-      renderRemaining({ refs, isDrawing });
-
-      alert(`補給成功！獲得 ${config.adRewardCoins} 好運幣`);
-
-      return remoteUser;
-    } catch (error) {
-      console.error("[AdReward] grantReward failed =", error);
-      alert("補給失敗，請稍後再試。");
-      return null;
-    }
+    // P-AUTH-05B-2A hotfix (requirement 4): this flow has NO
+    // server-verifiable proof the ad was actually watched — `AdModal`'s
+    // "completed" flag is pure client-side JS state set by a `<video>`
+    // `ended` event listener, which is trivially fakeable (e.g. calling
+    // `window.AdModal.close()` from devtools without ever playing the
+    // video). Granting real currency on an unverifiable signal would let
+    // anyone mint free coins. This is PAUSED (an explicit, documented
+    // blocker — see review-auth-05B-2A-hotfix.md / threat model) until a
+    // real server-verifiable ad-completion callback exists (e.g. a signed
+    // token from an ad network's server-to-server postback) — NOT
+    // implemented in this hotfix. The old `Api.adjustBalance()` call that
+    // used to grant coins here has been removed entirely (that method is
+    // now a deprecated, always-rejecting stub — see js/api.js) rather than
+    // silently kept working.
+    alert("好運補給站目前維護中，暫不提供影片獎勵，敬請期待！");
+    renderRemaining({ refs, isDrawing });
+    return null;
   }
 
   function handleClick({ refs, refreshTopbar, getIsDrawing } = {}) {

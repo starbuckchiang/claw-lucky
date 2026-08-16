@@ -15,6 +15,89 @@ function getSupabaseClient() {
   return window.supabaseClient;
 }
 
+/**
+ * P-AUTH-05B-2A: secure write adapter for the `wallet-ops` Edge Function
+ * (supabase/functions/wallet-ops/index.ts). Replaces the OLD pattern of
+ * writing directly to `users`/`user_mascots`/`redeem_history`/`gifts` from
+ * the browser with the anon key + a CLIENT-SUPPLIED owner id (see that
+ * function's header comment for the exact vulnerabilities this closes).
+ *
+ * `window.supabaseClient.functions.invoke()` never throws for an ordinary
+ * failure — it always resolves `{data, error}`.
+ *
+ * P-AUTH-05B-2A.1 Hotfix (requirements 1-4): `error.context` merely means
+ * "an HTTP response of SOME kind came back" — it does NOT by itself mean
+ * the server made a definitive business decision. The ONLY case that is
+ * ever treated as non-retryable is a SUCCESSFULLY PARSED
+ * `{ok:false, error:{...}}` JSON body whose `error.retryable` is
+ * EXPLICITLY `false` (requirement 2/3 — this app's own deterministic
+ * business rejections: insufficient balance, out of stock, gift/mascot
+ * not found, etc., which `wallet-ops-handler.js` always tags with
+ * `retryable:false`). EVERY other outcome defaults to `retryable: true`
+ * (requirement 4), including:
+ *   - HTTP 500/502/503/504 (or any other status) that ISN'T our own JSON
+ *     error shape (e.g. a raw gateway/proxy error page) — `.json()` will
+ *     either throw or resolve to something without an `error` field.
+ *   - A response body that fails to parse as JSON at all.
+ *   - A successfully-parsed body whose `error.retryable` is missing or not
+ *     a boolean (an unrecognized/older error shape — never GUESS "safe",
+ *     default to retryable).
+ *   - No HTTP response was ever received at all (`error.context` absent —
+ *     DNS/connection/timeout/`FunctionsFetchError`, a genuine
+ *     network-layer failure).
+ * This means a caller can ALWAYS safely resend the SAME logical operation
+ * with the SAME idempotency key unless the server explicitly, successfully
+ * told it not to bother — never the other way around.
+ */
+async function invokeWalletOpsFunction(path, body) {
+  const { data, error } = await getSupabaseClient().functions.invoke(`wallet-ops/${path}`, { body });
+
+  if (error) {
+    if (error.context) {
+      let parsedBody = null;
+      try {
+        parsedBody = await error.context.json();
+      } catch (_parseError) {
+        // Response body could not be parsed as JSON at all (e.g. a raw
+        // HTML/text error page from an intermediate proxy on a 500/502/
+        // 503/504) — unknown outcome, always retryable.
+        return {
+          ok: false,
+          error: { code: "WALLET_OPS_REQUEST_FAILED", message: "請求失敗，請稍後再試一次。", retryable: true }
+        };
+      }
+
+      const serverError = parsedBody && typeof parsedBody === "object" ? parsedBody.error : null;
+
+      if (serverError && typeof serverError === "object") {
+        // Respect the server's own explicit determination when present;
+        // otherwise this is an unrecognized error shape — default to
+        // retryable (never assume "safe to give up" on a guess).
+        const retryable = typeof serverError.retryable === "boolean" ? serverError.retryable : true;
+        return { ok: false, error: { ...serverError, retryable } };
+      }
+
+      // A JSON body came back, but not our own `{ok:false,error:{...}}`
+      // shape (e.g. an empty object, or some other service's error
+      // format) — unknown outcome, always retryable.
+      return {
+        ok: false,
+        error: { code: "WALLET_OPS_REQUEST_FAILED", message: "請求失敗，請稍後再試一次。", retryable: true }
+      };
+    }
+
+    // No HTTP response was ever received at all (FunctionsFetchError /
+    // network disconnect / DNS / timeout before headers) — always
+    // retryable.
+    return {
+      ok: false,
+      error: { code: "NETWORK_ERROR", message: "網路連線失敗，請稍後再試一次。", retryable: true }
+    };
+  }
+
+  return data;
+}
+
 async function resolveAuthUserContext() {
   if (!window.userReadyPromise && window.UserStore?.initUser) {
     window.userReadyPromise = window.UserStore.initUser();
@@ -54,84 +137,31 @@ window.Api = {
   },
 
   async createUserIfNotExists({ userId, nickname = "" }) {
-    const { data, error } = await getSupabaseClient()
-      .from(DB.users)
-      .upsert(
-        {
-          user_id: userId,
-          nickname,
-          points: 0,
-          tickets: 0,
-          coins: 20,
-          updated_at: new Date().toISOString()
-        },
-        { 
-          onConflict: "user_id"
-        
-        }
-      )
-      .select("user_id,nickname,points,tickets,coins")
-      .single();
+    // P-AUTH-05B-2A: `userId` is intentionally IGNORED here and NEVER sent
+    // in the request body — the Edge Function derives the owner id SOLELY
+    // from the caller's own verified JWT (requirement 2). Kept as a
+    // parameter only so existing call sites (js/user.js) don't need to
+    // change their call shape.
+    const result = await invokeWalletOpsFunction("ensure-user", { nickname });
 
-    if (error) throw error;
+    if (!result?.ok) {
+      throw new Error(result?.error?.message || "無法建立使用者資料");
+    }
 
-    return data;
+    return result.data;
   },
 
-  async upsertUserMascot({
-  userId,
-  mascotId,
-  mascotName = "",
-  rarity = "",
-  image = ""
-}) {
-  
-  const existing = await getSupabaseClient()
-    .from("user_mascots")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("mascot_id", mascotId)
-    .maybeSingle();
-
-  if (existing.error) throw existing.error;
-
-  if (existing.data) {
-    const { data, error } = await getSupabaseClient()
-      .from("user_mascots")
-      .update({
-        mascot_name: mascotName || existing.data.mascot_name,
-        rarity: rarity || existing.data.rarity,
-        image: image || existing.data.image,
-        obtain_count: Number(existing.data.obtain_count || 1) + 1,
-        last_obtained_at: new Date().toISOString()
-      })
-      .eq("user_id", userId)
-      .eq("mascot_id", mascotId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  const { data, error } = await getSupabaseClient()
-    .from("user_mascots")
-    .insert({
-      user_id: userId,
-      mascot_id: mascotId,
-      mascot_name: mascotName,
-      rarity,
-      image,
-      obtain_count: 1,
-      first_obtained_at: new Date().toISOString(),
-      last_obtained_at: new Date().toISOString()
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-},
+  // P-AUTH-05B-2A hotfix (requirement 3): DEPRECATED. There is no longer
+  // any public route to upsert a mascot standalone — `user_mascots` may
+  // ONLY be written from inside an authorized backend transaction
+  // (`claim_gacha_draw`'s internal call to `upsert_user_mascot_obtain`).
+  // This stub exists ONLY so any stale caller gets an honest, loud
+  // rejection instead of silently doing nothing or (worse) falling back to
+  // an insecure direct database write — it never calls the network, never
+  // touches the database, and always throws.
+  async upsertUserMascot() {
+    throw new Error("Api.upsertUserMascot() 已停用：吉祥物只能由抽獎等經授權的伺服器交易內部寫入，不提供独立的公開 API。");
+  },
 
 async getUserMascots(userId) {
   const { data, error } = await getSupabaseClient()
@@ -189,129 +219,20 @@ async getUserMascots(userId) {
     return data;
   },
 
-  async adjustBalance({
-    userId,
-    nickname = "",
-    pointsDelta = 0,
-    ticketsDelta = 0,
-    coinsDelta = 0,
-    source = "",
-    note = "",
-    actionType = "adjust_balance"
-  }) {
-    const user = await this.getUser(userId);
-
-    if (!user) {
-      throw new Error("找不到使用者");
-    }
-
-    const nextPoints = Number(user.points || 0) + Number(pointsDelta || 0);
-    const nextTickets = Number(user.tickets || 0) + Number(ticketsDelta || 0);
-    const nextCoins = Number(user.coins || 0) + Number(coinsDelta || 0);
-
-    if (nextPoints < 0) throw new Error("點數不足");
-    if (nextTickets < 0) throw new Error("抽獎券不足");
-    if (nextCoins < 0) throw new Error("金幣不足");
-
-    const { data, error } = await getSupabaseClient()
-      .from(DB.users)
-      .update({
-        nickname: nickname || user.nickname || "",
-        points: nextPoints,
-        tickets: nextTickets,
-        coins: nextCoins,
-        updated_at: new Date().toISOString()
-      })
-      .eq("user_id", userId)
-      .select("user_id,nickname,points,tickets,coins")
-      .single();
-
-    if (error) throw error;
-
-    await this.addLog({
-      userId,
-      nickname,
-      actionType,
-      coinsDelta,
-      pointsDelta,
-      ticketsDelta,
-      note,
-      source
-    });
-
-    return data;
+  // P-AUTH-05B-2A hotfix (requirement 2): DEPRECATED. There is no longer
+  // any public route accepting arbitrary pointsDelta/ticketsDelta/
+  // coinsDelta from the browser — every reward is now its own explicit,
+  // server-defined operation (claimGachaDraw/redeemGift below; the "watch
+  // ad" reward is PAUSED entirely, see js/game/ad-reward.js and
+  // requirement 4). This stub exists ONLY so any stale caller gets an
+  // honest, loud rejection instead of silently doing nothing or (worse)
+  // falling back to an insecure direct database write — it never calls
+  // the network, never touches the database, and always throws.
+  async adjustBalance() {
+    throw new Error("Api.adjustBalance() 已停用：不再提供任意餘額調整能力，請改用對應的專用操作 API。");
   },
 
-  async addLog({
-    userId,
-    nickname = "",
-    actionType = "adjust_balance",
-    coinsDelta = 0,
-    pointsDelta = 0,
-    ticketsDelta = 0,
-    note = "",
-    source = ""
-  }) {
-    const authUser = await resolveAuthUserContext();
-
-    const { error } = await getSupabaseClient()
-      .from(DB.logs)
-      .insert({
-        user_id: authUser.userId,
-        nickname: nickname || authUser.nickname,
-        action_type: actionType,
-        coins_change: Number(coinsDelta || 0),
-        points_change: Number(pointsDelta || 0),
-        tickets_change: Number(ticketsDelta || 0),
-        note,
-        source,
-        created_at: new Date().toISOString()
-      });
-
-    if (error) {
-      console.warn("[api debug] logs insert failed =", error);
-    }
-  },
-
-  
-  async addRedeemHistory({
-    userId,
-    nickname = "",
-    giftId,
-    giftName,
-    quantity = 1,
-    pointsCost = 0,
-    ticketsCost = 0,
-    coinsCost = 0,
-    note = ""
-  }) {
-    const authUser = await resolveAuthUserContext();
-
-    const { data, error } = await getSupabaseClient()
-      .from(DB.redeemHistory)
-      .insert({
-        user_id: authUser.userId,
-        nickname: nickname || authUser.nickname,
-        gift_id: giftId,
-        gift_name: giftName,
-        quantity: Number(quantity || 1),
-        points_cost: Number(pointsCost || 0),
-        tickets_cost: Number(ticketsCost || 0),
-        coins_cost: Number(coinsCost || 0),
-        status: "pending",
-        note,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return data;
-  },  
-
-   async getRedeemHistory(userId) {
+  async getRedeemHistory(userId) {
   const authUser = await resolveAuthUserContext();
 
   const { data, error } = await getSupabaseClient()
@@ -327,77 +248,87 @@ async getUserMascots(userId) {
   if (error) throw error;
 
   return data || [];
- },  
-  
-  async redeemGift({
-    userId,
-    nickname = "",
-    giftId,
-    giftName,
-    pointsCost = 0,
-    ticketsCost = 0,
-    coinsCost = 0,
-    note = ""
-  }) {
-    const authUser = await resolveAuthUserContext();
+ },
 
-    const updatedUser = await this.adjustBalance({
-      userId: authUser.userId,
-      nickname: nickname || authUser.nickname,
-      pointsDelta: -Number(pointsCost || 0),
-      ticketsDelta: -Number(ticketsCost || 0),
-      coinsDelta: -Number(coinsCost || 0),
-      source: "gift_page",
-      note: note || `兌換禮物：${giftName}`,
-      actionType: "gift_redeem"
-    });
+  // P-AUTH-05B-2A hotfix (requirement 1): atomic, secure Gacha Draw — the
+  // request sends ONLY `idempotencyKey`. The RPC (`claim_gacha_draw`)
+  // decides which mascot/rarity was drawn using its OWN server-side
+  // weighted random pick against `public.mascot_rarities`/`public.mascots`
+  // — there is no `mascotId`/reward/points/tickets parameter for the
+  // caller to supply or tamper with; the frontend's job is only to render
+  // whichever result this call returns.
+  //
+  // P-AUTH-05B-2A hotfix (requirement 5): `idempotencyKey` is REQUIRED and
+  // must be generated ONCE by the caller when the draw attempt begins
+  // (e.g. js/pages/gacha.js's `getOrCreateDrawIdempotencyKey()`), reused
+  // verbatim on a retry of that SAME attempt — this function deliberately
+  // does NOT generate one itself, so it can never silently mint a fresh key
+  // per call.
+  async claimGachaDraw({ idempotencyKey } = {}) {
+    if (!idempotencyKey) {
+      throw new Error("claimGachaDraw 需要呼叫端提供 idempotencyKey（操作開始時產生一次，重試時沿用同一個）。");
+    }
 
-    const redeemRecord = await this.addRedeemHistory({
-      userId: authUser.userId,
-      nickname: nickname || authUser.nickname,
-      giftId,
-      giftName,
-      quantity: 1,
-      pointsCost,
-      ticketsCost,
-      coinsCost,
-      note: note || `兌換禮物：${giftName}`
-    });
+    const result = await invokeWalletOpsFunction("gacha-draw", { idempotencyKey });
+
+    if (!result?.ok) {
+      const error = new Error(result?.error?.message || "抽卡失敗");
+      error.retryable = Boolean(result?.error?.retryable);
+      throw error;
+    }
+
+    return result.data;
+  },
+
+  // P-AUTH-05B-2A: atomic, secure Gift Redemption \u2014 replaces the old
+  // "adjustBalance() + addRedeemHistory() + decreaseGiftStock()" three-step
+  // (non-atomic, no row locking, and trusted CLIENT-SUPPLIED cost/name
+  // values \u2014 a malicious caller could previously redeem ANY item for
+  // FREE by just sending pointsCost:0/ticketsCost:0/coinsCost:0) with ONE
+  // call to `redeem_gift_transaction` (locks users+gifts, verifies
+  // balance/stock, deducts, decrements stock, writes redeem_history \u2014
+  // all in a single DB transaction; cost/name are ALWAYS resolved
+  // server-side from `gifts`, never from this call's arguments).
+  // `pointsCost`/`ticketsCost`/`coinsCost`/`giftName`/`nickname` are kept
+  // as parameters ONLY for call-site signature compatibility \u2014 none of
+  // them are sent to the server anymore.
+  //
+  // P-AUTH-05B-2A hotfix (requirement 5): `idempotencyKey` is REQUIRED and
+  // must be generated ONCE by the caller when the redemption attempt
+  // begins (e.g. js/gift.js's `handleRedeem()`), reused verbatim on a retry
+  // of that SAME attempt — this function deliberately does NOT generate
+  // one itself.
+  async redeemGift({ userId, nickname, giftId, giftName, pointsCost, ticketsCost, coinsCost, note, idempotencyKey }) {
+    if (!idempotencyKey) {
+      throw new Error("redeemGift 需要呼叫端提供 idempotencyKey（操作開始時產生一次，重試時沿用同一個）。");
+    }
+
+    const result = await invokeWalletOpsFunction("gift-redeem", { giftId, idempotencyKey });
+
+    if (!result?.ok) {
+      const error = new Error(result?.error?.message || "兌換失敗");
+      error.retryable = Boolean(result?.error?.retryable);
+      throw error;
+    }
+
+    const data = result.data || {};
 
     return {
       ok: true,
-      user: updatedUser,
-      redeemRecord
+      user: {
+        points: data.user_points,
+        tickets: data.user_tickets,
+        coins: data.user_coins
+      },
+      redeemRecord: {
+        id: data.redeem_history_id,
+        gift_id: data.gift_id,
+        gift_name: data.gift_name,
+        points_cost: data.points_cost,
+        tickets_cost: data.tickets_cost,
+        coins_cost: data.coins_cost
+      }
     };
-    
-  },
-
-  async decreaseGiftStock(giftId, quantity = 1) {
-    const gift = await this.getGiftById(giftId);
-
-    if (!gift) {
-      throw new Error("找不到禮物");
-    }
-
-    const nextStock = Number(gift.stock || 0) - Number(quantity || 1);
-
-    if (nextStock < 0) {
-      throw new Error("禮物庫存不足");
-    }
-
-    const { data, error } = await getSupabaseClient()
-      .from(DB.gifts)
-      .update({
-        stock: nextStock,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", giftId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return data;
   }
 };
 

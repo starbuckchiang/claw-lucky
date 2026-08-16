@@ -8,6 +8,12 @@
 
   const refs = {};
   let hasInitialized = false;
+  // P-AUTH-05B-2A hotfix (requirement 5): the in-flight redemption's
+  // idempotency key + which giftId it belongs to — created once per
+  // attempt, reused on a same-gift retry, cleared on success or any
+  // non-retryable failure (see handleRedeem below).
+  let pendingRedeemGiftId = null;
+  let pendingRedeemIdempotencyKey = null;
 
   function cacheDom() {
     refs.giftPageStatus = document.getElementById("giftPageStatus");
@@ -398,6 +404,18 @@
     renderGifts();
     showStatus(`正在兌換「${gift.name}」...`, "info");
 
+    // P-AUTH-05B-2A hotfix (requirement 5): the idempotency key is created
+    // ONCE per redemption ATTEMPT of a given gift, right as the user
+    // commits (confirms the dialog above), and reused verbatim on a manual
+    // retry of that SAME gift — never regenerated per retry. A DIFFERENT
+    // `giftId` is a genuinely different operation, so it always gets its
+    // own fresh key.
+    if (pendingRedeemGiftId !== String(giftId)) {
+      pendingRedeemGiftId = String(giftId);
+      pendingRedeemIdempotencyKey = window.crypto.randomUUID();
+    }
+    const idempotencyKey = pendingRedeemIdempotencyKey;
+
     try {
       const { data: sessionData, error: sessionError } = await window.supabaseClient.auth.getSession();
       if (sessionError) {
@@ -425,10 +443,20 @@
         pointsCost: latestGift.points_cost,
         ticketsCost: latestGift.tickets_cost,
         coinsCost: 0,
-        note: `兌換禮物：${latestGift.name}`
+        note: `兌換禮物：${latestGift.name}`,
+        idempotencyKey
       });
 
-      await getApi().decreaseGiftStock(latestGift.id, 1);
+      // P-AUTH-05B-2A: stock decrement now happens ATOMICALLY inside
+      // redeemGift()'s server-side transaction (locks users+gifts,
+      // verifies balance/stock, deducts, decrements stock, writes
+      // redeem_history all together) — the old separate
+      // `Api.decreaseGiftStock()` call here has been removed; keeping it
+      // would have been a redundant, non-atomic SECOND write racing
+      // against the atomic one above.
+
+      pendingRedeemGiftId = null;
+      pendingRedeemIdempotencyKey = null;
 
       await loadUserData();
       await loadPublicGifts();
@@ -437,6 +465,17 @@
     } catch (error) {
       console.error("[gift] redeem failed", error);
       showStatus("兌換失敗，請重新整理後再試", "error");
+
+      // P-AUTH-05B-2A hotfix (requirement 5): only a genuine network-layer
+      // failure (`error.retryable === true`) keeps the SAME idempotency
+      // key alive for a manual retry of this SAME gift — any other
+      // failure (session mismatch, stale availability, business
+      // rejection) clears it, since retrying with the identical key
+      // wouldn't help until the user re-confirms.
+      if (!error?.retryable) {
+        pendingRedeemGiftId = null;
+        pendingRedeemIdempotencyKey = null;
+      }
     } finally {
       state.isRedeeming = false;
       renderGifts();

@@ -253,50 +253,78 @@ async function loadMascotsFromSupabase() {
 }
 
 /* ============================================================
-   Sync Mascot Collection To Supabase
-   ------------------------------------------------------------
-   將抽到的吉祥物寫入 user_mascots。
-   如果已經擁有，則更新 obtain_count / last_obtained_at。
+   抽到的吉祥物現在由 claim_gacha_draw 在伺服器端原子性寫入 user_mascots
+   （與扣款/獲獎/紀錄同一交易，P-AUTH-05B-2A 需求 3）—不再需要前端別外呼叫
+   upsertUserMascot()。
    ============================================================ */
 
-async function syncMascotToSupabase(profile, result) {
-  if (!profile?.userId || !result?.id) return null;
+// P-AUTH-05B-2A hotfix (requirement 5): the idempotency key for a gacha
+// draw is created ONCE when the draw attempt begins and held here until
+// that attempt definitively completes (success, or a non-retryable
+// business rejection) — a manual retry of the SAME attempt (e.g. after a
+// network failure) reuses this SAME key; it is NEVER regenerated per
+// retry. `null` means no draw attempt is currently pending.
+let pendingDrawIdempotencyKey = null;
 
-  if (!getApi().upsertUserMascot) {
-    console.warn("Api.upsertUserMascot 尚未建立，略過收藏同步");
-    return null;
+function getOrCreateDrawIdempotencyKey() {
+  if (!pendingDrawIdempotencyKey) {
+    pendingDrawIdempotencyKey = window.crypto.randomUUID();
   }
-
-  return getApi().upsertUserMascot({
-    userId: profile.userId,
-    mascotId: result.id,
-    mascotName: result.name,
-    rarity: result.rarity,
-    image: result.image || ""
-  });
+  return pendingDrawIdempotencyKey;
 }
 
+// P-AUTH-05B-2A hotfix (requirement 1): builds the UI-facing result object
+// SOLELY from the server's authoritative claim (mascot/rarity/reward) —
+// `window.GachaData`'s catalog is consulted ONLY for cosmetic display
+// fields (title/description/silhouette) that the RPC doesn't return, NEVER
+// to decide or override the outcome itself.
+function buildResultFromServerClaim(claim) {
+  const catalogMascot = window.GachaData?.getMascotById
+    ? window.GachaData.getMascotById(claim.mascot_id)
+    : null;
+  const rarityConfig = window.GachaData?.getRarityConfig
+    ? window.GachaData.getRarityConfig(claim.rarity)
+    : null;
+  const isNew = Boolean(claim.is_new);
+
+  return {
+    id: claim.mascot_id,
+    name: claim.mascot_name || catalogMascot?.name || "",
+    rarity: claim.rarity,
+    rarityLabel: rarityConfig?.label || claim.rarity,
+    rarityColor: rarityConfig?.color || "#8b6a43",
+    rarityGlow: rarityConfig?.glow || "rgba(139, 106, 67, 0.28)",
+    title: catalogMascot?.title || "",
+    description: catalogMascot?.description || "",
+    image: claim.image || catalogMascot?.image || "",
+    silhouette: catalogMascot?.silhouette || "",
+    isNew,
+    pointsEarned: Number(claim.points_earned || 0),
+    ticketsEarned: Number(claim.tickets_earned || 0),
+    duplicateBonus: isNew ? 0 : Number(claim.points_earned || 0),
+    coinsCost: Math.abs(Number(claim.coins_delta || 1)),
+    createdAt: Date.now()
+  };
+}
 
 /* ============================================================
    Draw Click
    ------------------------------------------------------------
-   抽蛋主要流程：
-   1. 讀取 Supabase user
-   2. 用目前 coins 判斷能否抽
-   3. GachaEngine 抽結果
-   4. Supabase 扣 coins / 加 points / tickets
-   5. Supabase 寫入 user_mascots
-   6. 更新畫面
+   抽蛋主要流程（P-AUTH-05B-2A hotfix 需求 1：前端只播放動畫及顯示伺服器
+   結果，實際抽中哪隻吉祥物、稀有度、獎勵一律由 claim_gacha_draw 在伺服器
+   端決定）：
+   1. 讀取 Supabase user（僅供「好運幣不足」的 UX 提示，非權威判斷）
+   2. 呼叫 claim_gacha_draw（伺服器端抽獎 + 扣款 + 發獎 + 收藏 + 紀錄）
+   3. 用伺服器回傳的結果播放動畫、更新畫面
    ============================================================ */
 
 function handleDrawClick() {
   const ui = getUI();
-  const engine = getEngine();
 
   if (isDrawing) return;
 
-  if (!ui || !engine?.drawOnce) {
-    console.warn("GachaUI 或 GachaEngine 尚未載入完成");
+  if (!ui) {
+    console.warn("GachaUI 尚未載入完成");
     return;
   }
 
@@ -309,6 +337,10 @@ function handleDrawClick() {
   if (ui.renderLoadingResult) {
     ui.renderLoadingResult(refs.gachaResultEl);
   }
+
+  // P-AUTH-05B-2A hotfix (requirement 5): generated/reused ONCE per draw
+  // attempt, BEFORE the network call — never inside the retry path.
+  const idempotencyKey = getOrCreateDrawIdempotencyKey();
 
   window.setTimeout(async () => {
     try {
@@ -324,39 +356,45 @@ function handleDrawClick() {
         throw new Error("找不到使用者資料");
       }
 
-      const currentCoins = Number(remoteUser.coins || 0);
-
-      const response = engine.drawOnce({
-        currentCoins
-      });
-
-      if (!response?.ok) {
-        handleDrawFailure(response);
+      // UX-only pre-check — never authoritative. The server independently
+      // re-verifies the real coin balance inside claim_gacha_draw and will
+      // reject the request on its own if this check is stale/bypassed.
+      if (Number(remoteUser.coins || 0) <= 0) {
+        handleDrawFailure({ message: "好運幣不足，無法轉蛋。" });
+        pendingDrawIdempotencyKey = null;
         return;
       }
 
-      const result = response.result;
+      // P-AUTH-05B-2A hotfix (requirement 1): sends ONLY the idempotency
+      // key. The server decides which mascot/rarity was drawn and computes
+      // the reward — the client never supplies a mascotId, a rarity, a
+      // reward amount, or an "isNew" flag, and cannot influence the
+      // outcome.
+      const claim = await getApi().claimGachaDraw({ idempotencyKey });
 
-      const updatedUser = await getApi().adjustBalance({
-        userId: profile.userId,
-        nickname: profile.nickname,
-        coinsDelta: -1,
-        pointsDelta: Number(result.pointsEarned || 0),
-        ticketsDelta: Number(result.ticketsEarned || 0),
-        source: "gacha_draw",
-        note: `抽到 ${result.name}`,
-        actionType: "gacha_draw"
-      });
-     
-      
+      const result = buildResultFromServerClaim(claim);
+
       handleDrawSuccess(result);
-   
-      await syncMascotToSupabase(profile, result);
+      pendingDrawIdempotencyKey = null;
 
-      renderTopbar(updatedUser);
+      renderTopbar({
+        points: claim.user_points,
+        tickets: claim.user_tickets,
+        coins: claim.user_coins
+      });
     } catch (error) {
       console.error("抽卡流程失敗", error);
       alert(`抽卡失敗：${error.message}`);
+
+      // P-AUTH-05B-2A hotfix (requirement 5): only a genuine network-layer
+      // failure (`error.retryable === true`, see js/api.js's
+      // invokeWalletOpsFunction) keeps the SAME idempotency key alive for
+      // a manual retry click — a definitive business rejection (e.g.
+      // insufficient coins) clears it, since the user must change
+      // something (get more coins) before a retry could ever succeed.
+      if (!error?.retryable) {
+        pendingDrawIdempotencyKey = null;
+      }
     } finally {
       setDrawingState(false);
     }

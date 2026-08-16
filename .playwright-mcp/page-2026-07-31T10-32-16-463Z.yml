@@ -1,0 +1,58 @@
+- main [ref=e2]:
+  - generic [ref=e4]:
+    - link "← 回首頁" [ref=e5] [cursor=pointer]:
+      - /url: ./index.html
+    - heading "AI Lucky Wallpaper Studio" [level=1] [ref=e6]
+    - paragraph [ref=e7]: 提交生成請求後，系統會自動輪詢進度並在完成後顯示圖片。
+  - generic [ref=e9]:
+    - heading "生成設定" [level=2] [ref=e10]
+    - region [ref=e11]:
+      - generic [ref=e12]:
+        - heading "我的吉祥物" [level=3] [ref=e13]
+        - generic [ref=e14]: 載入中...
+      - listbox "我的吉祥物"
+    - region [ref=e15]:
+      - generic [ref=e16]:
+        - heading "可使用 Gift" [level=3] [ref=e17]
+        - generic [ref=e18]: 載入中...
+      - listbox "可使用 Gift"
+    - generic [ref=e20]:
+      - generic [ref=e21]: 風格
+      - combobox "風格" [ref=e22]:
+        - option "Retro" [selected]
+        - option "Cute"
+        - option "Japanese"
+        - option "Fantasy"
+        - option "Minimal"
+    - generic [ref=e23]:
+      - heading "目前選擇預覽" [level=3] [ref=e24]
+      - paragraph [ref=e25]: 尚未選擇吉祥物與 Gift。
+    - generic [ref=e26]:
+      - button "開始生成" [ref=e27] [cursor=pointer]
+      - button "清空" [ref=e28] [cursor=pointer]
+  - generic [ref=e30]:
+    - heading "生成進度" [level=2] [ref=e31]
+    - paragraph [ref=e32]: 尚未開始。
+    - generic [ref=e34]:
+      - generic [ref=e35]:
+        - term [ref=e36]: Generation ID
+        - definition [ref=e37]: —
+      - generic [ref=e38]:
+        - term [ref=e39]: 狀態
+        - definition [ref=e40]: idle
+      - generic [ref=e41]:
+        - term [ref=e42]: 建議下一次輪詢
+        - definition [ref=e43]: —
+  - generic [ref=e45]:
+    - heading "生成結果" [level=2] [ref=e46]
+    - generic [ref=e47]: 生成成功後會顯示圖片與店長的祝福。
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - term [ref=e50]: Provider
+        - definition [ref=e51]: —
+      - generic [ref=e52]:
+        - term [ref=e53]: Model
+        - definition [ref=e54]: —
+      - generic [ref=e55]:
+        - term [ref=e56]: Prompt Version
+        - definition [ref=e57]: —

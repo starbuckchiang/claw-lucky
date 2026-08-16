@@ -1,0 +1,72 @@
+- main [ref=f10e2]:
+  - generic [ref=f10e4]:
+    - generic [ref=f10e5]:
+      - generic [ref=f10e6]: 🪙 好運幣
+      - strong [ref=f10e7]: "19"
+    - generic [ref=f10e8]:
+      - generic [ref=f10e9]: 💎 點數
+      - strong [ref=f10e10]: "251"
+    - generic [ref=f10e11]:
+      - generic [ref=f10e12]: 🎟 兌換券
+      - strong [ref=f10e13]: "1"
+    - generic [ref=f10e14]:
+      - generic [ref=f10e15]: 📘 收藏
+      - strong [ref=f10e16]: 1 / 23
+  - generic [ref=f10e18]:
+    - generic [ref=f10e19]: 今日好運機台
+    - heading "好運蛋扭扭樂" [level=1] [ref=f10e20]
+    - paragraph [ref=f10e21]: 抽一顆今天的好運蛋，看看會遇見哪一隻吉祥物。
+  - generic [ref=f10e34]:
+    - generic [ref=f10e35]: 好運蛋出貨中
+    - generic "普通好運蛋" [ref=f10e71]
+    - button "轉一次" [ref=f10e73] [cursor=pointer]
+  - generic [ref=f10e43]:
+    - button "轉一次" [ref=f10e74] [cursor=pointer]
+    - link "收藏圖鑑" [ref=f10e45] [cursor=pointer]:
+      - /url: ./mascot-collection.html
+    - link "前往兌換" [ref=f10e46] [cursor=pointer]:
+      - /url: ./gift.html
+  - generic [ref=f10e48]:
+    - heading "本次結果" [level=2] [ref=f10e49]
+    - article [ref=f10e75]:
+      - generic [ref=f10e76]:
+        - generic [ref=f10e77]: 普通
+        - img "星光小靈" [ref=f10e79]
+      - generic [ref=f10e80]:
+        - generic [ref=f10e81]: NEW 收藏成功
+        - heading "星光小靈" [level=3] [ref=f10e82]
+        - paragraph [ref=f10e83]: 願望正在悄悄實現
+        - paragraph [ref=f10e84]: 揮灑點點星光飛舞身旁，把微小祝福化作一天的驚喜與靈感。
+        - generic [ref=f10e85]:
+          - generic [ref=f10e86]:
+            - generic [ref=f10e87]: 💎 獲得點數
+            - strong [ref=f10e88]: "+251"
+          - generic [ref=f10e89]:
+            - generic [ref=f10e90]: 🎟 獲得兌換券
+            - strong [ref=f10e91]: "+1"
+  - generic [ref=f10e53]:
+    - generic [ref=f10e54]:
+      - heading "最近抽到" [level=2] [ref=f10e55]
+      - link "查看完整收藏 →" [ref=f10e56] [cursor=pointer]:
+        - /url: ./mascot-collection.html
+    - article [ref=f10e92]:
+      - generic [ref=f10e93]:
+        - generic [ref=f10e94]: 星光
+        - generic [ref=f10e96]:
+          - generic [ref=f10e97]:
+            - strong [ref=f10e98]: 星光小靈
+            - generic [ref=f10e99]: 普通
+          - generic [ref=f10e100]:
+            - generic [ref=f10e101]: 💎 +251
+            - generic [ref=f10e102]: 🎟 +1
+            - generic [ref=f10e103]: 新收藏
+  - generic [ref=f10e59]:
+    - heading "✨ 好運補給站" [level=3] [ref=f10e60]
+    - generic [ref=f10e61]:
+      - text: 看完今日獎勵影片，帶走
+      - strong [ref=f10e62]: +20 好運幣
+      - text: 與
+      - strong [ref=f10e63]: +1 次免費機會
+      - text: 。 想再試一次時，先來這裡補點資源吧。
+    - generic [ref=f10e64]: 今日剩餘補給：3 / 3
+    - button "觀看獎勵影片" [ref=f10e66] [cursor=pointer]

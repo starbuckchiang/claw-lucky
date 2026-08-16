@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>訂閱方案</title>
+
+<link rel="stylesheet" href="./css/base.css" />
+<link rel="stylesheet" href="./css/layout.css" />
+<link rel="stylesheet" href="./css/components.css" />
+<link rel="stylesheet" href="./css/pages/subscription.css" />
+</head>
+<body>
+<main class="page-wrap subscription-page">
+
+<section class="section">
+  <div class="panel subscription-topbar">
+    <a class="subscription-back-link" href="./index.html">← 回首頁</a>
+  </div>
+</section>
+
+<section class="section">
+  <div class="hero-card">
+    <span class="hero-kicker">Subscription</span>
+    <h1 class="hero-title">訂閱方案</h1>
+    <p class="hero-desc">
+      選擇方案後，系統會自動判斷你的身份：正式使用者可直接進入 Checkout；
+      訪客或匿名使用者需先完成 Email 驗證升級為正式使用者，驗證完成後會自動回到你原本選擇的方案。
+    </p>
+  </div>
+</section>
+
+<section class="section section-lg">
+  <div class="subscription-plan-grid">
+    <article class="panel subscription-plan-card">
+      <div class="subscription-plan-head">
+        <span class="badge">Plan A</span>
+        <h2 class="subscription-plan-title">月訂閱</h2>
+        <p class="subscription-plan-price">USD 5 / 月</p>
+      </div>
+      <button type="button" class="btn" data-plan-id="monthly" data-plan-label="月訂閱">訂閱</button>
+    </article>
+
+    <article class="panel subscription-plan-card">
+      <div class="subscription-plan-head">
+        <span class="badge">Plan B</span>
+        <h2 class="subscription-plan-title">年訂閱</h2>
+        <p class="subscription-plan-price">USD 48 / 年</p>
+      </div>
+      <button type="button" class="btn" data-plan-id="yearly" data-plan-label="年訂閱">訂閱</button>
+    </article>
+  </div>
+</section>
+
+<section class="section" id="otpPanel" hidden>
+  <div class="panel subscription-otp-panel">
+    <h2 class="section-title">Email 驗證升級</h2>
+    <p class="section-desc">升級為正式使用者後，將自動繼續你原本選擇的訂閱方案。</p>
+
+    <div id="otpStep1" class="subscription-otp-step">
+      <label class="subscription-field-label" for="otpEmailInput">Email</label>
+      <input class="subscription-input" type="email" id="otpEmailInput" placeholder="you@example.com" />
+      <div class="button-row">
+        <button type="button" class="btn" id="sendOtpBtn">寄送驗證碼</button>
+      </div>
+      <p class="subscription-status-text" id="sendOtpStatus"></p>
+    </div>
+
+    <div id="otpStep2" class="subscription-otp-step" hidden>
+      <label class="subscription-field-label" for="otpTokenInput">驗證碼</label>
+      <input class="subscription-input" type="text" id="otpTokenInput" placeholder="請輸入驗證碼（6～8 碼數字）" inputmode="numeric" pattern="[0-9]{6,8}" maxlength="8" autocomplete="one-time-code" />
+      <div class="button-row">
+        <button type="button" class="btn" id="verifyOtpBtn">驗證並繼續</button>
+        <button type="button" class="btn btn-secondary" id="resendOtpBtn">重新寄送</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="readyPanel" hidden>
+  <div class="panel subscription-ready-panel">
+    <span class="badge">Ready for Checkout</span>
+    <h2 class="section-title">已可進入付款流程</h2>
+    <p class="section-desc">已選擇方案：<strong id="readyPlanLabel"></strong></p>
+    <p class="subscription-note">（本階段暫以此畫面取代真實付款，Checkout / Payment / Webhook 將於後續階段實作。）</p>
+  </div>
+</section>
+
+<section class="section" id="errorPanel" hidden>
+  <div class="panel subscription-error-panel">
+    <h2 class="section-title">發生錯誤</h2>
+    <p class="subscription-status-text" id="errorMessage"></p>
+    <div class="button-row">
+      <button type="button" class="btn btn-secondary" id="retryBtn">重試</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js?v=20260710-3"></script>
+<script src="./js/api.js?v=20260817-1"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+<script src="./js/user.js?v=20260815-1"></script>
+<script src="./js/services/auth/auth-service.js?v=20260803-1"></script>
+<script src="./js/services/auth/email-otp-service.js?v=20260815-5"></script>
+<script src="./js/services/auth/account-merge-service.js?v=20260816-1"></script>
+<script src="./js/services/auth/subscription-entry-guard.js?v=20260816-1"></script>
+<script src="./js/pages/subscription-entry.js?v=20260816-1"></script>
+</body>
+</html>

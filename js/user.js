@@ -427,7 +427,13 @@
     getNickname,
     getUserProfile,
     clearUserProfile,
-    initUser
+    initUser,
+    // Exposed for other Auth flows that also hit a public/unauthenticated
+    // Supabase Auth endpoint subject to this project's Captcha protection
+    // (e.g. subscription-entry.js's Existing Account Login OTP,
+    // P-AUTH-04.2) so they don't have to duplicate the Turnstile widget
+    // logic above.
+    verifyTurnstile
   };
 
   window.ClawUser = {

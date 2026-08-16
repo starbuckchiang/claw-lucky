@@ -1,0 +1,16 @@
+{
+	"servers": {
+		"playwright": {
+			"type": "stdio",
+			"sandboxEnabled": true,
+			"command": "npx",
+			"cwd": "${workspaceFolder}",
+			"args": [
+				"-y",
+				"@playwright/mcp@latest"
+			],
+		
+		}
+	},
+	"inputs": []
+}

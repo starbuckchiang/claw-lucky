@@ -61,3 +61,34 @@ export async function resolveAuthenticatedUserId(req: Request): Promise<string |
     return null;
   }
 }
+
+/**
+ * Like `resolveAuthenticatedUserId`, but returns the FULL Supabase auth user
+ * object (`is_anonymous`/`email_confirmed_at`/`identities`/...) instead of
+ * just the id — needed by P-AUTH-04's Checkout Authorization, which reuses
+ * the P-AUTH-01 Auth Service's `resolveAuthState()` and therefore needs
+ * these fields, not just the userId. Returns `null` if the token is missing
+ * or invalid (never trusts a client-supplied user object).
+ */
+// deno-lint-ignore no-explicit-any
+export async function resolveAuthenticatedUser(req: Request): Promise<any | null> {
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const anonClient = createAnonClient();
+    const { data, error } = await anonClient.auth.getUser(token);
+
+    if (error || !data?.user?.id) {
+      return null;
+    }
+
+    return data.user;
+  } catch (_error) {
+    return null;
+  }
+}

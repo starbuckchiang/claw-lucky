@@ -6,3 +6,4 @@ ADR-004	Generation Orchestrator	Accepted
 ADR-005	AI Generation Pipeline	Accepted
 ADR-006	Generation Status API	Accepted
 ADR-007	Client Polling Workflow	Accepted
+ADR-009	Existing Account Data Merge	Proposed

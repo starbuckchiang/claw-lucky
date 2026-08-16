@@ -1,0 +1,77 @@
+/* =========================
+ Subscription Entry (P-AUTH-03.1)
+ ========================= */
+
+.subscription-topbar {
+  display: flex;
+  align-items: center;
+}
+
+.subscription-back-link {
+  color: #7a3f22;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.subscription-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.subscription-plan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.subscription-plan-title {
+  margin: 8px 0 4px;
+  color: #4a2416;
+}
+
+.subscription-plan-price {
+  margin: 0;
+  color: #5a3422;
+  font-weight: 700;
+}
+
+.subscription-otp-panel,
+.subscription-ready-panel,
+.subscription-error-panel {
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.subscription-field-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #5a3422;
+  font-weight: 700;
+  text-align: left;
+}
+
+.subscription-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border: 2px solid rgba(92, 52, 28, 0.18);
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+.subscription-status-text {
+  min-height: 1.4em;
+  margin-top: 10px;
+  color: #7a3f22;
+  font-size: 14px;
+}
+
+.subscription-note {
+  color: #8a6a52;
+  font-size: 13px;
+}

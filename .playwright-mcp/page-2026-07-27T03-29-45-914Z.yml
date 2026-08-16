@@ -1,0 +1,65 @@
+- main [ref=f2e2]:
+  - generic [ref=f2e4]:
+    - link "← 回首頁" [ref=f2e5] [cursor=pointer]:
+      - /url: ./index.html
+    - heading "AI Lucky Wallpaper Studio" [level=1] [ref=f2e6]
+    - paragraph [ref=f2e7]: 提交生成請求後，系統會自動輪詢進度並在完成後顯示圖片。
+  - generic [ref=f2e9]:
+    - heading "生成設定" [level=2] [ref=f2e10]
+    - region [ref=f2e11]:
+      - generic [ref=f2e12]:
+        - heading "我的吉祥物" [level=3] [ref=f2e13]
+        - generic [ref=f2e14]: 載入中...
+      - listbox "我的吉祥物"
+    - region [ref=f2e15]:
+      - generic [ref=f2e16]:
+        - heading "可使用 Gift" [level=3] [ref=f2e17]
+        - generic [ref=f2e18]: 載入中...
+      - listbox "可使用 Gift"
+    - generic [ref=f2e19]:
+      - generic [ref=f2e20]:
+        - generic [ref=f2e21]: 風格
+        - combobox "風格" [ref=f2e22]:
+          - option "Retro" [selected]
+          - option "Cute"
+          - option "Japanese"
+          - option "Fantasy"
+          - option "Minimal"
+      - generic [ref=f2e23]:
+        - generic [ref=f2e24]: Lucky Theme
+        - textbox "Lucky Theme" [ref=f2e25]
+    - generic [ref=f2e26]:
+      - generic [ref=f2e27]: 祝福文字
+      - textbox "祝福文字" [ref=f2e28]
+    - generic [ref=f2e29]:
+      - heading "目前選擇預覽" [level=3] [ref=f2e30]
+      - paragraph [ref=f2e31]: 尚未選擇吉祥物與 Gift。
+    - generic [ref=f2e32]:
+      - button "開始生成" [ref=f2e33] [cursor=pointer]
+      - button "清空" [ref=f2e34] [cursor=pointer]
+  - generic [ref=f2e36]:
+    - heading "生成進度" [level=2] [ref=f2e37]
+    - paragraph [ref=f2e38]: 尚未開始。
+    - generic [ref=f2e40]:
+      - generic [ref=f2e41]:
+        - term [ref=f2e42]: Generation ID
+        - definition [ref=f2e43]: —
+      - generic [ref=f2e44]:
+        - term [ref=f2e45]: 狀態
+        - definition [ref=f2e46]: idle
+      - generic [ref=f2e47]:
+        - term [ref=f2e48]: 建議下一次輪詢
+        - definition [ref=f2e49]: —
+  - generic [ref=f2e51]:
+    - heading "生成結果" [level=2] [ref=f2e52]
+    - generic [ref=f2e53]: 生成成功後會顯示圖片與資訊。
+    - generic [ref=f2e54]:
+      - generic [ref=f2e55]:
+        - term [ref=f2e56]: Provider
+        - definition [ref=f2e57]: —
+      - generic [ref=f2e58]:
+        - term [ref=f2e59]: Model
+        - definition [ref=f2e60]: —
+      - generic [ref=f2e61]:
+        - term [ref=f2e62]: Prompt Version
+        - definition [ref=f2e63]: —

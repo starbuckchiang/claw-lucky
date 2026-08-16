@@ -11,3 +11,20 @@
         ".specify/scripts/powershell/": true
     }
 }
+
+{
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/coverage": true,
+    "**/dist": true,
+    "**/output": true,
+    "**/test-results": true,
+    "**/playwright-report": true,
+    "**/.git": true,
+    "**/archive": true
+  },
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.git": true
+  }
+}
