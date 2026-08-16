@@ -9,6 +9,9 @@ node_modules/
 # Logs
 *.log
 
+# Browser automation scratch output (screenshots/page snapshots)
+.playwright-mcp/
+
 
 
 

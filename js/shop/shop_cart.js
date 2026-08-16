@@ -20,22 +20,20 @@
     return `NT$ ${Number(value || 0).toLocaleString("zh-TW")}`;
   }
 
-  function getCheckoutSummary(items) {
-    const totalAmount = (Array.isArray(items) ? items : []).reduce((sum, item) => {
-      const product = item?.product || {};
-      const price = Number(product.price || 0);
-      const quantity = Number(item?.quantity || 0);
-      return sum + price * quantity;
-    }, 0);
+  // P-AUTH-05B-2B: generated/reused ONCE per checkout attempt, BEFORE the
+  // network call — never inside the retry path. Cleared on success or a
+  // definitive non-retryable business rejection (see handleCheckout()'s
+  // catch block); kept alive across a retry when the failure is a genuine
+  // network-layer/unknown-outcome problem, so a resend always reuses the
+  // SAME idempotency key (mirrors js/pages/gacha.js's
+  // getOrCreateDrawIdempotencyKey() pattern).
+  let pendingCheckoutIdempotencyKey = null;
 
-    const totalItems = (Array.isArray(items) ? items : []).reduce((sum, item) => {
-      return sum + Number(item?.quantity || 0);
-    }, 0);
-
-    return {
-      totalAmount: Number(totalAmount.toFixed(2)),
-      totalItems
-    };
+  function getOrCreateCheckoutIdempotencyKey() {
+    if (!pendingCheckoutIdempotencyKey) {
+      pendingCheckoutIdempotencyKey = window.crypto.randomUUID();
+    }
+    return pendingCheckoutIdempotencyKey;
   }
 
   async function handleCheckout() {
@@ -50,101 +48,46 @@
       checkoutBtn.textContent = "建立訂單中...";
     }
 
+    // P-AUTH-05B-2B: generated/reused ONCE per checkout attempt, BEFORE
+    // the network call — never inside the retry path.
+    const idempotencyKey = getOrCreateCheckoutIdempotencyKey();
+
     try {
-      if (!window.supabaseClient) {
-        throw new Error("Supabase 尚未初始化");
+      if (!window.ShopApi?.checkoutCart) {
+        throw new Error("ShopApi.checkoutCart 尚未載入");
       }
 
       if (window.UserStore?.initUser) {
         await window.UserStore.initUser();
       }
 
-      const user = window.userReadyPromise
-        ? await window.userReadyPromise
-        : null;
+      // P-AUTH-05B-2B: the ENTIRE checkout transaction (re-verify price/
+      // stock/enabled, create orders + order_items with a server-decided
+      // snapshot, decrement stock, clear the cart) now happens atomically
+      // server-side via `shop-ops/checkout` — this page no longer reads
+      // or sends any price/subtotal/total/owner id itself.
+      const order = await window.ShopApi.checkoutCart({ idempotencyKey });
 
-      let userId = String(user?.user_id || "").trim();
-
-      if (!userId && window.ClawUser?.getUserId) {
-        userId = String(await window.ClawUser.getUserId() || "").trim();
-      }
-
-      if (!userId) {
-        throw new Error("找不到使用者資料");
-      }
-
-      const { data: sessionData, error: sessionError } = await window.supabaseClient.auth.getSession();
-      if (sessionError) {
-        throw sessionError;
-      }
-
-      const sessionUserId = String(sessionData?.session?.user?.id || "").trim();
-      if (!sessionUserId || sessionUserId !== userId) {
-        throw new Error("checkout userId 與 session.user.id 不一致");
-      }
-
-      const { totalAmount, totalItems } = getCheckoutSummary(cartItems);
-
-      const orderPayload = {
-        user_id: userId,
-        total_amount: totalAmount,
-        total_items: totalItems,
-        status: "pending",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { data: order, error: orderError } = await window.supabaseClient
-        .from("orders")
-        .insert(orderPayload)
-        .select("id,order_no,user_id,total_amount,total_items,status,created_at")
-        .single();
-
-      if (orderError) {
-        throw orderError;
-      }
-
-      const orderItems = cartItems.map((item) => {
-        const product = item?.product || {};
-        const quantity = Number(item?.quantity || 0);
-        const unitPrice = Number(product.price || 0);
-        const totalPrice = Number((unitPrice * quantity).toFixed(2));
-
-        return {
-          order_id: order.id,
-          product_id: item?.product_id || product?.id || "",
-          product_name: product.name || product.title || "未命名商品",
-          product_image: product.image || product.thumbnail || product.cover || "",
-          price: unitPrice,
-          quantity,
-          subtotal: totalPrice,
-          created_at: new Date().toISOString()
-        };
-      });
-
-      const { error: itemsError } = await window.supabaseClient
-        .from("order_items")
-        .insert(orderItems);
-
-      if (itemsError) {
-        throw itemsError;
-      }
-
-      const { error: clearError } = await window.supabaseClient
-        .from("shop_cart")
-        .delete()
-        .eq("user_id", userId);
-
-      if (clearError) {
-        throw clearError;
-      }
-
+      // No payment integration exists yet — the order is always created
+      // as 'pending'/'draft'/'awaiting_payment' server-side. This page
+      // never claims "payment succeeded" itself.
+      pendingCheckoutIdempotencyKey = null;
       cartItems = [];
       renderCart();
-      window.location.assign(`./luck_complete.html?order_id=${encodeURIComponent(order.id)}`);
+      window.location.assign(`./luck_complete.html?order_id=${encodeURIComponent(order.order_id)}`);
     } catch (error) {
       console.error("[shop cart] checkout failed", error);
       window.alert(`帶回好運失敗：${error?.message || "請稍後再試"}`);
+
+      // P-AUTH-05B-2B: only a genuine network-layer/unknown-outcome
+      // failure (`error.retryable === true`, see js/shop/shop-api.js's
+      // invokeShopOpsFunction) keeps the SAME idempotency key alive for a
+      // manual retry click — a definitive business rejection (e.g. cart
+      // empty, out of stock) clears it, since the user must change
+      // something before a retry could ever succeed.
+      if (!error?.retryable) {
+        pendingCheckoutIdempotencyKey = null;
+      }
 
       if (checkoutBtn) {
         checkoutBtn.disabled = false;

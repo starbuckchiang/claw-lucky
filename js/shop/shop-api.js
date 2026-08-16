@@ -25,6 +25,64 @@
     return window.supabaseClient;
   }
 
+  /**
+   * P-AUTH-05B-2B: secure write adapter for the `shop-ops` Edge Function
+   * (supabase/functions/shop-ops/index.ts). Replaces the OLD pattern of
+   * writing directly to `shop_cart`/`orders`/`order_items` from the
+   * browser with the anon key + a CLIENT-SUPPLIED owner id and
+   * CLIENT-COMPUTED price/subtotal/total (see that function's header
+   * comment, and `20260817000400_shop_cart_checkout_secure_rpc.sql`, for
+   * the exact vulnerabilities this closes).
+   *
+   * Mirrors `js/api.js`'s `invokeWalletOpsFunction()` retry-safety
+   * contract EXACTLY (same reasoning, copied here rather than shared,
+   * matching this repo's existing convention of per-adapter-file
+   * duplication — see wallet-ops-handler.js/account-merge-handler.js):
+   * the ONLY case ever treated as non-retryable is a SUCCESSFULLY PARSED
+   * `{ok:false, error:{...}}` JSON body whose `error.retryable` is
+   * EXPLICITLY `false`. Every other outcome (no HTTP response at all, a
+   * response that fails to parse as JSON, a parsed body without a
+   * recognized `error` field, or a missing/non-boolean
+   * `error.retryable`) defaults to `retryable: true` — never assume "safe
+   * to give up" on an uncertain outcome.
+   */
+  async function invokeShopOpsFunction(path, body) {
+    const { data, error } = await getSupabaseClient().functions.invoke(`shop-ops/${path}`, { body });
+
+    if (error) {
+      if (error.context) {
+        let parsedBody = null;
+        try {
+          parsedBody = await error.context.json();
+        } catch (_parseError) {
+          return {
+            ok: false,
+            error: { code: "SHOP_OPS_REQUEST_FAILED", message: "請求失敗，請稍後再試一次。", retryable: true }
+          };
+        }
+
+        const serverError = parsedBody && typeof parsedBody === "object" ? parsedBody.error : null;
+
+        if (serverError && typeof serverError === "object") {
+          const retryable = typeof serverError.retryable === "boolean" ? serverError.retryable : true;
+          return { ok: false, error: { ...serverError, retryable } };
+        }
+
+        return {
+          ok: false,
+          error: { code: "SHOP_OPS_REQUEST_FAILED", message: "請求失敗，請稍後再試一次。", retryable: true }
+        };
+      }
+
+      return {
+        ok: false,
+        error: { code: "NETWORK_ERROR", message: "網路連線失敗，請稍後再試一次。", retryable: true }
+      };
+    }
+
+    return data;
+  }
+
   async function getCurrentUserId() {
     if (!window.userReadyPromise && window.UserStore?.initUser) {
       window.userReadyPromise = window.UserStore.initUser();
@@ -157,102 +215,26 @@
     return Number(data?.obtain_count || 0) >= requiredCount;
   }
 
+  // P-AUTH-05B-2B: atomic, secure Add-to-Cart — replaces the OLD
+  // "read product -> read existing cart row -> update/insert" three-step
+  // BROWSER writes (no row locking, a client-supplied `userId`, and the
+  // product/stock/unlock checks were only advisory since the final
+  // insert/update never re-verified them at write time). The
+  // `shop-ops/cart-add` Edge Function now re-verifies product existence/
+  // enabled/stock/unlock-eligibility itself from locked rows — this
+  // function sends ONLY `productId`/`quantity`; there is no price/name/
+  // owner parameter to forge.
   async function addToCart(productId, quantity = 1) {
-    if (!window.userReadyPromise && window.UserStore?.initUser) {
-      window.userReadyPromise = window.UserStore.initUser();
+    const result = await invokeShopOpsFunction("cart-add", { productId, quantity });
+
+    if (!result?.ok) {
+      const error = new Error(result?.error?.message || "加入好運籃失敗");
+      error.code = result?.error?.code;
+      error.retryable = Boolean(result?.error?.retryable);
+      throw error;
     }
 
-    const user = window.userReadyPromise
-      ? await window.userReadyPromise
-      : null;
-    const userId = String(user?.user_id || "").trim();
-
-    if (!userId) {
-      throw new Error("找不到 auth userId");
-    }
-
-    const { data: sessionData, error: sessionError } = await getSupabaseClient().auth.getSession();
-    if (sessionError) {
-      throw sessionError;
-    }
-
-    const sessionUserId = String(sessionData?.session?.user?.id || "").trim();
-    if (!sessionUserId || sessionUserId !== userId) {
-      throw new Error("auth userId 與 session.user.id 不一致");
-    }
-
-    console.log("[shop cart] auth userId =", userId);
-    console.log("[shop cart] productId =", productId);
-
-    const product = await getProduct(productId);
-
-    if (!product) {
-      throw new Error("找不到商品");
-    }
-
-    if (!product.enabled) {
-      throw new Error("商品尚未上架");
-    }
-
-    if (Number(product.stock || 0) <= 0) {
-      throw new Error("商品已售完");
-    }
-
-    const unlocked = await checkProductUnlocked(product);
-
-    if (!unlocked) {
-      throw new Error("尚未解鎖此商品購買資格");
-    }
-
-    const { data: existing, error: findError } = await getSupabaseClient()
-      .from(DB.cart)
-      .select("*")
-      .eq("user_id", userId)
-      .eq("product_id", productId)
-      .maybeSingle();
-
-    if (findError) throw findError;
-
-    if (existing) {
-      const nextQuantity =
-        Number(existing.quantity || 0) + 1;
-
-      if (nextQuantity > Number(product.stock || 0)) {
-        throw new Error("加入數量超過庫存");
-      }
-
-      const { data, error } = await getSupabaseClient()
-        .from(DB.cart)
-        .update({
-          quantity: nextQuantity,
-          selected: true,
-          unlock_verified: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", existing.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    }
-
-    const { data, error } = await getSupabaseClient()
-      .from(DB.cart)
-      .insert({
-        user_id: userId,
-        product_id: productId,
-        quantity: 1,
-        selected: true,
-        unlock_verified: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    return result.data;
   }
 
   async function getCart() {
@@ -271,50 +253,89 @@
     return data || [];
   }
 
+  // P-AUTH-05B-2B: ownership + stock/enabled re-verified server-side by
+  // `shop-ops/cart-update` — this function no longer touches `shop_cart`
+  // directly (the OLD `.eq("id", cartId)` query had NO ownership check at
+  // all).
   async function updateCartItem(cartId, updates = {}) {
-    const payload = {
-      updated_at: new Date().toISOString()
-    };
+    const quantity = typeof updates.quantity !== "undefined"
+      ? Math.max(1, Math.min(99, Math.trunc(Number(updates.quantity || 1))))
+      : 1;
 
-    if (typeof updates.quantity !== "undefined") {
-      payload.quantity = Math.max(1, Number(updates.quantity || 1));
+    const result = await invokeShopOpsFunction("cart-update", { cartId, quantity });
+
+    if (!result?.ok) {
+      const error = new Error(result?.error?.message || "更新好運籃失敗");
+      error.code = result?.error?.code;
+      error.retryable = Boolean(result?.error?.retryable);
+      throw error;
     }
 
-    if (typeof updates.selected !== "undefined") {
-      payload.selected = Boolean(updates.selected);
-    }
-
-    const { data, error } = await getSupabaseClient()
-      .from(DB.cart)
-      .update(payload)
-      .eq("id", cartId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    return result.data;
   }
 
+  // P-AUTH-05B-2B: ownership re-verified server-side by
+  // `shop-ops/cart-remove` — deliberately tolerant of "already removed" /
+  // "not owned" (returns `removed:false` rather than throwing), matching
+  // the RPC's idempotent-friendly semantics.
   async function removeCartItem(cartId) {
-    const { error } = await getSupabaseClient()
-      .from(DB.cart)
-      .delete()
-      .eq("id", cartId);
+    const result = await invokeShopOpsFunction("cart-remove", { cartId });
 
-    if (error) throw error;
+    if (!result?.ok) {
+      const error = new Error(result?.error?.message || "刪除好運籃商品失敗");
+      error.code = result?.error?.code;
+      error.retryable = Boolean(result?.error?.retryable);
+      throw error;
+    }
+
+    return Boolean(result.data?.removed);
+  }
+
+  // P-AUTH-05B-2B: owner ALWAYS resolved server-side from the verified
+  // JWT — no `userId` is sent in the request body at all.
+  async function clearCart() {
+    const result = await invokeShopOpsFunction("cart-clear", {});
+
+    if (!result?.ok) {
+      const error = new Error(result?.error?.message || "清空好運籃失敗");
+      error.code = result?.error?.code;
+      error.retryable = Boolean(result?.error?.retryable);
+      throw error;
+    }
+
     return true;
   }
 
-  async function clearCart() {
-    const userId = await getCurrentUserId();
+  // P-AUTH-05B-2B: atomic, server-authoritative Checkout — replaces
+  // js/shop/shop_cart.js's OLD three-step BROWSER writes (insert `orders`
+  // with a CLIENT-COMPUTED total_amount/total_items -> insert
+  // `order_items` with CLIENT-SUPPLIED price/subtotal/product snapshot ->
+  // delete the cart), which trusted the browser's own `cartItems` array
+  // for every price/total and had NO idempotency protection at all (a
+  // lost response or double-click could create two orders). The
+  // `shop-ops/checkout` Edge Function now does all of this in ONE DB
+  // transaction, re-verifying price/stock/enabled from locked rows.
+  //
+  // `idempotencyKey` is REQUIRED and MUST be generated ONCE by the caller
+  // when the checkout attempt begins (e.g. js/shop/shop_cart.js's
+  // `getOrCreateCheckoutIdempotencyKey()`), reused verbatim on a retry of
+  // that SAME attempt — this function deliberately does NOT generate one
+  // itself, so a manual retry can never silently mint a fresh key.
+  async function checkoutCart({ idempotencyKey } = {}) {
+    if (!idempotencyKey) {
+      throw new Error("checkoutCart 需要呼叫端提供 idempotencyKey（操作開始時產生一次，重試時沿用同一個）。");
+    }
 
-    const { error } = await getSupabaseClient()
-      .from(DB.cart)
-      .delete()
-      .eq("user_id", userId);
+    const result = await invokeShopOpsFunction("checkout", { idempotencyKey });
 
-    if (error) throw error;
-    return true;
+    if (!result?.ok) {
+      const error = new Error(result?.error?.message || "建立訂單失敗");
+      error.code = result?.error?.code;
+      error.retryable = Boolean(result?.error?.retryable);
+      throw error;
+    }
+
+    return result.data;
   }
 
   window.ShopApi = {
@@ -327,6 +348,8 @@
     getCart,
     updateCartItem,
     removeCartItem,
-    clearCart
+    clearCart,
+    checkoutCart
   };
 })();
+

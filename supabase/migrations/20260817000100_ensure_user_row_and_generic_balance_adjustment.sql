@@ -49,24 +49,50 @@
 
 DO $$
 DECLARE
-    users_pk_column TEXT;
-    users_pk_type TEXT;
+    users_user_id_type TEXT;
 BEGIN
-    SELECT a.attname, format_type(a.atttypid, a.atttypmod)
-      INTO users_pk_column, users_pk_type
-      FROM pg_index i
-      JOIN pg_class c ON c.oid = i.indrelid
+    -- P-AUTH-05B-2B.2 hotfix: this originally searched for whichever
+    -- column is `users`'s actual PRIMARY KEY (candidates `user_id`/`id`),
+    -- assuming `user_id` itself would be that PK. On the real project,
+    -- `users`'s true PK is a SEPARATE surrogate column (`id`), while
+    -- `user_id` (the real Supabase Auth UID — the column EVERY other
+    -- table/RPC in this repo already keys identity on) is merely
+    -- UNIQUE-constrained, not the PK. The original dynamic search picked
+    -- `id`, which would have made this function `INSERT`/`ON CONFLICT` on
+    -- the WRONG column entirely — a new row would get `id = <the auth
+    -- UID>` while `user_id` itself stayed NULL, so every other function's
+    -- `WHERE user_id::text = p_user_id` lookup (claim_gacha_draw,
+    -- redeem_gift_transaction, apply_point_transaction, etc.) would never
+    -- find that user again. Fixed by targeting `user_id` BY NAME
+    -- (matching the established, universal app convention) and only
+    -- dynamically detecting its TYPE, with an explicit check that it
+    -- actually carries a PRIMARY KEY/UNIQUE constraint (required for
+    -- `ON CONFLICT` to target it) before defining the function.
+    SELECT format_type(a.atttypid, a.atttypmod)
+      INTO users_user_id_type
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
       JOIN pg_namespace n ON n.oid = c.relnamespace
-      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey)
      WHERE n.nspname = 'public'
        AND c.relname = 'users'
-       AND i.indisprimary
-       AND i.indnatts = 1
-       AND a.attname = ANY (ARRAY['user_id', 'id'])
-     LIMIT 1;
+       AND a.attname = 'user_id'
+       AND a.attnum > 0
+       AND NOT a.attisdropped;
 
-    IF users_pk_column IS NULL OR users_pk_type IS NULL THEN
-        RAISE EXCEPTION 'Cannot create ensure_user_row: public.users single-column PK with candidate name (user_id|id) not found.';
+    IF users_user_id_type IS NULL THEN
+        RAISE EXCEPTION 'Cannot create ensure_user_row: public.users.user_id column not found.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint con
+          JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+         WHERE con.conrelid = 'public.users'::regclass
+           AND con.contype IN ('p', 'u')
+           AND con.conkey = ARRAY[a.attnum]
+           AND a.attname = 'user_id'
+    ) THEN
+        RAISE EXCEPTION 'Cannot create ensure_user_row: public.users.user_id has no PRIMARY KEY/UNIQUE constraint for ON CONFLICT to target.';
     END IF;
 
     -- `ensure_user_row`: dynamic EXECUTE is required (unlike
@@ -92,13 +118,13 @@ BEGIN
                 RAISE EXCEPTION 'ensure_user_row: p_user_id is required';
             END IF;
 
-            INSERT INTO public.users (%2$I, nickname, points, tickets, coins, updated_at)
+            INSERT INTO public.users (user_id, nickname, points, tickets, coins, updated_at)
             VALUES (p_user_id::%1$s, COALESCE(btrim(p_nickname), ''), 0, 0, 20, NOW())
-            ON CONFLICT (%2$I) DO NOTHING
+            ON CONFLICT (user_id) DO NOTHING
             RETURNING * INTO v_user;
 
             IF NOT FOUND THEN
-                SELECT * INTO v_user FROM public.users WHERE %2$I::text = p_user_id;
+                SELECT * INTO v_user FROM public.users WHERE user_id::text = p_user_id;
             END IF;
 
             IF v_user IS NULL THEN
@@ -108,7 +134,7 @@ BEGIN
             RETURN v_user;
         END;
         $fn$;
-    $sql$, users_pk_type, users_pk_column);
+    $sql$, users_user_id_type);
 END $$;
 
 REVOKE ALL ON FUNCTION public.ensure_user_row(TEXT, TEXT) FROM PUBLIC;

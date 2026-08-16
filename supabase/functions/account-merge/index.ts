@@ -44,7 +44,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(405, {
       ok: false,
       error: { code: "INVALID_REQUEST", message: "Only POST is supported." },
-    }, correlationId);
+    }, correlationId, req);
   }
 
   const pathname = new URL(req.url).pathname;
@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(404, {
       ok: false,
       error: { code: "INVALID_REQUEST", message: "Unknown account-merge route." },
-    }, correlationId);
+    }, correlationId, req);
   }
 
   // deno-lint-ignore no-explicit-any
@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(400, {
       ok: false,
       error: { code: "INVALID_REQUEST", message: "Request body must be valid JSON." },
-    }, correlationId);
+    }, correlationId, req);
   }
 
   // The caller's identity ALWAYS comes from here — the anon client
@@ -86,7 +86,7 @@ Deno.serve(async (req: Request) => {
       ? await handleBeginMergeRequest({ body, user, correlationId, deps: { repository } })
       : await handleFinalizeMergeRequest({ body, user, correlationId, deps: { repository } });
 
-    return jsonResponse(result.statusCode, result.body, correlationId);
+    return jsonResponse(result.statusCode, result.body, correlationId, req);
   } catch (error) {
     // Hotfix (P-AUTH-05B-1 hotfix, requirement 6): never log the raw
     // error message/claimToken/email/Authorization/request body here —
@@ -105,6 +105,6 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(500, {
       ok: false,
       error: { code: "MERGE_CLAIM_INVALID", message: "Unexpected server error." },
-    }, correlationId);
+    }, correlationId, req);
   }
 });

@@ -46,24 +46,38 @@
 
 DO $$
 DECLARE
-    users_pk_column TEXT;
-    users_pk_type TEXT;
+    users_user_id_type TEXT;
 BEGIN
-    SELECT a.attname, format_type(a.atttypid, a.atttypmod)
-      INTO users_pk_column, users_pk_type
-      FROM pg_index i
-      JOIN pg_class c ON c.oid = i.indrelid
+    -- P-AUTH-05B-2B.2 hotfix: see point_transactions' identical fix in
+    -- 20260816000100_point_transactions_ledger.sql for the full
+    -- rationale (the real PK of `users` is a separate `id` column; the
+    -- FK here must target `user_id` BY NAME, which is merely
+    -- UNIQUE-constrained, not the table's PK).
+    SELECT format_type(a.atttypid, a.atttypmod)
+      INTO users_user_id_type
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
       JOIN pg_namespace n ON n.oid = c.relnamespace
-      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey)
      WHERE n.nspname = 'public'
        AND c.relname = 'users'
-       AND i.indisprimary
-       AND i.indnatts = 1
-       AND a.attname = ANY (ARRAY['user_id', 'id'])
-     LIMIT 1;
+       AND a.attname = 'user_id'
+       AND a.attnum > 0
+       AND NOT a.attisdropped;
 
-    IF users_pk_column IS NULL OR users_pk_type IS NULL THEN
-        RAISE EXCEPTION 'Cannot create ticket_transactions/coin_transactions: public.users single-column PK with candidate name (user_id|id) not found.';
+    IF users_user_id_type IS NULL THEN
+        RAISE EXCEPTION 'Cannot create ticket_transactions/coin_transactions: public.users.user_id column not found.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint con
+          JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+         WHERE con.conrelid = 'public.users'::regclass
+           AND con.contype IN ('p', 'u')
+           AND con.conkey = ARRAY[a.attnum]
+           AND a.attname = 'user_id'
+    ) THEN
+        RAISE EXCEPTION 'Cannot create ticket_transactions/coin_transactions: public.users.user_id has no PRIMARY KEY/UNIQUE constraint to reference via foreign key.';
     END IF;
 
     EXECUTE format($sql$
@@ -76,9 +90,9 @@ BEGIN
             balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             CONSTRAINT fk_ticket_transactions_user FOREIGN KEY (user_id)
-                REFERENCES public.users(%2$I) ON DELETE RESTRICT
+                REFERENCES public.users(user_id) ON DELETE RESTRICT
         );
-    $sql$, users_pk_type, users_pk_column);
+    $sql$, users_user_id_type);
 
     EXECUTE format($sql$
         CREATE TABLE IF NOT EXISTS public.coin_transactions (
@@ -90,9 +104,9 @@ BEGIN
             balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             CONSTRAINT fk_coin_transactions_user FOREIGN KEY (user_id)
-                REFERENCES public.users(%2$I) ON DELETE RESTRICT
+                REFERENCES public.users(user_id) ON DELETE RESTRICT
         );
-    $sql$, users_pk_type, users_pk_column);
+    $sql$, users_user_id_type);
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_ticket_transactions_user_created_at_desc
@@ -159,10 +173,18 @@ DECLARE
     v_current_tickets INTEGER;
     v_next_tickets INTEGER;
     v_transaction public.ticket_transactions;
+    -- P-AUTH-05B-2B.2 hotfix: see apply_point_transaction's identical fix
+    -- in 20260816000100_point_transactions_ledger.sql for the full
+    -- rationale (text->uuid via %TYPE assignment, since
+    -- ticket_transactions.user_id was dynamically matched to
+    -- users.user_id's real type, confirmed uuid on the real project).
+    v_user_id public.ticket_transactions.user_id%TYPE;
 BEGIN
     IF p_user_id IS NULL OR btrim(p_user_id) = '' THEN
         RAISE EXCEPTION 'apply_ticket_transaction: p_user_id is required';
     END IF;
+
+    v_user_id := p_user_id;
 
     IF p_reason IS NULL OR btrim(p_reason) = '' THEN
         RAISE EXCEPTION 'apply_ticket_transaction: p_reason is required';
@@ -189,7 +211,7 @@ BEGIN
      WHERE user_id::text = p_user_id;
 
     INSERT INTO public.ticket_transactions (user_id, delta, reason, reference_id, balance_after)
-    VALUES (p_user_id, p_delta, p_reason, p_reference_id, v_next_tickets)
+    VALUES (v_user_id, p_delta, p_reason, p_reference_id, v_next_tickets)
     RETURNING * INTO v_transaction;
 
     RETURN v_transaction;
@@ -217,10 +239,16 @@ DECLARE
     v_current_coins INTEGER;
     v_next_coins INTEGER;
     v_transaction public.coin_transactions;
+    -- P-AUTH-05B-2B.2 hotfix: see apply_point_transaction's identical fix
+    -- in 20260816000100_point_transactions_ledger.sql for the full
+    -- rationale.
+    v_user_id public.coin_transactions.user_id%TYPE;
 BEGIN
     IF p_user_id IS NULL OR btrim(p_user_id) = '' THEN
         RAISE EXCEPTION 'apply_coin_transaction: p_user_id is required';
     END IF;
+
+    v_user_id := p_user_id;
 
     IF p_reason IS NULL OR btrim(p_reason) = '' THEN
         RAISE EXCEPTION 'apply_coin_transaction: p_reason is required';
@@ -247,7 +275,7 @@ BEGIN
      WHERE user_id::text = p_user_id;
 
     INSERT INTO public.coin_transactions (user_id, delta, reason, reference_id, balance_after)
-    VALUES (p_user_id, p_delta, p_reason, p_reference_id, v_next_coins)
+    VALUES (v_user_id, p_delta, p_reason, p_reference_id, v_next_coins)
     RETURNING * INTO v_transaction;
 
     RETURN v_transaction;
@@ -267,8 +295,10 @@ GRANT EXECUTE ON FUNCTION public.apply_coin_transaction(TEXT, INTEGER, TEXT, UUI
 DO $$
 BEGIN
     IF to_regclass('public.users') IS NOT NULL THEN
+        -- P-AUTH-05B-2B.2 hotfix: NO cast — see point_transactions'
+        -- identical fix for the full rationale.
         INSERT INTO public.ticket_transactions (user_id, delta, reason, balance_after)
-        SELECT u.user_id::text, COALESCE(u.tickets, 0), 'ledger_backfill', COALESCE(u.tickets, 0)
+        SELECT u.user_id, COALESCE(u.tickets, 0), 'ledger_backfill', COALESCE(u.tickets, 0)
           FROM public.users u
          WHERE NOT EXISTS (
                 SELECT 1 FROM public.ticket_transactions tt
@@ -277,7 +307,7 @@ BEGIN
                );
 
         INSERT INTO public.coin_transactions (user_id, delta, reason, balance_after)
-        SELECT u.user_id::text, COALESCE(u.coins, 0), 'ledger_backfill', COALESCE(u.coins, 0)
+        SELECT u.user_id, COALESCE(u.coins, 0), 'ledger_backfill', COALESCE(u.coins, 0)
           FROM public.users u
          WHERE NOT EXISTS (
                 SELECT 1 FROM public.coin_transactions ct

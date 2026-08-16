@@ -74,7 +74,12 @@ test("wallet ledger migration: backfill block only INSERTs, never UPDATEs users.
 // --- 20260817000100: ensure_user_row + generic balance adjustment ---
 
 test("ensure_user_row: is a true insert-if-missing (ON CONFLICT ... DO NOTHING), never overwrites an existing row's balance columns", () => {
-  assert.match(ENSURE_USER_SQL, /ON CONFLICT\s*\(%2\$I\)\s*DO NOTHING/);
+  // P-AUTH-05B-2B.2 hotfix: `ON CONFLICT` now targets `user_id` BY NAME
+  // (hardcoded) rather than a dynamically-detected `%2$I` PK column — see
+  // that migration's header for why the dynamic PK search was wrong
+  // (users's real PK is a separate `id` column; `user_id` is merely
+  // UNIQUE-constrained).
+  assert.match(ENSURE_USER_SQL, /ON CONFLICT\s*\(user_id\)\s*DO NOTHING/);
   assert.doesNotMatch(ENSURE_USER_SQL, /ON CONFLICT[\s\S]{0,100}?DO UPDATE[\s\S]{0,200}?(points|tickets|coins)\s*=/);
 });
 

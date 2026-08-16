@@ -42,24 +42,53 @@
 
 DO $$
 DECLARE
-    users_pk_column TEXT;
-    users_pk_type TEXT;
+    users_user_id_type TEXT;
 BEGIN
-    SELECT a.attname, format_type(a.atttypid, a.atttypmod)
-      INTO users_pk_column, users_pk_type
-      FROM pg_index i
-      JOIN pg_class c ON c.oid = i.indrelid
+    -- P-AUTH-05B-2B.2 hotfix: this originally searched for whichever
+    -- column is `users`'s actual PRIMARY KEY (guessing it would be named
+    -- `user_id` or `id`), on the theory that no live-schema introspection
+    -- was available at authoring time. On the real project, `users`'s
+    -- true PK is a SEPARATE surrogate column (`id`), while `user_id` (the
+    -- real Supabase Auth UID — the column EVERY other table/RPC in this
+    -- repo already keys identity on: shop_cart.user_id, orders.user_id,
+    -- user_mascots.user_id, redeem_history.user_id, apply_point_transaction's
+    -- own `WHERE user_id::text = p_user_id`) is a DIFFERENT, merely
+    -- UNIQUE-constrained column. The original dynamic PK search picked
+    -- `id` (since that IS the true PK), producing a FOREIGN KEY that
+    -- referenced the wrong column entirely — every backfill INSERT then
+    -- failed with "Key (user_id)=(...) is not present in table users"
+    -- (comparing a real Auth UID against `users.id`, which are unrelated
+    -- values). Fixed by targeting `user_id` BY NAME (matching the
+    -- established, universal app convention) and dynamically detecting
+    -- only its TYPE (still portable across environments where that type
+    -- might differ), with an explicit check that it actually carries a
+    -- PRIMARY KEY/UNIQUE constraint (required for any FK to reference it)
+    -- before creating the table.
+    SELECT format_type(a.atttypid, a.atttypmod)
+      INTO users_user_id_type
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
       JOIN pg_namespace n ON n.oid = c.relnamespace
-      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey)
      WHERE n.nspname = 'public'
        AND c.relname = 'users'
-       AND i.indisprimary
-       AND i.indnatts = 1
-       AND a.attname = ANY (ARRAY['user_id', 'id'])
-     LIMIT 1;
+       AND a.attname = 'user_id'
+       AND a.attnum > 0
+       AND NOT a.attisdropped;
 
-    IF users_pk_column IS NULL OR users_pk_type IS NULL THEN
-        RAISE EXCEPTION 'Cannot create point_transactions: public.users single-column PK with candidate name (user_id|id) not found.';
+    IF users_user_id_type IS NULL THEN
+        RAISE EXCEPTION 'Cannot create point_transactions: public.users.user_id column not found.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint con
+          JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+         WHERE con.conrelid = 'public.users'::regclass
+           AND con.contype IN ('p', 'u')
+           AND con.conkey = ARRAY[a.attnum]
+           AND a.attname = 'user_id'
+    ) THEN
+        RAISE EXCEPTION 'Cannot create point_transactions: public.users.user_id has no PRIMARY KEY/UNIQUE constraint to reference via foreign key.';
     END IF;
 
     EXECUTE format($sql$
@@ -72,9 +101,9 @@ BEGIN
             balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             CONSTRAINT fk_point_transactions_user FOREIGN KEY (user_id)
-                REFERENCES public.users(%2$I) ON DELETE RESTRICT
+                REFERENCES public.users(user_id) ON DELETE RESTRICT
         );
-    $sql$, users_pk_type, users_pk_column);
+    $sql$, users_user_id_type);
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_point_transactions_user_created_at_desc
@@ -149,10 +178,23 @@ DECLARE
     v_current_points INTEGER;
     v_next_points INTEGER;
     v_transaction public.point_transactions;
+    -- P-AUTH-05B-2B.2 hotfix: `point_transactions.user_id`'s type was
+    -- dynamically matched to `public.users`'s real PK type at CREATE TABLE
+    -- time (see this migration's header) — on the real project that is
+    -- `uuid`, NOT `text`. A bare `p_user_id` (declared TEXT) cannot be
+    -- inserted directly into a `uuid` column (no implicit/assignment cast
+    -- exists from text to uuid in plain SQL). Assigning it to a `%TYPE`
+    -- variable first lets PL/pgSQL convert it via the target type's own
+    -- input function (succeeds for any valid UUID-formatted string, which
+    -- every real caller here always supplies — see auth.uid()-derived
+    -- p_user_id at every call site).
+    v_user_id public.point_transactions.user_id%TYPE;
 BEGIN
     IF p_user_id IS NULL OR btrim(p_user_id) = '' THEN
         RAISE EXCEPTION 'apply_point_transaction: p_user_id is required';
     END IF;
+
+    v_user_id := p_user_id;
 
     IF p_reason IS NULL OR btrim(p_reason) = '' THEN
         RAISE EXCEPTION 'apply_point_transaction: p_reason is required';
@@ -179,7 +221,7 @@ BEGIN
      WHERE user_id::text = p_user_id;
 
     INSERT INTO public.point_transactions (user_id, delta, reason, reference_id, balance_after)
-    VALUES (p_user_id, p_delta, p_reason, p_reference_id, v_next_points)
+    VALUES (v_user_id, p_delta, p_reason, p_reference_id, v_next_points)
     RETURNING * INTO v_transaction;
 
     RETURN v_transaction;
@@ -200,8 +242,17 @@ GRANT EXECUTE ON FUNCTION public.apply_point_transaction(TEXT, INTEGER, TEXT, UU
 DO $$
 BEGIN
     IF to_regclass('public.users') IS NOT NULL THEN
+        -- P-AUTH-05B-2B.2 hotfix: NO cast here — `u.user_id`'s NATIVE type
+        -- (whatever `public.users`'s real PK type is) always matches
+        -- `point_transactions.user_id`'s dynamically-derived type exactly
+        -- (see CREATE TABLE above), so passing it through unchanged is the
+        -- only truly portable option; an explicit `::text` cast breaks
+        -- this whenever the real column type is NOT text (e.g. uuid on
+        -- the real project — this is what originally caused this INSERT
+        -- to fail with "column \"user_id\" is of type uuid but expression
+        -- is of type text").
         INSERT INTO public.point_transactions (user_id, delta, reason, balance_after)
-        SELECT u.user_id::text, COALESCE(u.points, 0), 'ledger_backfill', COALESCE(u.points, 0)
+        SELECT u.user_id, COALESCE(u.points, 0), 'ledger_backfill', COALESCE(u.points, 0)
           FROM public.users u
          WHERE NOT EXISTS (
                 SELECT 1 FROM public.point_transactions pt
