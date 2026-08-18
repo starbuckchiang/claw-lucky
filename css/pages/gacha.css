@@ -40,6 +40,23 @@ body {
   margin-bottom: 16px;
 }
 
+.gacha-page-status {
+  margin: 10px 14px 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  border-radius: 14px;
+  border: 1px dashed rgba(92, 52, 28, 0.28);
+  background: rgba(255, 248, 232, 0.75);
+  color: var(--gacha-ink-soft);
+}
+
+.gacha-page-status[data-tone="error"] {
+  background: rgba(178, 44, 44, 0.12);
+  color: #7a1f1f;
+  border-color: rgba(178, 44, 44, 0.35);
+}
+
 .gacha-page .panel,
 .gacha-page .hero-card {
   background: linear-gradient(180deg, #efdcb6 0%, #e3c78f 100%);

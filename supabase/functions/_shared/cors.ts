@@ -15,11 +15,20 @@
 //     docs)
 //   - http://localhost:5588 (the beta/closed-test dev port actually used
 //     to reproduce the wallet-ops CORS failure this hotfix addresses)
+//   - https://starbuckchiang.github.io (P-AUTH-05D hotfix: the REAL,
+//     confirmed GitHub Pages origin — an ORIGIN is scheme+host+port ONLY,
+//     it never includes a path, so this is deliberately NOT
+//     "https://starbuckchiang.github.io/claw-lucky" and has NO trailing
+//     slash; the browser's own `Origin` request header for any page under
+//     that Pages site, e.g. `/claw-lucky/gacha.html`, is always exactly
+//     this value). Confirmed live via the actual CORS failure this hotfix
+//     addresses (response echoed the wrong fallback origin instead of
+//     this real one).
 // A real deployed staging/production frontend origin can be added via the
 // `ALLOWED_ORIGIN_EXTRA` environment variable (comma-separated) WITHOUT
 // ever hardcoding an unconfirmed URL into source — set it on the Supabase
 // project once a real staging domain exists and is confirmed.
-const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:5500", "http://localhost:5588"];
+const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:5500", "http://localhost:5588", "https://starbuckchiang.github.io"];
 
 function getAllowedOrigins(): string[] {
   const extra = (globalThis as { Deno?: { env: { get(name: string): string | undefined } } }).Deno

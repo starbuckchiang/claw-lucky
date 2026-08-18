@@ -18,6 +18,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const {
   resolveAllowOrigin,
@@ -117,4 +119,68 @@ test("jsonResponse: a disallowed origin never receives a fake allowed origin on 
   const req = requestWithOrigin("https://evil.example.com", { method: "POST" });
   const response = jsonResponse(403, { ok: false, error: { code: "FORBIDDEN" } }, "corr-4", req);
   assert.equal(response.headers.get("Access-Control-Allow-Origin"), null);
+});
+
+// --- P-AUTH-05D hotfix: real GitHub Pages origin (https://starbuckchiang.github.io) ---
+
+test("resolveAllowOrigin: echoes back the real GitHub Pages origin exactly (scheme+host only, no /claw-lucky path, no trailing slash)", () => {
+  assert.equal(resolveAllowOrigin("https://starbuckchiang.github.io"), "https://starbuckchiang.github.io");
+});
+
+test("resolveAllowOrigin: a lookalike origin (subdomain/path variant) is NOT fooled into matching the GitHub Pages allowlist entry", () => {
+  assert.equal(resolveAllowOrigin("https://starbuckchiang.github.io.evil.com"), null);
+  assert.equal(resolveAllowOrigin("https://evil.starbuckchiang.github.io"), null);
+  assert.equal(resolveAllowOrigin("http://starbuckchiang.github.io"), null); // wrong scheme
+});
+
+test("handleCorsPreflight: OPTIONS from https://starbuckchiang.github.io -> 200 with Access-Control-Allow-Origin exactly matching (no path, no trailing slash)", () => {
+  const req = requestWithOrigin("https://starbuckchiang.github.io", { method: "OPTIONS" });
+  const response = handleCorsPreflight(req);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Access-Control-Allow-Origin"), "https://starbuckchiang.github.io");
+});
+
+test("jsonResponse: a real POST success response from GitHub Pages echoes the exact GitHub Pages origin", () => {
+  const req = requestWithOrigin("https://starbuckchiang.github.io", { method: "POST" });
+  const response = jsonResponse(200, { ok: true, data: {} }, "corr-5", req);
+
+  assert.equal(response.headers.get("Access-Control-Allow-Origin"), "https://starbuckchiang.github.io");
+});
+
+test("jsonResponse: an ERROR response from GitHub Pages ALSO echoes the exact GitHub Pages origin (success and error paths identical)", () => {
+  const req = requestWithOrigin("https://starbuckchiang.github.io", { method: "POST" });
+  const response = jsonResponse(400, { ok: false, error: { code: "INVALID_REQUEST" } }, "corr-6", req);
+
+  assert.equal(response.headers.get("Access-Control-Allow-Origin"), "https://starbuckchiang.github.io");
+});
+
+test("resolveAllowOrigin: localhost:5500/5588 remain allowed alongside the new GitHub Pages origin (no regression)", () => {
+  assert.equal(resolveAllowOrigin("http://localhost:5500"), "http://localhost:5500");
+  assert.equal(resolveAllowOrigin("http://localhost:5588"), "http://localhost:5588");
+});
+
+test("resolveAllowOrigin: https://evil.example.com still resolves to null (no wildcard, no accidental broadening)", () => {
+  assert.equal(resolveAllowOrigin("https://evil.example.com"), null);
+});
+
+// --- P-AUTH-05D hotfix: wallet-ops, shop-ops, and account-merge all
+// import the SAME shared cors.ts — this one allowlist fix applies to all
+// three without any per-function CORS logic to keep in sync. ---
+
+test("wallet-ops/shop-ops/account-merge entrypoints all import handleCorsPreflight/jsonResponse from the SAME shared ../_shared/cors.ts (no duplicated/divergent CORS logic)", () => {
+  const entrypoints = [
+    path.join(__dirname, "..", "..", "wallet-ops", "index.ts"),
+    path.join(__dirname, "..", "..", "shop-ops", "index.ts"),
+    path.join(__dirname, "..", "..", "account-merge", "index.ts")
+  ];
+
+  for (const entrypoint of entrypoints) {
+    const source = fs.readFileSync(entrypoint, "utf8");
+    assert.match(
+      source,
+      /import\s*{\s*handleCorsPreflight,\s*jsonResponse\s*}\s*from\s*"\.\.\/_shared\/cors\.ts"/,
+      `${entrypoint} does not import from the shared cors.ts`
+    );
+  }
 });

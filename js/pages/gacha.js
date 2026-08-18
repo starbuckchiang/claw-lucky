@@ -36,6 +36,7 @@ const refs = {
   pointCountEl: document.getElementById("pointCount"),
   ticketCountEl: document.getElementById("ticketCount"),
   collectionCountEl: document.getElementById("collectionCount"),
+  gachaPageStatusEl: document.getElementById("gachaPageStatus"),
 
   watchAdBtnEl: document.getElementById("watchAdBtn"),
   adRemainingEl: document.getElementById("adRemaining"),
@@ -105,6 +106,32 @@ function renderTopbar(remoteUser) {
 
 async function refreshTopbarFromRemote() {
   return window.Topbar.refresh(refs);
+}
+
+/* ============================================================
+   Load Error Display
+   ------------------------------------------------------------
+   不得將API錯誤轉成看似正常的0：若coins/points/tickets無法從
+   Supabase取得，需明確顯示載入失敗，並將數字欄位改為 — ，
+   避免static HTML預設的 "0" 永遠留在畫面上誤導使用者。
+   ============================================================ */
+function showLoadError(message) {
+  [refs.coinCountEl, refs.pointCountEl, refs.ticketCountEl].forEach((el) => {
+    if (el) el.textContent = "—";
+  });
+
+  if (refs.gachaPageStatusEl) {
+    refs.gachaPageStatusEl.textContent = message;
+    refs.gachaPageStatusEl.dataset.tone = "error";
+    refs.gachaPageStatusEl.classList.remove("hidden");
+  }
+}
+
+function clearLoadError() {
+  if (refs.gachaPageStatusEl) {
+    refs.gachaPageStatusEl.textContent = "";
+    refs.gachaPageStatusEl.classList.add("hidden");
+  }
 }
 
 /* ============================================================
@@ -435,7 +462,11 @@ async function initGachaPage() {
     return;
   }
 
- await loadMascotsFromSupabase();
+  try {
+    await loadMascotsFromSupabase();
+  } catch (error) {
+    console.error("[gacha] loadMascotsFromSupabase 失敗，改用本地 GachaData", error);
+  }
 
   if (storage?.ensureDefaults) {
     storage.ensureDefaults({
@@ -465,7 +496,13 @@ async function initGachaPage() {
     );
   }
 
-  await refreshTopbarFromRemote();
+  try {
+    await refreshTopbarFromRemote();
+    clearLoadError();
+  } catch (error) {
+    console.error("[gacha] refreshTopbarFromRemote 失敗", error);
+    showLoadError("資料載入失敗，請重新整理或登入。");
+  }
 
   renderAdRemaining();
 

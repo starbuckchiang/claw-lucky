@@ -17,9 +17,14 @@
  * Uses `process.env.ALLOWED_ORIGIN_EXTRA` in place of `Deno.env.get(...)`
  * — the Node-side equivalent of the same environment-variable extension
  * point.
+ *
+ * P-AUTH-05D hotfix: added the real, confirmed GitHub Pages origin
+ * `https://starbuckchiang.github.io` (origin = scheme+host+port only, no
+ * `/claw-lucky` path, no trailing slash) alongside the existing localhost
+ * dev ports.
  */
 
-const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:5500", "http://localhost:5588"];
+const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:5500", "http://localhost:5588", "https://starbuckchiang.github.io"];
 
 function getAllowedOrigins() {
   const extra = process.env.ALLOWED_ORIGIN_EXTRA || "";
