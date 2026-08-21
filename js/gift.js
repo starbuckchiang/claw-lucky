@@ -416,6 +416,20 @@
     }
     const idempotencyKey = pendingRedeemIdempotencyKey;
 
+    // gift-redeem-refresh-hotfix: the actual "did the redemption itself
+    // succeed" call is now isolated in its OWN try/catch, separate from
+    // the post-success refresh calls below. Previously this whole
+    // function (redeemGift + loadUserData + loadPublicGifts +
+    // loadRedeemHistory) shared ONE try/catch, so a refresh failure AFTER
+    // a successful, already-committed redemption fell into the same
+    // catch block as a genuine redeem failure — it showed "兌換失敗，請重新
+    // 整理後再試" (misleading; the redemption had already succeeded on the
+    // server) and cleared the idempotency key (dangerous; a user who
+    // then retried, believing it had failed, would trigger a brand-new,
+    // genuinely SECOND redemption of a real item since the retry gets a
+    // FRESH idempotency key once `pendingRedeemGiftId` is cleared).
+    let redeemResult;
+
     try {
       const { data: sessionData, error: sessionError } = await window.supabaseClient.auth.getSession();
       if (sessionError) {
@@ -435,7 +449,7 @@
         throw new Error(latestAvailability.reason || "目前不可兌換");
       }
 
-      await getApi().redeemGift({
+      redeemResult = await getApi().redeemGift({
         userId: latestUser.user_id,
         nickname: latestUser.nickname || "",
         giftId: latestGift.id,
@@ -454,17 +468,13 @@
       // `Api.decreaseGiftStock()` call here has been removed; keeping it
       // would have been a redundant, non-atomic SECOND write racing
       // against the atomic one above.
-
-      pendingRedeemGiftId = null;
-      pendingRedeemIdempotencyKey = null;
-
-      await loadUserData();
-      await loadPublicGifts();
-      await loadRedeemHistory();
-      showStatus(`兌換成功：${latestGift.name}`, "success");
     } catch (error) {
       console.error("[gift] redeem failed", error);
-      showStatus("兌換失敗，請重新整理後再試", "error");
+      // Show the backend's own classified message when available (server
+      // rejections always come back as `Error(result.error.message)` from
+      // Api.redeemGift) instead of a fixed generic string, so the user
+      // sees the real reason (insufficient points/out of stock/etc.).
+      showStatus(error?.message || "兌換失敗，請重新整理後再試", "error");
 
       // P-AUTH-05B-2A hotfix (requirement 5): only a genuine network-layer
       // failure (`error.retryable === true`) keeps the SAME idempotency
@@ -476,6 +486,40 @@
         pendingRedeemGiftId = null;
         pendingRedeemIdempotencyKey = null;
       }
+
+      state.isRedeeming = false;
+      renderGifts();
+      return;
+    }
+
+    // The redemption itself is CONFIRMED successful on the server at this
+    // point — this idempotency key's job is done. Clear it now,
+    // unconditionally, so a refresh failure below can never cause it to
+    // be reused for a second, real gift-redeem call (requirement: 不得因
+    // UI沒有刷新就自動重送兌換 / 不得自動重新呼叫gift-redeem).
+    pendingRedeemGiftId = null;
+    pendingRedeemIdempotencyKey = null;
+
+    const redeemedGiftName = redeemResult?.redeemRecord?.gift_name || gift.name;
+    showStatus(`兌換成功：${redeemedGiftName}，正在更新畫面...`, "info");
+
+    try {
+      // Reload wallet/gift-inventory/history from the server in parallel —
+      // never derive the new points/tickets/stock by subtracting the cost
+      // on the frontend.
+      await Promise.all([
+        loadUserData(),
+        loadPublicGifts(),
+        loadRedeemHistory()
+      ]);
+      showStatus(`兌換成功：${redeemedGiftName}`, "success");
+    } catch (refreshError) {
+      // The redemption already succeeded — never claim it failed, and
+      // never automatically call gift-redeem again. The original
+      // idempotency result is preserved server-side for audit regardless
+      // of this refresh failure.
+      console.error("[gift] post-redeem refresh failed", refreshError);
+      showStatus("兌換已完成，但資料刷新失敗，請重新整理頁面", "warn");
     } finally {
       state.isRedeeming = false;
       renderGifts();
