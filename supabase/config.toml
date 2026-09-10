@@ -1,0 +1,10 @@
+# Auth-07 local Supabase config (NOT deployed by this Gate).
+# Only paypal-webhook disables gateway JWT verification because PayPal
+# cannot send a Supabase JWT. Signature verification remains mandatory
+# inside the Edge Function. All other functions keep default verify_jwt=true.
+
+[functions.paypal-webhook]
+verify_jwt = false
+
+[functions.paypal-subscription]
+verify_jwt = true

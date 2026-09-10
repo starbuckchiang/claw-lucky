@@ -3,8 +3,16 @@
   const emailOtpServiceApi = window.EmailOtpService;
   const accountMergeServiceApi = window.AccountMergeService;
   const guardApi = window.SubscriptionEntryGuard;
+  const paypalSubscriptionServiceApi = window.PaypalSubscriptionService;
+  const flow = window.PaypalSubscriptionFlow;
+
+  if (!paypalSubscriptionServiceApi || !flow) {
+    console.error("[subscription-entry] missing PaypalSubscriptionService or PaypalSubscriptionFlow");
+    return;
+  }
 
   const refs = {
+    planSection: document.getElementById("planSection"),
     planButtons: Array.from(document.querySelectorAll("[data-plan-id]")),
     otpPanel: document.getElementById("otpPanel"),
     otpStep1: document.getElementById("otpStep1"),
@@ -17,37 +25,38 @@
     resendOtpBtn: document.getElementById("resendOtpBtn"),
     readyPanel: document.getElementById("readyPanel"),
     readyPlanLabel: document.getElementById("readyPlanLabel"),
+    paypalButtonsMount: document.getElementById("paypalButtonsMount"),
+    paymentStatusText: document.getElementById("paymentStatusText"),
+    statusPanel: document.getElementById("statusPanel"),
+    statusBadge: document.getElementById("statusBadge"),
+    statusHeadline: document.getElementById("statusHeadline"),
+    statusDetail: document.getElementById("statusDetail"),
+    statusMeta: document.getElementById("statusMeta"),
+    statusPlanCode: document.getElementById("statusPlanCode"),
+    statusValue: document.getElementById("statusValue"),
+    statusNextBilling: document.getElementById("statusNextBilling"),
+    statusPaidThrough: document.getElementById("statusPaidThrough"),
+    cancelRow: document.getElementById("cancelRow"),
+    cancelSubscriptionBtn: document.getElementById("cancelSubscriptionBtn"),
+    statusActionText: document.getElementById("statusActionText"),
     errorPanel: document.getElementById("errorPanel"),
     errorMessage: document.getElementById("errorMessage"),
-    retryBtn: document.getElementById("retryBtn")
+    retryBtn: document.getElementById("retryBtn"),
+    otpPanelTitle: document.getElementById("otpPanelTitle"),
+    otpPanelDesc: document.getElementById("otpPanelDesc")
   };
 
-  // Round-trip state carried across the Email OTP Upgrade (never persisted
-  // to localStorage/reload — kept in memory only, since the whole point is
-  // "no page reload / no state loss" within a single page session).
   let pendingGuard = null;
   let pendingPreviousAuthUserId = "";
-  // aka "pendingNewEmail" for the Anonymous Upgrade (email_change) path —
-  // captured once at send-time and reused verbatim for verify, never
-  // re-read from a live input (the input is hidden during Step 2 anyway).
   let pendingEmail = "";
-  // Hotfix (P-AUTH-04.2): "upgrade" (new email, Anonymous Upgrade) vs
-  // "login" (email already belongs to an Existing Account, spec Section 7)
-  // — decides which guard methods handleVerifyOtp() calls next.
   let pendingMode = "upgrade";
-  // Hotfix (P-AUTH-04 hotfix): the exact Supabase OTP `type` used when the
-  // code was actually SENT — "email_change" for Anonymous Upgrade
-  // (updateUser), "email" for Existing Account Login (signInWithOtp). MUST
-  // be threaded into the matching verify call unchanged; a mismatched type
-  // causes Supabase to reject an otherwise-correct code as invalid/expired.
   let pendingOtpPurpose = null;
-  // P-AUTH-05B-1: the RAW Account Merge claimToken returned by
-  // `guard.beginAccountMerge()`, held ONLY in this page-scoped in-memory
-  // variable — never written to localStorage/sessionStorage (requirement
-  // 3). Cleared on reset/retry; null whenever Begin hasn't been called yet
-  // or failed (a failed Begin never blocks the login flow itself — see
-  // handleSendOtp below).
   let pendingClaimToken = null;
+  let activePlanId = "";
+  let paypalSdkPromise = null;
+  let statusPoller = null;
+  const paymentLock = flow.createBusyLock();
+  const cancelLock = flow.createBusyLock();
 
   function resetPendingOtpState() {
     pendingGuard = null;
@@ -62,7 +71,38 @@
     return button?.dataset.planLabel || planId;
   }
 
-  function hideAll() {
+  function setPlanButtonsDisabled(disabled) {
+    refs.planButtons.forEach((btn) => {
+      btn.disabled = Boolean(disabled);
+    });
+  }
+
+  function setPlanSectionVisible(visible) {
+    if (refs.planSection) {
+      refs.planSection.hidden = !visible;
+    }
+  }
+
+  function setPaymentStatus(text) {
+    if (refs.paymentStatusText) {
+      refs.paymentStatusText.textContent = text || "";
+    }
+  }
+
+  function setStatusActionText(text) {
+    if (refs.statusActionText) {
+      refs.statusActionText.textContent = text || "";
+    }
+  }
+
+  function stopStatusPolling() {
+    if (statusPoller) {
+      statusPoller.stop();
+      statusPoller = null;
+    }
+  }
+
+  function hideTransientPanels() {
     if (refs.otpPanel) refs.otpPanel.hidden = true;
     if (refs.otpStep2) refs.otpStep2.hidden = true;
     if (refs.readyPanel) refs.readyPanel.hidden = true;
@@ -70,25 +110,96 @@
   }
 
   function showError(message) {
-    hideAll();
+    stopStatusPolling();
+    hideTransientPanels();
+    setPlanButtonsDisabled(false);
+    paymentLock.release();
     if (refs.errorPanel) refs.errorPanel.hidden = false;
-    if (refs.errorMessage) refs.errorMessage.textContent = message || "發生未預期的錯誤，請重試。";
+    if (refs.errorMessage) {
+      refs.errorMessage.textContent = flow.sanitizeUserError(
+        { message },
+        "發生未預期的錯誤，請重試。"
+      );
+    }
+  }
+
+  function showAuthExpired() {
+    stopStatusPolling();
+    paymentLock.release();
+    cancelLock.release();
+    showError("登入已過期，請重新登入後再繼續訂閱。");
+  }
+
+  function renderStatusView(subscription) {
+    const ui = flow.resolveSubscriptionUiState(subscription);
+
+    if (refs.statusPanel) {
+      refs.statusPanel.hidden = ui.mode === "none";
+    }
+
+    if (ui.mode !== "none") {
+      if (refs.statusBadge) refs.statusBadge.textContent = ui.status || ui.mode;
+      if (refs.statusHeadline) refs.statusHeadline.textContent = ui.headline;
+      if (refs.statusDetail) refs.statusDetail.textContent = ui.detail;
+      if (refs.statusMeta) {
+        const showMeta = Boolean(ui.planCode || ui.status || ui.paidThroughLocal || ui.nextBillingLocal);
+        refs.statusMeta.hidden = !showMeta;
+      }
+      if (refs.statusPlanCode) {
+        refs.statusPlanCode.textContent = ui.planCode
+          ? planLabel(ui.planCode)
+          : "—";
+      }
+      if (refs.statusValue) refs.statusValue.textContent = ui.status || "—";
+      if (refs.statusNextBilling) {
+        refs.statusNextBilling.textContent = ui.nextBillingLocal || "—";
+      }
+      if (refs.statusPaidThrough) {
+        refs.statusPaidThrough.textContent = ui.paidThroughLocal || "—";
+      }
+      if (refs.cancelRow) refs.cancelRow.hidden = !ui.showCancelButton;
+    }
+
+    setPlanSectionVisible(ui.showPlanButtons);
+    setPlanButtonsDisabled(!ui.allowNewSubscription);
+    return ui;
   }
 
   function showReady(checkoutContext) {
-    hideAll();
+    hideTransientPanels();
+    if (refs.statusPanel) refs.statusPanel.hidden = true;
+    activePlanId = String(checkoutContext?.planId || "");
+    setPlanSectionVisible(true);
+    setPlanButtonsDisabled(true);
     if (refs.readyPanel) refs.readyPanel.hidden = false;
-    if (refs.readyPlanLabel) refs.readyPlanLabel.textContent = planLabel(checkoutContext?.planId);
+    if (refs.readyPlanLabel) refs.readyPlanLabel.textContent = planLabel(activePlanId);
+    setPaymentStatus("");
+    mountPaypalButtons(activePlanId);
+  }
+
+  function setOtpPanelMode(mode) {
+    const isLogin = mode === "login";
+    if (refs.otpPanelTitle) {
+      refs.otpPanelTitle.textContent = isLogin ? "既有帳號登入" : "Email 驗證升級";
+    }
+    if (refs.otpPanelDesc) {
+      refs.otpPanelDesc.textContent = isLogin
+        ? "此 Email 已註冊過帳號。請輸入信箱內的驗證碼完成登入。"
+        : "升級為正式使用者後，將自動繼續你原本選擇的訂閱方案。";
+    }
   }
 
   function showOtpStep1() {
-    hideAll();
+    hideTransientPanels();
+    setOtpPanelMode(pendingMode === "login" ? "login" : "upgrade");
     if (refs.otpPanel) refs.otpPanel.hidden = false;
     if (refs.otpStep1) refs.otpStep1.hidden = false;
+    if (refs.otpStep2) refs.otpStep2.hidden = true;
     if (refs.sendOtpStatus) refs.sendOtpStatus.textContent = "";
   }
 
   function showOtpStep2() {
+    setOtpPanelMode(pendingMode === "login" ? "login" : "upgrade");
     if (refs.otpPanel) refs.otpPanel.hidden = false;
     if (refs.otpStep1) refs.otpStep1.hidden = true;
     if (refs.otpStep2) refs.otpStep2.hidden = false;
@@ -107,20 +218,271 @@
     return { session: data?.session || null, user: data?.session?.user || null };
   }
 
-  // P-AUTH-05B-1: thin `functions.invoke()` wrappers for the real
-  // `account-merge/{begin,finalize}` Edge Function (supabase/functions/
-  // account-merge/index.ts). Per this repo's Supabase rules, the merge
-  // itself must never be performed by the browser directly (it spans two
-  // different Auth UUIDs and needs the service-role key) — these wrappers
-  // only carry an authenticated HTTP request; all privileged work happens
-  // server-side in the Edge Function.
-  //
-  // supabase-js's `functions.invoke()` treats any non-2xx response as a
-  // thrown-away `error` (`FunctionsHttpError`) — it does NOT surface this
-  // app's own `{ok:false, error:{code,message}}` JSON body in `data` for
-  // that case. The real body must be read back from `error.context` (the
-  // raw `Response` object) by calling `.json()` on it, with a safe
-  // generic fallback if that parsing itself fails for any reason.
+  // Upgrade OTP uses updateUser() and account-merge needs an anonymous
+  // session. subscription.html does not call initUser on boot, so visitors
+  // often have no session — which surfaces as "Auth session missing!" and
+  // never reaches EMAIL_ALREADY_REGISTERED → Existing Account Login OTP.
+  async function ensureAnonymousSession() {
+    let { session, user } = await getCurrentSessionAndUser();
+    if (session?.user?.id) {
+      return { session, user };
+    }
+
+    if (!window.UserStore?.initUser) {
+      throw new Error("無法建立訪客登入，請重新整理頁面後再試。");
+    }
+
+    await window.UserStore.initUser();
+    ({ session, user } = await getCurrentSessionAndUser());
+
+    if (!session?.user?.id) {
+      throw new Error("無法建立訪客登入（請完成畫面驗證後再試），請重新整理頁面後再試一次。");
+    }
+
+    return { session, user };
+  }
+
+  // After Official auth (upgrade or existing-account login), prefer showing
+  // an already-entitled subscription instead of opening a second PayPal checkout.
+  async function resumeOfficialCheckout(checkoutContext) {
+    hideTransientPanels();
+    if (refs.readyPanel) refs.readyPanel.hidden = true;
+
+    const subscription = await refreshStatusFromServer({ startPolling: true });
+    const ui = flow.resolveSubscriptionUiState(subscription);
+
+    if (subscription && !ui.allowNewSubscription) {
+      setPlanSectionVisible(ui.showPlanButtons);
+      setPlanButtonsDisabled(!ui.allowNewSubscription);
+      return;
+    }
+
+    showReady(checkoutContext);
+  }
+
+  async function invokePaypalSubscription(body) {
+    const { data, error } = await window.supabaseClient.functions.invoke("paypal-subscription", {
+      body
+    });
+
+    if (error) {
+      try {
+        const parsedBody = await error.context?.json?.();
+        if (parsedBody && typeof parsedBody === "object") {
+          if (flow.isAuthExpiredError(parsedBody) || error.context?.status === 401) {
+            return {
+              ok: false,
+              error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" }
+            };
+          }
+          return parsedBody;
+        }
+      } catch (_parseError) {
+        // fall through
+      }
+      if (error.context?.status === 401 || /jwt|unauthorized|session/i.test(String(error.message || ""))) {
+        return {
+          ok: false,
+          error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" }
+        };
+      }
+      return {
+        ok: false,
+        error: {
+          code: "PAYPAL_SUBSCRIPTION_FAILED",
+          message: flow.sanitizeUserError(error, "訂閱請求失敗，請稍後再試。")
+        }
+      };
+    }
+
+    return data;
+  }
+
+  function createPaypalService() {
+    return paypalSubscriptionServiceApi.createPaypalSubscriptionService({
+      invokeFunction: invokePaypalSubscription
+    });
+  }
+
+  function loadPaypalSdk() {
+    const clientId = String(window.PAYPAL_CLIENT_ID || "").trim();
+    if (!clientId) {
+      return Promise.reject(new Error("PAYPAL_CLIENT_ID 尚未在 config.js 設定（Sandbox Client ID）。"));
+    }
+
+    if (paypalSdkPromise) {
+      return paypalSdkPromise;
+    }
+
+    paypalSdkPromise = flow.loadPaypalSubscriptionSdk({
+      clientId,
+      documentRef: document,
+      existingPaypal: window.paypal
+    }).catch((error) => {
+      paypalSdkPromise = null;
+      throw error;
+    });
+
+    return paypalSdkPromise;
+  }
+
+  async function refreshStatusFromServer({ startPolling = false } = {}) {
+    const svc = createPaypalService();
+    const result = await svc.getStatus();
+
+    if (flow.isAuthExpiredError(result)) {
+      showAuthExpired();
+      return null;
+    }
+
+    if (!result?.ok) {
+      // Non-auth failure: keep plans usable when possible.
+      return null;
+    }
+
+    const ui = renderStatusView(result.subscription);
+    if (startPolling && ui.mode === "awaiting_first_payment") {
+      beginPaidThroughPolling();
+    }
+    return result.subscription;
+  }
+
+  function beginPaidThroughPolling() {
+    stopStatusPolling();
+    const svc = createPaypalService();
+    statusPoller = flow.createStatusPoller({
+      getStatus: async () => {
+        const result = await svc.getStatus();
+        if (flow.isAuthExpiredError(result)) {
+          return { ok: false, error: { code: "AUTH_EXPIRED" }, subscription: null };
+        }
+        return {
+          ok: Boolean(result?.ok),
+          subscription: result?.subscription ?? null,
+          error: result?.error
+        };
+      },
+      onTick: (result) => {
+        if (result?.subscription) {
+          renderStatusView(result.subscription);
+        }
+      }
+    });
+
+    statusPoller.run().then((outcome) => {
+      if (outcome?.authExpired) {
+        showAuthExpired();
+        return;
+      }
+      if (outcome?.subscription) {
+        const ui = renderStatusView(outcome.subscription);
+        if (ui.mode === "active") {
+          setStatusActionText("訂閱使用中");
+        } else if (outcome.timedOut) {
+          setStatusActionText("仍在確認首期付款，請稍後重新整理頁面。");
+        }
+      }
+    }).catch(() => {
+      setStatusActionText("狀態更新失敗，請稍後重新整理。");
+    });
+  }
+
+  async function mountPaypalButtons(planId) {
+    if (!refs.paypalButtonsMount) return;
+    refs.paypalButtonsMount.innerHTML = "";
+    setPaymentStatus("");
+
+    if (!planId) {
+      setPaymentStatus("缺少方案代碼。");
+      return;
+    }
+
+    if (String(window.PAYPAL_ENV || "sandbox").toLowerCase() !== "sandbox") {
+      setPaymentStatus("僅允許 PayPal Sandbox。");
+      return;
+    }
+
+    try {
+      const paypal = await loadPaypalSdk();
+      const svc = createPaypalService();
+      const handlers = flow.createSubscriptionButtonHandlers({
+        subscriptionService: svc,
+        planCode: planId,
+        busyLock: paymentLock,
+        onSessionCreated: () => {
+          setPaymentStatus("等待 PayPal 核准自動續訂…");
+        },
+        onAuthExpired: () => {
+          showAuthExpired();
+        },
+        onSafeError: (msg) => {
+          setPaymentStatus(msg);
+          setPlanButtonsDisabled(false);
+        }
+      });
+
+      paypal.Buttons({
+        style: { layout: "vertical", shape: "rect", label: "subscribe" },
+        onClick: (_data, actions) => {
+          if (paymentLock.isBusy()) {
+            return actions.reject();
+          }
+          setPlanButtonsDisabled(true);
+          setPaymentStatus("建立訂閱工作階段…");
+          return actions.resolve();
+        },
+        createSubscription: handlers.createSubscription,
+        onApprove: async (data) => {
+          setPaymentStatus("訂閱已核准，正在確認首期付款");
+          hideTransientPanels();
+          if (refs.readyPanel) refs.readyPanel.hidden = true;
+          try {
+            const result = await handlers.onApprove(data);
+            if (result?.authExpired) {
+              showAuthExpired();
+              return;
+            }
+            if (!result?.ok) {
+              setPaymentStatus(
+                flow.sanitizeUserError(result, "訂閱確認失敗，請稍後再試。")
+              );
+              setPlanButtonsDisabled(false);
+              return;
+            }
+
+            // Never claim entitlement here — wait for paid_through.
+            const sub = result.subscription || {
+              plan_code: planId,
+              status: result.status || "APPROVED",
+              paid_through: null,
+              access_blocked: false
+            };
+            renderStatusView(sub);
+            setStatusActionText("訂閱已核准，正在確認首期付款");
+            beginPaidThroughPolling();
+          } catch (error) {
+            setPaymentStatus(flow.sanitizeUserError(error, "訂閱確認失敗，請稍後再試。"));
+            setPlanButtonsDisabled(false);
+          }
+        },
+        onCancel: () => {
+          const info = handlers.onCancel();
+          setPlanButtonsDisabled(false);
+          setPaymentStatus(`${info.message}。${info.hint}`);
+        },
+        onError: () => {
+          const info = handlers.onError();
+          setPlanButtonsDisabled(false);
+          setPaymentStatus(info.message);
+        }
+      }).render(refs.paypalButtonsMount);
+    } catch (error) {
+      setPaymentStatus(flow.sanitizeUserError(error, "無法載入 PayPal 按鈕。"));
+      setPlanButtonsDisabled(false);
+      paymentLock.release();
+    }
+  }
+
   async function invokeAccountMergeFunction(path, body) {
     const { data, error } = await window.supabaseClient.functions.invoke(`account-merge/${path}`, { body });
 
@@ -131,8 +493,7 @@
           return { ok: false, error: parsedBody.error };
         }
       } catch (_parseError) {
-        // Fall through to the generic fallback below — never let a body-
-        // parsing failure surface as an unhandled rejection here.
+        // Fall through
       }
 
       return {
@@ -169,10 +530,11 @@
   }
 
   async function handlePlanClick(planId) {
-    hideAll();
+    hideTransientPanels();
+    setPlanButtonsDisabled(true);
 
     try {
-      const { session, user } = await getCurrentSessionAndUser();
+      let { session, user } = await getCurrentSessionAndUser();
       const guard = createGuard();
       const result = guard.evaluateSubscriptionEntry({
         session,
@@ -181,17 +543,23 @@
       });
 
       if (result.action === guardApi.ACTION.ENTER_CHECKOUT) {
-        showReady(result.checkoutContext);
+        // Official user only — prefer existing entitlement over a second checkout.
+        await resumeOfficialCheckout(result.checkoutContext);
         return;
       }
 
-      // start_email_otp_upgrade — keep the ORIGINAL plan intent (pending)
-      // so it can be resumed automatically once the upgrade succeeds.
+      // Mint / restore anonymous session before Email OTP upgrade or
+      // Existing Account Login (both require a live auth session).
+      ({ session, user } = await ensureAnonymousSession());
+
       resetPendingOtpState();
       pendingGuard = result.pending;
       pendingPreviousAuthUserId = String(user?.id || "");
+      pendingMode = "upgrade";
+      setPlanButtonsDisabled(false);
       showOtpStep1();
     } catch (error) {
+      setPlanButtonsDisabled(false);
       showError(error?.message);
     }
   }
@@ -203,70 +571,67 @@
     if (refs.sendOtpStatus) refs.sendOtpStatus.textContent = "寄送中...";
 
     try {
+      const { user } = await ensureAnonymousSession();
+      if (!pendingPreviousAuthUserId) {
+        pendingPreviousAuthUserId = String(user?.id || "");
+      }
+
       const guard = createGuard();
       const result = await guard.startUpgrade({ email });
 
       if (!result.ok) {
-        // Existing Account (spec Section 7): this email already belongs to a
-        // different, already-registered account. Anonymous Upgrade must not
-        // retry (it would just fail the same way again) — switch to the
-        // Existing Account Login OTP flow instead, never creating a
-        // duplicate account.
         if (result.error?.code === "EMAIL_ALREADY_REGISTERED") {
           pendingMode = "login";
+          setOtpPanelMode("login");
 
-          // P-AUTH-05B-1 requirement 3: Begin must be called while still
-          // holding the ANONYMOUS session, AFTER updateUser() has just
-          // confirmed the email already exists but BEFORE signInWithOtp()
-          // (via startLoginOtp() below) sends the Existing Account Login
-          // OTP. If Begin fails (merge infra not deployed/configured yet,
-          // or a transient network issue), login still proceeds
-          // (pendingClaimToken stays null) — a merge outage must never
-          // block the base login capability; the later Finalize call will
-          // fail gracefully via completeLoginAndResume's existing
-          // EXISTING_ACCOUNT_MERGE_REQUIRED blocker instead.
           const beginResult = await guard.beginAccountMerge({ email });
           pendingClaimToken = beginResult.ok ? beginResult.data.claimToken : null;
 
-          // Existing Account Login hits Supabase's public `signInWithOtp`
-          // endpoint, which this project's Captcha (Cloudflare Turnstile)
-          // protection covers — unlike Anonymous Upgrade's `updateUser()`.
-          // Reuse the same Turnstile helper `js/user.js` already uses for
-          // `signInAnonymously()`, so this doesn't duplicate widget logic.
           let captchaToken;
           try {
-            captchaToken = await window.UserStore.verifyTurnstile();
+            // Always mint a fresh Turnstile token for signInWithOtp — do not
+            // reuse the token spent by ensureAnonymousSession / initUser.
+            captchaToken = await window.UserStore.verifyTurnstile({ forceFresh: true });
           } catch (captchaError) {
-            if (refs.sendOtpStatus) refs.sendOtpStatus.textContent = captchaError?.message || "驗證失敗，請重新整理頁面後再試一次。";
+            if (refs.sendOtpStatus) {
+              refs.sendOtpStatus.textContent = captchaError?.message
+                || "驗證失敗，請重新整理頁面後再試一次。";
+            }
             return;
           }
 
           const loginResult = await guard.startLoginOtp({ email, captchaToken });
 
           if (!loginResult.ok) {
-            if (refs.sendOtpStatus) refs.sendOtpStatus.textContent = loginResult.error?.message || "寄送驗證碼失敗，請稍後再試。";
+            if (refs.sendOtpStatus) {
+              const raw = String(loginResult.error?.details?.rawMessage || "").trim();
+              const safeRaw = raw
+                ? `（${raw.replace(/https?:\/\/\S+/gi, "[url]").slice(0, 140)}）`
+                : "";
+              refs.sendOtpStatus.textContent =
+                (loginResult.error?.message || "寄送驗證碼失敗，請稍後再試。") + safeRaw;
+            }
             return;
           }
 
-          // Hotfix (P-AUTH-04 hotfix): save the purpose the send flow
-          // actually used ("email" for signInWithOtp) so verify uses the
-          // matching Supabase OTP `type` — never hardcoded/guessed.
           pendingOtpPurpose = loginResult.data.otpPurpose;
-          if (refs.sendOtpStatus) refs.sendOtpStatus.textContent = `此 Email 已註冊過帳號，登入用驗證碼已寄至 ${loginResult.data.email}`;
+          if (refs.sendOtpStatus) {
+            refs.sendOtpStatus.textContent =
+              `此 Email 已註冊過帳號，登入用驗證碼已寄至 ${loginResult.data.email}`;
+          }
           showOtpStep2();
           return;
         }
 
-        if (refs.sendOtpStatus) refs.sendOtpStatus.textContent = result.error?.message || "寄送驗證碼失敗，請確認 Email 是否正確。";
+        if (refs.sendOtpStatus) {
+          refs.sendOtpStatus.textContent = result.error?.message
+            || "寄送驗證碼失敗，請確認 Email 是否正確。";
+        }
         return;
       }
 
       pendingMode = "upgrade";
-      // Hotfix (P-AUTH-04 hotfix): save the purpose the send flow actually
-      // used ("email_change" for updateUser) so verify uses the matching
-      // Supabase OTP `type` — never hardcoded/guessed. Resending (the same
-      // button handler, re-run from the top) naturally re-derives and saves
-      // the same purpose again, so it always stays consistent.
+      setOtpPanelMode("upgrade");
       pendingOtpPurpose = result.data.otpPurpose;
       if (refs.sendOtpStatus) refs.sendOtpStatus.textContent = `驗證碼已寄至 ${result.data.email}`;
       showOtpStep2();
@@ -281,13 +646,6 @@
     try {
       const guard = createGuard();
 
-      // Existing Account Login (spec Section 7): a successful login here
-      // authenticates a DIFFERENT, already-existing account — it auto-
-      // resumes the pending Checkout ONLY if the Account Merge (Begin was
-      // already called in handleSendOtp above; Finalize runs inside
-      // completeLoginAndResume via the claimToken) also succeeds. Any
-      // merge failure is a blocker (EXISTING_ACCOUNT_MERGE_REQUIRED),
-      // never a silent/implicit merge (see subscription-entry-guard.js).
       if (pendingMode === "login") {
         const result = await guard.completeLoginAndResume({
           email: pendingEmail,
@@ -299,22 +657,18 @@
 
         if (result.action === guardApi.ACTION.ENTER_CHECKOUT) {
           resetPendingOtpState();
-          showReady(result.checkoutContext);
+          await resumeOfficialCheckout(result.checkoutContext);
           return;
         }
 
         if (result.action === guardApi.ACTION.EXISTING_ACCOUNT_MERGE_REQUIRED) {
-          // The user's session IS now the existing official account (login
-          // succeeded); clicking "訂閱" again re-evaluates from a clean
-          // state and resolves straight to ENTER_CHECKOUT via that account
-          // (see handlePlanClick), so resetting here is safe.
           resetPendingOtpState();
-          showError("登入成功，但資料合併尚未完成，請重新點擊「訂閱」按鈕以此帳號繼續操作，或稍後再試一次。");
+          showError("登入成功，但資料合併尚未完成，請重新點擊方案按鈕以此帳號繼續操作，或稍後再試一次。");
           return;
         }
 
         if (result.action === guardApi.ACTION.UPGRADE_INCOMPLETE) {
-          showError("Email 已驗證，但身份尚未完全通過驗證（例如尚未完成 Google 驗證），暫時無法進入 Checkout。");
+          showError("Email 已驗證，但身份尚未完全通過驗證（例如尚未完成 Google 驗證），暫時無法進入訂閱流程。");
           return;
         }
 
@@ -332,12 +686,12 @@
 
       if (result.action === guardApi.ACTION.ENTER_CHECKOUT) {
         resetPendingOtpState();
-        showReady(result.checkoutContext);
+        await resumeOfficialCheckout(result.checkoutContext);
         return;
       }
 
       if (result.action === guardApi.ACTION.UPGRADE_INCOMPLETE) {
-        showError("Email 已驗證，但身份尚未完全通過驗證（例如尚未完成 Google 驗證），暫時無法進入 Checkout。");
+        showError("Email 已驗證，但身份尚未完全通過驗證（例如尚未完成 Google 驗證），暫時無法進入訂閱流程。");
         return;
       }
 
@@ -347,14 +701,74 @@
     }
   }
 
+  async function handleCancelSubscription() {
+    if (!cancelLock.tryAcquire()) return;
+
+    const confirmed = window.confirm(flow.CANCEL_CONFIRM_MESSAGE);
+    if (!confirmed) {
+      cancelLock.release();
+      return;
+    }
+
+    if (refs.cancelSubscriptionBtn) refs.cancelSubscriptionBtn.disabled = true;
+    setStatusActionText("取消中…");
+
+    try {
+      const svc = createPaypalService();
+      const result = await svc.cancelSubscription();
+
+      if (flow.isAuthExpiredError(result)) {
+        showAuthExpired();
+        return;
+      }
+
+      if (!result?.ok) {
+        setStatusActionText(
+          flow.sanitizeUserError(result, "取消失敗，請稍後再試。")
+        );
+        return;
+      }
+
+      // Do not mark cancelled until API succeeded — then refresh status.
+      const refreshed = await svc.getStatus();
+      if (refreshed?.ok) {
+        renderStatusView(refreshed.subscription);
+        setStatusActionText("已取消自動續訂。");
+      } else if (result.subscription) {
+        renderStatusView(result.subscription);
+        setStatusActionText("已取消自動續訂。");
+      }
+    } catch (error) {
+      setStatusActionText(flow.sanitizeUserError(error, "取消失敗，請稍後再試。"));
+    } finally {
+      cancelLock.release();
+      if (refs.cancelSubscriptionBtn) refs.cancelSubscriptionBtn.disabled = false;
+    }
+  }
+
   function handleRetry() {
     resetPendingOtpState();
     showOtpStep1();
   }
 
+  async function bootstrap() {
+    try {
+      const { session, user } = await getCurrentSessionAndUser();
+      if (!session || !user) return;
+
+      const authState = authService.resolveAuthState({ session, user });
+      if (!authState?.isOfficialUser) return;
+
+      await refreshStatusFromServer({ startPolling: true });
+    } catch (_error) {
+      // Soft-fail: plans remain usable.
+    }
+  }
+
   refs.planButtons.forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
+      if (paymentLock.isBusy() || button.disabled) return;
       handlePlanClick(button.dataset.planId);
     });
   });
@@ -386,4 +800,13 @@
       handleRetry();
     });
   }
+
+  if (refs.cancelSubscriptionBtn) {
+    refs.cancelSubscriptionBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleCancelSubscription();
+    });
+  }
+
+  bootstrap();
 })();

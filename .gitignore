@@ -12,6 +12,19 @@ node_modules/
 # Browser automation scratch output (screenshots/page snapshots)
 .playwright-mcp/
 
+# Auth-07C.10A: real Sandbox credential file — must never be committed
+docs/0-working-prompts/prompts-auth/paypel測試用帳號.txt
+
+# Auth-07C.10A: generated run evidence from diagnostic harnesses
+# (harness SOURCE .cjs/.sql/.ps1 stays committable — only outputs are ignored)
+scripts/auth-07c*/**/*.jsonl
+scripts/auth-07c*/*.jsonl
+scripts/auth-07c*/**/*.out
+scripts/auth-07c*/*.out
+scripts/auth-07c*/**/storage-state*.json
+scripts/auth-07c*/**/browser-profile/
+supabase/.temp/
+
 
 
 

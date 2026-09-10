@@ -84,10 +84,23 @@
     throw new Error("Turnstile 尚未載入");
   }
 
-  async function verifyTurnstile() {
-    const existingToken = getCaptchaTokenFromPage();
-    if (existingToken) {
-      return Promise.resolve(existingToken);
+  async function verifyTurnstile({ forceFresh = false } = {}) {
+    // Login OTP must never reuse a token already spent on anonymous sign-in
+    // (or any leftover cf-turnstile-response input) — GoTrue rejects reused
+    // captcha tokens with 400 "captcha protection: request disallowed".
+    if (!forceFresh) {
+      const existingToken = getCaptchaTokenFromPage();
+      if (existingToken) {
+        return Promise.resolve(existingToken);
+      }
+    } else {
+      document.querySelectorAll("input[name='cf-turnstile-response']").forEach((el) => {
+        try {
+          el.value = "";
+        } catch (_e) {
+          // ignore
+        }
+      });
     }
 
     await waitForTurnstile();

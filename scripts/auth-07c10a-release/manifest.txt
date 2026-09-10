@@ -1,0 +1,105 @@
+# Auth-07C.10A: exact AUTH_07C_REQUIRED release manifest (Option B target: release/auth-07c-sandbox)
+# One path per line. Lines starting with # are comments.
+# TRACKED-MODIFIED (8)
+.gitignore
+.env.example
+config.js
+css/pages/subscription.css
+js/pages/subscription-entry.js
+js/user.js
+scripts/verify-local.ps1
+subscription.html
+# CONFIG (1)
+supabase/config.toml
+# FRONTEND SERVICES + TESTS (7)
+js/services/subscription/paypal-checkout-service.js
+js/services/subscription/paypal-subscription-flow.js
+js/services/subscription/paypal-subscription-service.js
+js/services/subscription/__tests__/paypal-checkout-service.test.js
+js/services/subscription/__tests__/paypal-subscription-flow.test.js
+js/services/subscription/__tests__/paypal-subscription-service.test.js
+js/services/subscription/__tests__/paypal-subscription-expiry-view.test.js
+# SHARED HANDLERS + LIB TWINS + TESTS (12)
+supabase/functions/_shared/paypal-checkout-handler.js
+supabase/functions/_shared/paypal-checkout-handler.ts
+supabase/functions/_shared/paypal-subscription-handler.js
+supabase/functions/_shared/paypal-subscription-handler.ts
+supabase/functions/_shared/paypal-webhook-handler.js
+supabase/functions/_shared/paypal-webhook-handler.ts
+supabase/functions/_shared/lib/paypal-client.js
+supabase/functions/_shared/lib/paypal-client.ts
+supabase/functions/_shared/lib/paypal-plans.js
+supabase/functions/_shared/lib/paypal-plans.ts
+supabase/functions/_shared/__tests__/paypal-checkout-webhook.test.js
+supabase/functions/_shared/__tests__/paypal-subscription-backend.test.js
+# EDGE ENTRYPOINTS (3)
+supabase/functions/paypal-checkout/index.ts
+supabase/functions/paypal-subscription/index.ts
+supabase/functions/paypal-webhook/index.ts
+# MIGRATIONS + SHAPE TESTS (6)
+supabase/migrations/20260821000200_payment_orders_and_webhook_events.sql
+supabase/migrations/20260907000100_paypal_subscriptions_rpc.sql
+supabase/migrations/20260908000100_sale_reconciliation_hotfix.sql
+supabase/migrations/__tests__/payment-orders-webhook-shape.test.js
+supabase/migrations/__tests__/paypal-subscriptions-rpc-shape.test.js
+supabase/migrations/__tests__/sale-reconciliation-hotfix-shape.test.js
+# REPRODUCIBLE HARNESS SOURCES (20) — generated .jsonl/.out outputs are gitignored
+scripts/auth-07c2a-local-pg/00-bootstrap.sql
+scripts/auth-07c2a-local-pg/10-seed-legacy.sql
+scripts/auth-07c2a-local-pg/30-behavior-tests.sql
+scripts/auth-07c2a-local-pg/run.ps1
+scripts/auth-07c3-sandbox-product-plans/run.cjs
+scripts/auth-07c5-release/smoke.cjs
+scripts/auth-07c5-release/smoke2.cjs
+scripts/auth-07c5-release/update-webhook-events.cjs
+scripts/auth-07c7-monthly-e2e/precheck.cjs
+scripts/auth-07c7b-paid-through-diag/run.cjs
+scripts/auth-07c7c-sale-webhook-audit/run.cjs
+scripts/auth-07c7d-edge-forensic/fetch-logs.cjs
+scripts/auth-07c7e1-local-pg/00-bootstrap.sql
+scripts/auth-07c7e1-local-pg/10-seed-legacy.sql
+scripts/auth-07c7e1-local-pg/20-seed-subscription.sql
+scripts/auth-07c7e1-local-pg/30-behavior-tests.sql
+scripts/auth-07c7e1-local-pg/run.ps1
+scripts/auth-07c7f-release/release.cjs
+scripts/auth-07c8-cancel-e2e/verify.cjs
+scripts/auth-07c9-expiry/fixture.sql
+# REVIEW DOCS (36) + DESIGN NOTE (1)
+docs/0-review/review-auth/review-auth-07-paypal-checkout-webhook.md
+docs/0-review/review-auth/review-auth-07A-sandbox-deploy-preflight.md
+docs/0-review/review-auth/review-auth-07A.1-payment-validation-hotfix.md
+docs/0-review/review-auth/review-auth-07A.2-final-preflight.md
+docs/0-review/review-auth/review-auth-07A.3-final-hotfix.md
+docs/0-review/review-auth/review-auth-07A.4-final-release-check.md
+docs/0-review/review-auth/review-auth-07B.1-sandbox-infrastructure-deploy.md
+docs/0-review/review-auth/review-auth-07B.2-sandbox-e2e.md
+docs/0-review/review-auth/review-auth-07B.2.2-merchant-mismatch-forensic.md
+docs/0-review/review-auth/review-auth-07B.2.3-merchant-extraction-hotfix.md
+docs/0-review/review-auth/review-auth-07B.2.4-gatereview.md
+docs/0-review/review-auth/review-auth-07B.2.4-sandbox-e2e.md
+docs/0-review/review-auth/review-auth-07B.2.4A-payment-failure-diagnostic.md
+docs/0-review/review-auth/review-auth-07B.2.4B-create-order-forensic.md
+docs/0-review/review-auth/review-auth-07B.2.4C-create-order-observability-hotfix.md
+docs/0-review/review-auth/review-auth-07C.1-paypal-subscriptions-plan.md
+docs/0-review/review-auth/review-auth-07C.1A-paypal-subscriptions-design-fix.md
+docs/0-review/review-auth/review-auth-07C.2-subscriptions-migration-rpc.md
+docs/0-review/review-auth/review-auth-07C.2A-postgres-verification.md
+docs/0-review/review-auth/review-auth-07C.3-paypal-sandbox-product-plans.md
+docs/0-review/review-auth/review-auth-07C.4-subscription-backend-webhook.md
+docs/0-review/review-auth/review-auth-07C.5-subscriptions-backend-release.md
+docs/0-review/review-auth/review-auth-07C.6-subscription-frontend.md
+docs/0-review/review-auth/review-auth-07C.7-monthly-subscription-e2e.PRECHECK.md
+docs/0-review/review-auth/review-auth-07C.7A-plan-button-diagnostic.md
+docs/0-review/review-auth/review-auth-07C.7B-paid-through-diagnostic.md
+docs/0-review/review-auth/review-auth-07C.7C-sale-webhook-delivery.md
+docs/0-review/review-auth/review-auth-07C.7D-sale-delivery-forensic.md
+docs/0-review/review-auth/review-auth-07C.7E-sale-reconciliation-hotfix.md
+docs/0-review/review-auth/review-auth-07C.7E.1-postgres-verification.md
+docs/0-review/review-auth/review-auth-07C.7F-reconciliation-release.md
+docs/0-review/review-auth/review-auth-07C.8-subscription-cancellation-e2e.md
+docs/0-review/review-auth/review-auth-07C.9-expiry-slot-release.md
+docs/0-review/review-auth/review-auth-07C.10-sandbox-final-release-preflight.md
+docs/0-review/review-auth/review-auth-07C.10A-release-manifest-hardening.md
+docs/development/review comment/auth/note-auth-07C.1A.md
+# THIS MANIFEST (1)
+scripts/auth-07c10a-release/manifest.txt
