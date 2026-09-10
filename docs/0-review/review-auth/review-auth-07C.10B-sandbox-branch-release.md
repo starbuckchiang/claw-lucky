@@ -40,7 +40,7 @@ staged set 與該聯集 **差集 = 0**（不多不少）。
 | Core commit files（`git diff-tree`） | **94**（=manifest∪review 聯集；逐一 `git add -- <path>`，未用 `add .`/`-A`） |
 | 排除內容混入檢查 | `.jsonl`/`.out`/credential/`cli-latest`/`=`/Support-01 → **0** |
 | 測試（發布前重跑） | **873/873 PASS**；`git diff --check` PASS |
-| DOCUMENTATION_COMMIT | 本文件之 docs-only commit（hash 見最終輸出；未 amend CORE_COMMIT） |
+| DOCUMENTATION_COMMIT | `fef71a53a365a8f67a030176745ceb328570dbdc`（`docs: record Auth-07C sandbox branch release`，docs-only 1 檔；未 amend CORE_COMMIT） |
 
 ## 7. Staged 敏感掃描
 
@@ -96,6 +96,43 @@ Ignored: **YES**（`.gitignore` 精確規則，check-ignore 證實）。仍存�
 
 ---
 
-## Auth-07C.10B Result（最終值於 docs commit 後補入本節下方輸出）
+## Auth-07C.10B Result
 
-見任務最終輸出區塊。
+（DOCUMENTATION_COMMIT hash 於 10B.1 correction commit 補入 — review 初版必然早於自身 commit 存在）
+
+```text
+Auth-07C.10B Result:
+Source Branch: main
+Source Commit: 8c25e5feefe5e0008ead1e543d64674047d2d3e8
+Target Branch: release/auth-07c-sandbox
+Manifest Entries: 94
+Core Commit: 148f71fb9e13f13e9ed40adcc2e0e91b19fdb655
+Core Committed Files: 94
+Documentation Commit: fef71a53a365a8f67a030176745ceb328570dbdc
+Branch Push: PASS
+Remote Branch Verified: YES
+Origin Main Before: 8c25e5feefe5e0008ead1e543d64674047d2d3e8
+Origin Main After: 8c25e5feefe5e0008ead1e543d64674047d2d3e8
+Origin Main Changed: NO
+Tests Passed: 873/873
+Tests Failed: 0
+Diff Check: PASS
+Sensitive File Tracked: NO
+Sensitive File Staged: NO
+Sensitive File In History: NO
+Sensitive Scan: PASS (9 raw matches all benign; 0 real)
+Generated Evidence Committed: NO
+Unrelated Files Committed: NO
+Database Migration Performed: NO
+Database Push Performed: NO
+Functions Deployed: NONE
+Secrets Changed: NO
+PayPal API Called: NO
+PR Created: NO
+Merge Performed: NO
+GitHub Pages Triggered: NO
+Production Deployment Performed: NO
+Sandbox Code Preserved: YES
+Next Stage: Auth-07C.11 Live PayPal Production Provisioning (NOT started)
+Gate: PASS
+```
