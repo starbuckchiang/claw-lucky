@@ -1,0 +1,47 @@
+-- Auth-SEC-01A: public.prompt_versions RLS emergency fix (SERVER_ONLY model).
+--
+-- Root cause (see docs/0-review/review-auth/review-auth-SEC-01-public-rls-audit.md):
+--   20260712040100_create_prompt_versions.sql created the table WITHOUT
+--   ENABLE ROW LEVEL SECURITY, and 20260712122000_rls_wallpaper_core.sql only
+--   covered the 3 wallpaper data tables. With Supabase's default full table
+--   grants for anon/authenticated, the table was fully readable AND writable
+--   via the anon key since 2026-07-12 (Security Advisor CRITICAL
+--   rls_disabled_in_public).
+--
+-- Access model: SERVER_ONLY.
+--   The ONLY consumer is the wallpaper-generate Edge Function, which reads
+--   this table through the SERVICE-ROLE client
+--   (supabase/functions/wallpaper-generate/index.ts -> createServiceClient ->
+--   _shared/lib/prompt-registry-loader.ts, tableName = "prompt_versions").
+--   No browser page or anon/authenticated client code references this table
+--   (verified by repo-wide grep across *.html, js/**). Writes only ever come
+--   from migrations (seed 20260727000000) or operators.
+--
+-- Effect:
+--   1. ENABLE ROW LEVEL SECURITY with ZERO policies = deny-all for
+--      anon/authenticated. service_role bypasses RLS (rolbypassrls), so the
+--      Edge Function is unaffected.
+--   2. REVOKE ALL from anon/authenticated = defense in depth; even if a
+--      permissive policy is ever added by mistake, these roles still have no
+--      table privileges.
+--   No policies are created on purpose (SERVER_ONLY; no "using (true)").
+--   No FORCE ROW LEVEL SECURITY (owner/service paths must keep working).
+--
+-- Idempotent / re-runnable: ENABLE RLS and REVOKE are both no-ops when
+-- already applied. No data is read or modified.
+--
+-- Rollback (manual, only if SERVER_ONLY turns out to be wrong):
+--   ALTER TABLE public.prompt_versions DISABLE ROW LEVEL SECURITY;  -- NOT recommended
+--   GRANT SELECT ON public.prompt_versions TO authenticated;         -- plus explicit policies
+--
+-- Verification (read-only, after db push):
+--   SELECT relrowsecurity FROM pg_class WHERE oid='public.prompt_versions'::regclass;  -- true
+--   SELECT count(*) FROM information_schema.role_table_grants
+--    WHERE table_schema='public' AND table_name='prompt_versions'
+--      AND grantee IN ('anon','authenticated');                                        -- 0
+--   PostgREST as anon: GET /rest/v1/prompt_versions -> permission denied (42501).
+--   wallpaper-generate Edge Function: prompt registry load still succeeds (service_role).
+
+ALTER TABLE public.prompt_versions ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL PRIVILEGES ON TABLE public.prompt_versions FROM anon, authenticated;
