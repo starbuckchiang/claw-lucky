@@ -1,0 +1,375 @@
+/* =========================
+ WEB-HOME-01
+ Claw Lucky 正式首頁與法律頁（privacy / terms / company）共用樣式
+ 依賴：css/base.css、css/layout.css、css/components.css
+ 手機優先（mobile-first），桌面以 min-width 補強
+ ========================= */
+
+/* ---------- Header ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(248, 241, 226, 0.96);
+  border-bottom: 2px solid rgba(92, 52, 28, 0.12);
+  backdrop-filter: blur(4px);
+}
+
+.site-header-inner {
+  width: min(1180px, calc(100% - 28px));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.site-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 18px;
+  color: #4a2416;
+}
+
+.site-logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #7a3f22 0%, #5b2d19 100%);
+  color: #f7e2b6;
+  font-size: 17px;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.site-nav a {
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 15px;
+  color: #5a3422;
+}
+
+.site-nav a:hover,
+.site-nav a:focus-visible {
+  background: rgba(122, 63, 34, 0.12);
+}
+
+.site-nav a[aria-current="page"] {
+  font-weight: 700;
+  color: #4a2416;
+  background: rgba(122, 63, 34, 0.14);
+}
+
+/* keyboard focus 可見性 */
+.site-header a:focus-visible,
+.site-footer a:focus-visible,
+.home-page a:focus-visible,
+.legal-page a:focus-visible {
+  outline: 3px solid #7a3f22;
+  outline-offset: 2px;
+}
+
+/* ---------- Home Hero ---------- */
+
+/* layout.css 的 .section-title 預設為粉色，首頁改用主題棕色 */
+.home-page .section-title {
+  color: #4a2416;
+}
+
+.home-hero {
+  text-align: center;
+  padding: 36px 20px;
+}
+
+.home-hero .hero-title {
+  font-size: 30px;
+}
+
+.home-hero-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.btn-secondary-line {
+  border: 2px solid #7a3f22;
+  background: transparent;
+  color: #5b2d19;
+  font-size: 16px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  min-width: 96px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.btn-secondary-line:hover,
+.btn-secondary-line:focus-visible {
+  background: rgba(122, 63, 34, 0.1);
+}
+
+.home-hero-note {
+  margin: 14px auto 0;
+  max-width: 640px;
+  font-size: 13px;
+  color: #6d4a35;
+}
+
+/* ---------- 步驟 / 特色 / 安全 卡片群 ---------- */
+
+.home-steps,
+.home-features,
+.home-safety {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.home-step-card,
+.home-feature-card,
+.home-safety-card {
+  background: #fff8ec;
+  border: 2px solid rgba(92, 52, 28, 0.14);
+  border-radius: 20px;
+  box-shadow: 0 10px 24px rgba(92, 52, 28, 0.1);
+  padding: 18px;
+}
+
+.home-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #7a3f22;
+  color: #f7e2b6;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.home-card-title {
+  margin: 0 0 8px;
+  color: #4a2416;
+  font-size: 19px;
+}
+
+.home-card-text {
+  margin: 0;
+  color: #5a3422;
+  line-height: 1.75;
+  font-size: 15px;
+}
+
+/* ---------- FAQ ---------- */
+
+.home-faq-item {
+  background: #fff8ec;
+  border: 2px solid rgba(92, 52, 28, 0.14);
+  border-radius: 16px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.home-faq-item summary {
+  cursor: pointer;
+  padding: 14px 16px;
+  font-weight: 700;
+  color: #4a2416;
+  list-style-position: inside;
+}
+
+.home-faq-item summary:focus-visible {
+  outline: 3px solid #7a3f22;
+  outline-offset: -3px;
+}
+
+.home-faq-item p {
+  margin: 0;
+  padding: 0 16px 14px;
+  color: #5a3422;
+  line-height: 1.75;
+  font-size: 15px;
+}
+
+/* ---------- CTA ---------- */
+
+.home-cta {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+/* ---------- 娛樂性聲明 ---------- */
+
+.home-disclaimer {
+  margin: 0 auto;
+  max-width: 760px;
+  text-align: center;
+  color: #6d4a35;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  margin-top: 40px;
+  background: #efe0c2;
+  border-top: 2px solid rgba(92, 52, 28, 0.14);
+  padding: 24px 0 30px;
+}
+
+.site-footer-inner {
+  width: min(1180px, calc(100% - 28px));
+  margin: 0 auto;
+  text-align: center;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 12px;
+}
+
+.footer-links a {
+  color: #5b2d19;
+  font-size: 15px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px 2px;
+}
+
+.footer-legal,
+.footer-disclaimer {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #6d4a35;
+  line-height: 1.7;
+}
+
+/* ---------- 法律頁（privacy / terms / company） ---------- */
+
+.legal-article {
+  background: #fff8ec;
+  border: 2px solid rgba(92, 52, 28, 0.14);
+  border-radius: 24px;
+  box-shadow: 0 14px 30px rgba(92, 52, 28, 0.12);
+  padding: 24px 20px;
+}
+
+.legal-article h1 {
+  color: #4a2416;
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+
+.legal-effective-date {
+  color: #6d4a35;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.legal-article h2 {
+  color: #4a2416;
+  font-size: 19px;
+  margin: 26px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(92, 52, 28, 0.12);
+}
+
+.legal-article p,
+.legal-article li {
+  color: #5a3422;
+  line-height: 1.85;
+  font-size: 15px;
+}
+
+.legal-article ul {
+  padding-left: 22px;
+}
+
+.legal-article a {
+  color: #7a3f22;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-back-row {
+  margin-top: 26px;
+  text-align: center;
+}
+
+/* 公司資訊表 */
+.company-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.company-info-table th,
+.company-info-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(92, 52, 28, 0.12);
+  color: #5a3422;
+  font-size: 15px;
+  line-height: 1.7;
+  vertical-align: top;
+}
+
+.company-info-table th {
+  width: 34%;
+  color: #4a2416;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---------- 桌面版 ---------- */
+
+@media (min-width: 720px) {
+  .home-hero {
+    padding: 56px 32px;
+  }
+
+  .home-hero .hero-title {
+    font-size: 38px;
+  }
+
+  .home-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .home-features,
+  .home-safety {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .legal-article {
+    padding: 36px 40px;
+  }
+}
+
+@media (min-width: 1000px) {
+  .home-features,
+  .home-safety {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

@@ -139,21 +139,15 @@ test("checkout_cart: still never sets orders.status to a payment-success value",
   assert.doesNotMatch(orderInsertMatch[0], /'paid'|'completed'|'success'/i);
 });
 
-// --- order_no staging blocker: confirm NO migration in this repo defines
-// public.orders or its order_no column/default/trigger. If a future
-// migration adds one, this test will start failing — a forcing function to
-// update the blocker documentation instead of silently going stale. ---
-
-test("order_no staging blocker: no migration file in this repo defines public.orders or an order_no column/default/trigger — this repo cannot prove how order_no is generated", () => {
-  const files = fs.readdirSync(MIGRATIONS_DIR).filter((name) => name.endsWith(".sql"));
-  assert.ok(files.length > 0, "no migration files found");
-
-  for (const file of files) {
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
-    assert.doesNotMatch(sql, /CREATE TABLE\s+(IF NOT EXISTS\s+)?public\.orders\b/i, `${file} unexpectedly defines public.orders`);
-    assert.doesNotMatch(sql, /order_no\s+TEXT/i, `${file} unexpectedly defines an order_no column`);
-    assert.doesNotMatch(sql, /CREATE\s+(OR\s+REPLACE\s+)?TRIGGER[\s\S]{0,300}order_no/i, `${file} unexpectedly defines a trigger touching order_no`);
-  }
+// WEB-HOME-01B.1C resolves the former order_no staging blocker with an
+// authoritative zero-data baseline captured from production metadata.
+test("order_no contract: formal baseline defines the unique column and concurrency-safe trigger", () => {
+  const baselinePath = path.join(MIGRATIONS_DIR, "20260712000000_legacy_application_schema_baseline.sql");
+  const sql = fs.readFileSync(baselinePath, "utf8");
+  assert.match(sql, /CREATE TABLE public\.orders \([\s\S]*?order_no TEXT/);
+  assert.match(sql, /CONSTRAINT orders_order_no_key UNIQUE \(order_no\)/);
+  assert.match(sql, /RETURNS TEXT[\s\S]*?Asia\/Taipei[\s\S]*?pg_advisory_xact_lock[\s\S]*?'LUCK-'/);
+  assert.match(sql, /CREATE TRIGGER trigger_set_order_no\s+BEFORE INSERT ON public\.orders/);
 });
 
 test("checkout_cart: the INSERT INTO orders statement does not set order_no explicitly (unchanged from 05B-2B — this fix does not invent an unverified generation scheme)", () => {

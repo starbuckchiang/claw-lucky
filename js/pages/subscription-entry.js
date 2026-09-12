@@ -18,6 +18,8 @@
     otpStep1: document.getElementById("otpStep1"),
     otpStep2: document.getElementById("otpStep2"),
     emailInput: document.getElementById("otpEmailInput"),
+    termsConsentCheckbox: document.getElementById("termsConsentCheckbox"),
+    paymentConsentCheckbox: document.getElementById("paymentConsentCheckbox"),
     sendOtpBtn: document.getElementById("sendOtpBtn"),
     sendOtpStatus: document.getElementById("sendOtpStatus"),
     tokenInput: document.getElementById("otpTokenInput"),
@@ -55,6 +57,13 @@
   let activePlanId = "";
   let paypalSdkPromise = null;
   let statusPoller = null;
+  // WEB-HOME-01A: page-level consent idempotency keys — created once per
+  // consent attempt, KEPT across retries (server write is idempotent on
+  // the same key), never regenerated on a retryable failure.
+  let upgradeConsentIdempotencyKey = null;
+  let upgradeConsentRecorded = false;
+  let checkoutConsentIdempotencyKey = null;
+  let checkoutConsentRecorded = false;
   const paymentLock = flow.createBusyLock();
   const cancelLock = flow.createBusyLock();
 
@@ -69,6 +78,82 @@
   function planLabel(planId) {
     const button = refs.planButtons.find((btn) => btn.dataset.planId === planId);
     return button?.dataset.planLabel || planId;
+  }
+
+  // WEB-HOME-01: the upgrade/login OTP flow must not start until the
+  // UNCHECKED terms/privacy consent checkbox is actively checked.
+  function hasTermsConsent() {
+    return Boolean(refs.termsConsentCheckbox?.checked);
+  }
+
+  function hasPaymentConsent() {
+    return Boolean(refs.paymentConsentCheckbox?.checked);
+  }
+
+  function recordTermsConsent(userId) {
+    const consentApi = window.TermsConsent;
+    if (!consentApi) return;
+    try {
+      consentApi.saveTermsConsentRecord(
+        window.localStorage,
+        consentApi.buildTermsConsentRecord({ userId })
+      );
+    } catch (_error) {
+      // NON-AUTHORITATIVE local trace only (WEB-HOME-01A): the
+      // authoritative record is the server-side user_consents row.
+    }
+  }
+
+  // WEB-HOME-01A: server-side consent write (the authoritative record).
+  function createConsentService() {
+    const api = window.ConsentWriteService;
+    return api.createConsentWriteService({
+      invokeFunction: api.createConsentOpsInvoker({ supabaseClient: window.supabaseClient })
+    });
+  }
+
+  // Returns true only when the account_upgrade consent row is confirmed
+  // written server-side. Reuses the SAME idempotency key across retries.
+  async function ensureUpgradeConsentRecorded() {
+    if (upgradeConsentRecorded) return true;
+    if (!upgradeConsentIdempotencyKey) {
+      upgradeConsentIdempotencyKey = crypto.randomUUID();
+    }
+    try {
+      const result = await createConsentService().recordConsent({
+        consentScope: "account_upgrade",
+        source: "account_upgrade_form",
+        idempotencyKey: upgradeConsentIdempotencyKey
+      });
+      if (result?.ok) {
+        upgradeConsentRecorded = true;
+        return true;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  async function ensureCheckoutConsentRecorded() {
+    if (checkoutConsentRecorded) return true;
+    if (!checkoutConsentIdempotencyKey) {
+      checkoutConsentIdempotencyKey = crypto.randomUUID();
+    }
+    try {
+      const result = await createConsentService().recordConsent({
+        consentScope: "checkout",
+        source: "subscription_page",
+        idempotencyKey: checkoutConsentIdempotencyKey
+      });
+      if (result?.ok) {
+        checkoutConsentRecorded = true;
+        return true;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
   }
 
   function setPlanButtonsDisabled(disabled) {
@@ -424,6 +509,10 @@
       paypal.Buttons({
         style: { layout: "vertical", shape: "rect", label: "subscribe" },
         onClick: (_data, actions) => {
+          if (!hasPaymentConsent()) {
+            setPaymentStatus("請先勾選「我已閱讀並同意服務條款」再進行付款。");
+            return actions.reject();
+          }
           if (paymentLock.isBusy()) {
             return actions.reject();
           }
@@ -431,7 +520,20 @@
           setPaymentStatus("建立訂閱工作階段…");
           return actions.resolve();
         },
-        createSubscription: handlers.createSubscription,
+        // WEB-HOME-01A: the checkout consent row must be confirmed written
+        // server-side BEFORE any PayPal subscription session is created
+        // (and therefore before any local subscription slot is acquired —
+        // a consent failure here means createSession is never called, so
+        // there is no slot to release and no pending session left behind).
+        createSubscription: async (data, actions) => {
+          const consentWritten = await ensureCheckoutConsentRecorded();
+          if (!consentWritten) {
+            setPaymentStatus("同意紀錄儲存失敗，請再試一次。");
+            setPlanButtonsDisabled(false);
+            throw new Error("CONSENT_RECORD_FAILED");
+          }
+          return handlers.createSubscription(data, actions);
+        },
         onApprove: async (data) => {
           setPaymentStatus("訂閱已核准，正在確認首期付款");
           hideTransientPanels();
@@ -565,6 +667,13 @@
   }
 
   async function handleSendOtp() {
+    if (!hasTermsConsent()) {
+      if (refs.sendOtpStatus) {
+        refs.sendOtpStatus.textContent = "請先勾選「我已閱讀並同意服務條款與隱私權政策」。";
+      }
+      return;
+    }
+
     const email = String(refs.emailInput?.value || "").trim();
     pendingEmail = email;
 
@@ -575,6 +684,19 @@
       if (!pendingPreviousAuthUserId) {
         pendingPreviousAuthUserId = String(user?.id || "");
       }
+
+      // WEB-HOME-01A: the authoritative account_upgrade consent row must
+      // be confirmed written server-side BEFORE any OTP is sent — a
+      // localStorage trace alone never counts as consent.
+      const consentWritten = await ensureUpgradeConsentRecorded();
+      if (!consentWritten) {
+        if (refs.sendOtpStatus) {
+          refs.sendOtpStatus.textContent = "同意紀錄儲存失敗，請再試一次。";
+        }
+        return;
+      }
+
+      recordTermsConsent(user?.id);
 
       const guard = createGuard();
       const result = await guard.startUpgrade({ email });
@@ -657,6 +779,21 @@
 
         if (result.action === guardApi.ACTION.ENTER_CHECKOUT) {
           resetPendingOtpState();
+          try {
+            // Existing-account login switches to a DIFFERENT auth uid. The
+            // pre-OTP consent row belongs to the anonymous uid; write one
+            // more row under the NEW session's own JWT-derived uid (same
+            // idempotency key, per-user unique constraint). Best-effort:
+            // the original consent row already exists, so a failure here
+            // never blocks checkout. No cross-uid migration is performed
+            // (WEB-HOME-01A section 7).
+            upgradeConsentRecorded = false;
+            await ensureUpgradeConsentRecorded();
+            const { user: officialUser } = await getCurrentSessionAndUser();
+            recordTermsConsent(officialUser?.id);
+          } catch (_consentError) {
+            // best-effort; consent was already recorded at OTP send time
+          }
           await resumeOfficialCheckout(result.checkoutContext);
           return;
         }
@@ -686,6 +823,12 @@
 
       if (result.action === guardApi.ACTION.ENTER_CHECKOUT) {
         resetPendingOtpState();
+        try {
+          const { user: officialUser } = await getCurrentSessionAndUser();
+          recordTermsConsent(officialUser?.id);
+        } catch (_consentError) {
+          // best-effort; consent was already recorded at OTP send time
+        }
         await resumeOfficialCheckout(result.checkoutContext);
         return;
       }

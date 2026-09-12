@@ -119,3 +119,44 @@
   color: #8a6a52;
   font-size: 13px;
 }
+
+/* WEB-HOME-01: 條款同意勾選列（未預先勾選） */
+.subscription-consent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0 12px;
+  font-size: 14px;
+  color: #5a3422;
+  line-height: 1.6;
+}
+
+.subscription-consent-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #7a3f22;
+}
+
+.subscription-consent-row a {
+  color: #7a3f22;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.subscription-consent-row input[type="checkbox"]:focus-visible {
+  outline: 3px solid #7a3f22;
+  outline-offset: 2px;
+}
+
+/* WEB-HOME-01: 頁尾公司資訊／法律連結 */
+.subscription-legal-footer {
+  text-align: center;
+}
+
+.subscription-legal-footer a {
+  color: #7a3f22;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

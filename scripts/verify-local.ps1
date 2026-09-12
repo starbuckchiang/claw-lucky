@@ -78,6 +78,10 @@ node --check supabase/functions/_shared/shop-ops-handler.js
 node --check js/shop/shop-api.js
 node --check js/shop/shop_cart.js
 node --check supabase/functions/_shared/cors.js
+node --check js/services/auth/policy-versions.js
+node --check js/services/auth/consent-write-service.js
+node --check js/services/auth/consent-ops-repository.js
+node --check supabase/functions/_shared/consent-ops-handler.js
 # NOTE: supabase/functions/**/*.ts (the Deno ESM ports actually deployed to
 # Supabase Edge Functions) are intentionally NOT syntax-checked with
 # `node --check` here — they use TypeScript syntax Node cannot parse, and
@@ -102,6 +106,7 @@ node --test `
   "js/services/shop/__tests__/*.test.js" `
   "js/shop/__tests__/*.test.js" `
   "js/__tests__/*.test.js" `
+  "js/pages/__tests__/*.test.js" `
   "supabase/functions/_shared/__tests__/*.test.js" `
   "supabase/migrations/__tests__/*.test.js"
 
