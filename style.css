@@ -369,3 +369,32 @@ display: grid;
     width: 240px;
   }
 }
+
+/* page footer links (company / legal pages entry point) */
+.page-footer-links {
+  margin-top: 8px;
+  padding: 20px 16px 28px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.page-footer-links-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+}
+
+.page-footer-links-nav a {
+  color: #f7e2b6;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.page-footer-legal {
+  margin: 0;
+  color: rgba(247, 226, 182, 0.8);
+  font-size: 12px;
+}
