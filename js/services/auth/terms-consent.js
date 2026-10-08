@@ -21,8 +21,15 @@
 
 // Versions match the unified policy version (WEB-HOME-01A) — kept in sync
 // with js/services/auth/policy-versions.js (asserted by a unit test).
-const CURRENT_TERMS_VERSION = "2026-09-15";
-const CURRENT_PRIVACY_VERSION = "2026-09-15";
+// NOTE: both this file and policy-versions.js are loaded as plain classic
+// <script> tags on the SAME page (subscription.html) — they share ONE
+// global scope, so these local names must NOT collide with
+// policy-versions.js's own top-level `CURRENT_TERMS_VERSION`/
+// `CURRENT_PRIVACY_VERSION` consts (a duplicate `const` declaration is a
+// parse-time SyntaxError that silently kills this whole script). The
+// EXPORTED api object below still uses the original property names.
+const TERMS_CONSENT_VERSION = "2026-09-15";
+const PRIVACY_CONSENT_VERSION = "2026-09-15";
 
 // localStorage key for the persisted consent record. WEB-HOME-01A: this
 // local record is a NON-AUTHORITATIVE trace only — the authoritative
@@ -38,8 +45,8 @@ const ENABLE_DIGITAL_CONTENT_WAIVER = false;
 
 function buildTermsConsentRecord({ userId, acceptedAt } = {}) {
   return {
-    termsVersion: CURRENT_TERMS_VERSION,
-    privacyVersion: CURRENT_PRIVACY_VERSION,
+    termsVersion: TERMS_CONSENT_VERSION,
+    privacyVersion: PRIVACY_CONSENT_VERSION,
     acceptedAt: acceptedAt || new Date().toISOString(),
     userId: String(userId || "")
   };
@@ -77,8 +84,8 @@ function loadTermsConsentRecord(storage) {
 }
 
 const termsConsentApi = {
-  CURRENT_TERMS_VERSION,
-  CURRENT_PRIVACY_VERSION,
+  CURRENT_TERMS_VERSION: TERMS_CONSENT_VERSION,
+  CURRENT_PRIVACY_VERSION: PRIVACY_CONSENT_VERSION,
   TERMS_CONSENT_STORAGE_KEY,
   ENABLE_DIGITAL_CONTENT_WAIVER,
   buildTermsConsentRecord,
