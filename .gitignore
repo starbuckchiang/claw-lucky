@@ -12,6 +12,10 @@ node_modules/
 # Browser automation scratch output (screenshots/page snapshots)
 .playwright-mcp/
 
+# PROD-RELEASE-DAY3B: real LIVE PayPal credential files — must never be committed
+不要上傳/
+paypel webhook ID.txt
+
 
 
 
