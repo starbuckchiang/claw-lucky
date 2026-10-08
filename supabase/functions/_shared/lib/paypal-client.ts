@@ -1,6 +1,8 @@
-// ESM twin of paypal-client.js — Auth-07 PayPal HTTP (Sandbox only).
+// ESM twin of paypal-client.js — Auth-07/PROD-RELEASE-DAY3B PayPal HTTP
+// (Sandbox + Live; any other env value is rejected — fail closed).
 
 export const SANDBOX_API_BASE = "https://api-m.sandbox.paypal.com";
+export const LIVE_API_BASE = "https://api-m.paypal.com";
 const SAFE_MESSAGE_MAX = 120;
 const SAFE_NAME_MAX = 80;
 const SAFE_ISSUE_MAX = 80;
@@ -9,10 +11,9 @@ const SAFE_CONTENT_TYPE_MAX = 80;
 
 export function resolveApiBase(envName: string) {
   const env = String(envName || "sandbox").trim().toLowerCase();
-  if (env !== "sandbox") {
-    throw new Error("PAYPAL_ENV_NOT_SANDBOX");
-  }
-  return SANDBOX_API_BASE;
+  if (env === "sandbox") return SANDBOX_API_BASE;
+  if (env === "live") return LIVE_API_BASE;
+  throw new Error("PAYPAL_ENV_UNKNOWN");
 }
 
 export function clipSafeText(value: unknown, maxLen: number) {

@@ -1362,6 +1362,36 @@ test("resolveSubscriptionPlanAllowlist uses env", () => {
   assert.equal(resolveSubscriptionPlanAllowlist("monthly", {}), null);
 });
 
+test("resolveSubscriptionPlanAllowlist: live uses the bare var only, never a sandbox-suffixed fallback", () => {
+  const envBoth = {
+    PAYPAL_ENV: "live",
+    PAYPAL_PLAN_ID_MONTHLY: "P-LIVE-MONTHLY",
+    PAYPAL_PLAN_ID_MONTHLY_SANDBOX: "P-SANDBOX-MONTHLY"
+  };
+  assert.equal(resolveSubscriptionPlanAllowlist("monthly", envBoth).paypalPlanId, "P-LIVE-MONTHLY");
+
+  const envSandboxOnly = {
+    PAYPAL_ENV: "live",
+    PAYPAL_PLAN_ID_MONTHLY_SANDBOX: "P-SANDBOX-MONTHLY"
+  };
+  assert.equal(resolveSubscriptionPlanAllowlist("monthly", envSandboxOnly), null);
+});
+
+test("resolveSubscriptionPlanAllowlist: sandbox prefers the suffixed var, falls back to the bare var for compatibility", () => {
+  const envBoth = {
+    PAYPAL_ENV: "sandbox",
+    PAYPAL_PLAN_ID_MONTHLY: "P-LIVE-MONTHLY",
+    PAYPAL_PLAN_ID_MONTHLY_SANDBOX: "P-SANDBOX-MONTHLY"
+  };
+  assert.equal(resolveSubscriptionPlanAllowlist("monthly", envBoth).paypalPlanId, "P-SANDBOX-MONTHLY");
+
+  const envBareOnly = {
+    PAYPAL_ENV: "sandbox",
+    PAYPAL_PLAN_ID_MONTHLY: "P-BARE-ONLY"
+  };
+  assert.equal(resolveSubscriptionPlanAllowlist("monthly", envBareOnly).paypalPlanId, "P-BARE-ONLY");
+});
+
 test("signature failure does not write subscription business tables", async () => {
   const repo = memorySubscriptionRepo();
   let wrote = false;

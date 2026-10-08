@@ -1,12 +1,14 @@
 "use strict";
 
 /**
- * Auth-07 PayPal HTTP client (Orders v2 + OAuth + webhook verify).
- * Default API base is Sandbox ONLY. Inject `fetchImpl` in tests — never
+ * Auth-07/PROD-RELEASE-DAY3B PayPal HTTP client (Orders v2 + Subscriptions
+ * + OAuth + webhook verify). Supports Sandbox AND Live API bases; any other
+ * env value is rejected (fail closed). Inject `fetchImpl` in tests — never
  * hit real PayPal from unit tests.
  */
 
 const SANDBOX_API_BASE = "https://api-m.sandbox.paypal.com";
+const LIVE_API_BASE = "https://api-m.paypal.com";
 const SAFE_MESSAGE_MAX = 120;
 const SAFE_NAME_MAX = 80;
 const SAFE_ISSUE_MAX = 80;
@@ -15,10 +17,9 @@ const SAFE_CONTENT_TYPE_MAX = 80;
 
 function resolveApiBase(envName) {
   const env = String(envName || "sandbox").trim().toLowerCase();
-  if (env !== "sandbox") {
-    throw new Error("PAYPAL_ENV_NOT_SANDBOX");
-  }
-  return SANDBOX_API_BASE;
+  if (env === "sandbox") return SANDBOX_API_BASE;
+  if (env === "live") return LIVE_API_BASE;
+  throw new Error("PAYPAL_ENV_UNKNOWN");
 }
 
 function clipSafeText(value, maxLen) {
@@ -568,6 +569,7 @@ function amountsEqual(a, b) {
 
 module.exports = {
   SANDBOX_API_BASE,
+  LIVE_API_BASE,
   createPaypalClient,
   extractCaptureMoney,
   extractOrderPayeeMerchantId,

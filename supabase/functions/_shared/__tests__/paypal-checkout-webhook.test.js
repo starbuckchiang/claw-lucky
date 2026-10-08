@@ -10,7 +10,8 @@ const {
   amountsEqual,
   normalizeMerchantId,
   buildSanitizedPaypalErrorDetails,
-  SANDBOX_API_BASE
+  SANDBOX_API_BASE,
+  LIVE_API_BASE
 } = require("../lib/paypal-client");
 const {
   handleCreateOrder,
@@ -161,9 +162,11 @@ test("paypal-plans whitelist", () => {
   assert.equal(getPaypalPlan("x"), null);
 });
 
-test("paypal-client sandbox only", () => {
-  assert.throws(() => resolveApiBase("live"), /PAYPAL_ENV_NOT_SANDBOX/);
+test("paypal-client sandbox and live", () => {
+  assert.throws(() => resolveApiBase("staging"), /PAYPAL_ENV_UNKNOWN/);
   assert.equal(resolveApiBase("sandbox"), SANDBOX_API_BASE);
+  assert.equal(resolveApiBase("live"), LIVE_API_BASE);
+  assert.notEqual(SANDBOX_API_BASE, LIVE_API_BASE);
 });
 
 test("extractResourceFields: CAPTURE order id only from related_ids", () => {

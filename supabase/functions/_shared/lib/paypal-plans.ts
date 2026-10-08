@@ -38,8 +38,14 @@ export function resolveSubscriptionPlanAllowlist(
     : "PAYPAL_PLAN_ID_YEARLY";
   const envKeySandbox = `${envKeyPrimary}_SANDBOX`;
 
+  // Live MUST use the bare (non-suffixed) var only -- never silently fall
+  // back to a sandbox-suffixed plan id while charging against the Live API.
+  // Sandbox prefers its own suffixed var, falling back to the bare var only
+  // for backward compatibility with deployments that never added the
+  // suffixed alias (the bare var historically held the Sandbox plan id).
+  const isLive = String(env?.PAYPAL_ENV || "sandbox").trim().toLowerCase() === "live";
   const planId = String(
-    env[envKeyPrimary] || env[envKeySandbox] || "",
+    isLive ? (env[envKeyPrimary] || "") : (env[envKeySandbox] || env[envKeyPrimary] || ""),
   ).trim();
 
   if (!planId) return null;

@@ -19,8 +19,8 @@ function jsonNoCors(statusCode: number, body: unknown): Response {
 
 function readPaypalEnv() {
   const env = (Deno.env.get("PAYPAL_ENV") || "sandbox").trim().toLowerCase();
-  if (env !== "sandbox") {
-    throw new Error("PAYPAL_ENV_NOT_SANDBOX");
+  if (env !== "sandbox" && env !== "live") {
+    throw new Error("PAYPAL_ENV_UNKNOWN");
   }
   return {
     env,
@@ -62,6 +62,7 @@ Deno.serve(async (req: Request) => {
 
     const serviceClient = createServiceClient();
     const planEnv = {
+      PAYPAL_ENV: paypalEnv.env,
       PAYPAL_PLAN_ID_MONTHLY: Deno.env.get("PAYPAL_PLAN_ID_MONTHLY") || "",
       PAYPAL_PLAN_ID_YEARLY: Deno.env.get("PAYPAL_PLAN_ID_YEARLY") || "",
       PAYPAL_PLAN_ID_MONTHLY_SANDBOX: Deno.env.get("PAYPAL_PLAN_ID_MONTHLY_SANDBOX") || "",
@@ -86,12 +87,12 @@ Deno.serve(async (req: Request) => {
     return jsonNoCors(result.statusCode, result.body);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error.";
-    const code = message === "PAYPAL_ENV_NOT_SANDBOX" ? "PAYPAL_CONFIG" : "INTERNAL_ERROR";
+    const code = message === "PAYPAL_ENV_UNKNOWN" ? "PAYPAL_CONFIG" : "INTERNAL_ERROR";
     return jsonNoCors(code === "PAYPAL_CONFIG" ? 503 : 500, {
       ok: false,
       error: {
         code,
-        message: code === "PAYPAL_CONFIG" ? "Live PayPal is not allowed." : "Unexpected error.",
+        message: code === "PAYPAL_CONFIG" ? "PAYPAL_ENV must be sandbox or live." : "Unexpected error.",
       },
     });
   }

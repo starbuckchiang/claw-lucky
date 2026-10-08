@@ -15,8 +15,8 @@ import {
 
 function readPaypalEnv() {
   const env = (Deno.env.get("PAYPAL_ENV") || "sandbox").trim().toLowerCase();
-  if (env !== "sandbox") {
-    throw new Error("PAYPAL_ENV_NOT_SANDBOX");
+  if (env !== "sandbox" && env !== "live") {
+    throw new Error("PAYPAL_ENV_UNKNOWN");
   }
   return {
     env,
@@ -80,10 +80,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(result.statusCode, result.body, correlationId, req);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error.";
-    const code = message === "PAYPAL_ENV_NOT_SANDBOX" ? "PAYPAL_CONFIG" : "INTERNAL_ERROR";
+    const code = message === "PAYPAL_ENV_UNKNOWN" ? "PAYPAL_CONFIG" : "INTERNAL_ERROR";
     return jsonResponse(code === "PAYPAL_CONFIG" ? 503 : 500, {
       ok: false,
-      error: { code, message: code === "PAYPAL_CONFIG" ? "Live PayPal is not allowed." : "Unexpected error." },
+      error: { code, message: code === "PAYPAL_CONFIG" ? "PAYPAL_ENV must be sandbox or live." : "Unexpected error." },
     }, correlationId, req);
   }
 });
