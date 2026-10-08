@@ -15,7 +15,7 @@
 
 <section class="section">
   <div class="panel subscription-topbar">
-    <a class="subscription-back-link" href="./index.html">← 回首頁</a>
+    <a class="subscription-back-link" href="./claw-lucky-home.html">← 回首頁</a>
   </div>
 </section>
 
@@ -24,38 +24,74 @@
     <span class="hero-kicker">Subscription</span>
     <h1 class="hero-title">訂閱方案</h1>
     <p class="hero-desc">
-      選擇方案後，系統會自動判斷你的身份：正式使用者可直接進入 Checkout；
-      訪客或匿名使用者需先完成 Email 驗證升級為正式使用者，驗證完成後會自動回到你原本選擇的方案。
+      月訂閱與年訂閱皆為<strong>自動續訂</strong>：付款後會依週期自動扣款。
+      你可隨時取消自動續訂；取消後仍可使用至已付款週期結束。
+      訪客或匿名使用者需先完成 Email／Google 升級為正式使用者，驗證完成後會自動回到原本選擇的方案。
     </p>
   </div>
 </section>
 
-<section class="section section-lg">
+<section class="section section-lg" id="planSection">
   <div class="subscription-plan-grid">
     <article class="panel subscription-plan-card">
       <div class="subscription-plan-head">
-        <span class="badge">Plan A</span>
+        <span class="badge">Monthly</span>
         <h2 class="subscription-plan-title">月訂閱</h2>
         <p class="subscription-plan-price">USD 5 / 月</p>
+        <p class="subscription-plan-note">自動續訂 · 可取消</p>
       </div>
-      <button type="button" class="btn" data-plan-id="monthly" data-plan-label="月訂閱">訂閱</button>
+      <button type="button" class="btn" data-plan-id="monthly" data-plan-label="月訂閱">選擇月訂閱</button>
     </article>
 
     <article class="panel subscription-plan-card">
       <div class="subscription-plan-head">
-        <span class="badge">Plan B</span>
+        <span class="badge">Yearly</span>
         <h2 class="subscription-plan-title">年訂閱</h2>
         <p class="subscription-plan-price">USD 48 / 年</p>
+        <p class="subscription-plan-note">自動續訂 · 可取消</p>
       </div>
-      <button type="button" class="btn" data-plan-id="yearly" data-plan-label="年訂閱">訂閱</button>
+      <button type="button" class="btn" data-plan-id="yearly" data-plan-label="年訂閱">選擇年訂閱</button>
     </article>
+  </div>
+  <p class="subscription-auto-renew-hint">
+    核准訂閱後，PayPal 會依所選週期自動扣款；取消自動續訂不會立刻失去已付款期間的使用權。
+  </p>
+</section>
+
+<section class="section" id="statusPanel" hidden>
+  <div class="panel subscription-status-panel">
+    <span class="badge" id="statusBadge">Status</span>
+    <h2 class="section-title" id="statusHeadline"></h2>
+    <p class="section-desc" id="statusDetail"></p>
+    <dl class="subscription-status-meta" id="statusMeta" hidden>
+      <div>
+        <dt>方案</dt>
+        <dd id="statusPlanCode"></dd>
+      </div>
+      <div>
+        <dt>狀態</dt>
+        <dd id="statusValue"></dd>
+      </div>
+      <div>
+        <dt>下次扣款</dt>
+        <dd id="statusNextBilling"></dd>
+      </div>
+      <div>
+        <dt>可使用至</dt>
+        <dd id="statusPaidThrough"></dd>
+      </div>
+    </dl>
+    <div class="button-row" id="cancelRow" hidden>
+      <button type="button" class="btn btn-secondary" id="cancelSubscriptionBtn">取消自動續訂</button>
+    </div>
+    <p class="subscription-status-text" id="statusActionText"></p>
   </div>
 </section>
 
 <section class="section" id="otpPanel" hidden>
   <div class="panel subscription-otp-panel">
-    <h2 class="section-title">Email 驗證升級</h2>
-    <p class="section-desc">升級為正式使用者後，將自動繼續你原本選擇的訂閱方案。</p>
+    <h2 class="section-title" id="otpPanelTitle">Email 驗證升級</h2>
+    <p class="section-desc" id="otpPanelDesc">升級為正式使用者後，將自動繼續你原本選擇的訂閱方案。</p>
 
     <div id="otpStep1" class="subscription-otp-step">
       <label class="subscription-field-label" for="otpEmailInput">Email</label>
@@ -85,10 +121,22 @@
 
 <section class="section" id="readyPanel" hidden>
   <div class="panel subscription-ready-panel">
-    <span class="badge">Ready for Checkout</span>
-    <h2 class="section-title">已可進入付款流程</h2>
+    <span class="badge">Auto-renew Checkout</span>
+    <h2 class="section-title">確認自動續訂</h2>
     <p class="section-desc">已選擇方案：<strong id="readyPlanLabel"></strong></p>
-    <p class="subscription-note">（本階段暫以此畫面取代真實付款，Checkout / Payment / Webhook 將於後續階段實作。）</p>
+    <p class="subscription-note">
+      此為自動續訂：付款後會依週期自動扣款。你可取消自動續訂；取消後仍可使用至已付款週期結束。
+      核准後只會顯示「訂閱已核准，正在確認首期付款」；權益啟用須等首期付款確認完成。
+      取消及退款規則、客服聯絡方式請見<a href="./terms.html">服務條款</a>與<a href="./company.html">公司資訊</a>。
+    </p>
+    <div class="subscription-consent-row">
+      <input type="checkbox" id="paymentConsentCheckbox" />
+      <label for="paymentConsentCheckbox">
+        我已閱讀並同意<a href="./terms.html">服務條款</a>
+      </label>
+    </div>
+    <div id="paypalButtonsMount" class="subscription-paypal-mount"></div>
+    <p class="subscription-status-text" id="paymentStatusText"></p>
   </div>
 </section>
 
@@ -99,6 +147,19 @@
     <div class="button-row">
       <button type="button" class="btn btn-secondary" id="retryBtn">重試</button>
     </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="panel subscription-legal-footer">
+    <p class="subscription-status-text">
+      Claw Lucky 由神奇蝸牛有限公司（統一編號 94015483）提供。
+      客服信箱：sabrina114114@gmail.com｜客服電話：0968-250-060（周一至周五 9:00~17:00）。
+      付款、取消及退款問題請聯絡客服，經核實後會依實際付款狀態協助處理。
+    </p>
+    <p class="subscription-status-text">
+      <a href="./privacy.html">隱私權政策</a>｜<a href="./terms.html">服務條款</a>｜<a href="./company.html">公司資訊</a>
+    </p>
   </div>
 </section>
 
@@ -116,6 +177,8 @@
 <script src="./js/services/auth/email-otp-service.js?v=20260815-5"></script>
 <script src="./js/services/auth/account-merge-service.js?v=20260816-1"></script>
 <script src="./js/services/auth/subscription-entry-guard.js?v=20260816-1"></script>
-<script src="./js/pages/subscription-entry.js?v=20261007-1"></script>
+<script src="./js/services/subscription/paypal-subscription-service.js?v=20261009-1"></script>
+<script src="./js/services/subscription/paypal-subscription-flow.js?v=20261009-1"></script>
+<script src="./js/pages/subscription-entry.js?v=20261009-1"></script>
 </body>
 </html>
