@@ -40,6 +40,7 @@
     statusPaidThrough: document.getElementById("statusPaidThrough"),
     cancelRow: document.getElementById("cancelRow"),
     cancelSubscriptionBtn: document.getElementById("cancelSubscriptionBtn"),
+    serviceEntryRow: document.getElementById("serviceEntryRow"),
     statusActionText: document.getElementById("statusActionText"),
     errorPanel: document.getElementById("errorPanel"),
     errorMessage: document.getElementById("errorMessage"),
@@ -243,6 +244,9 @@
         refs.statusPaidThrough.textContent = ui.paidThroughLocal || "—";
       }
       if (refs.cancelRow) refs.cancelRow.hidden = !ui.showCancelButton;
+      if (refs.serviceEntryRow) {
+        refs.serviceEntryRow.hidden = !(ui.mode === "active" || ui.mode === "cancelled_with_access");
+      }
     }
 
     setPlanSectionVisible(ui.showPlanButtons);
