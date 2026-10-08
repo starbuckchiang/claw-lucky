@@ -10,6 +10,7 @@
     otpStep1: document.getElementById("otpStep1"),
     otpStep2: document.getElementById("otpStep2"),
     emailInput: document.getElementById("otpEmailInput"),
+    termsConsentCheckbox: document.getElementById("termsConsentCheckbox"),
     sendOtpBtn: document.getElementById("sendOtpBtn"),
     sendOtpStatus: document.getElementById("sendOtpStatus"),
     tokenInput: document.getElementById("otpTokenInput"),
@@ -48,6 +49,11 @@
   // or failed (a failed Begin never blocks the login flow itself — see
   // handleSendOtp below).
   let pendingClaimToken = null;
+  // WEB-HOME-01A: page-level consent idempotency key — created once per
+  // consent attempt, KEPT across retries (the server write is idempotent
+  // on the same key), never regenerated on a retryable failure.
+  let upgradeConsentIdempotencyKey = null;
+  let upgradeConsentRecorded = false;
 
   function resetPendingOtpState() {
     pendingGuard = null;
@@ -60,6 +66,57 @@
   function planLabel(planId) {
     const button = refs.planButtons.find((btn) => btn.dataset.planId === planId);
     return button?.dataset.planLabel || planId;
+  }
+
+  // WEB-HOME-01: the upgrade OTP flow must not start until the UNCHECKED
+  // terms/privacy consent checkbox is actively checked.
+  function hasTermsConsent() {
+    return Boolean(refs.termsConsentCheckbox?.checked);
+  }
+
+  function recordTermsConsent(userId) {
+    const consentApi = window.TermsConsent;
+    if (!consentApi) return;
+    try {
+      consentApi.saveTermsConsentRecord(
+        window.localStorage,
+        consentApi.buildTermsConsentRecord({ userId })
+      );
+    } catch (_error) {
+      // NON-AUTHORITATIVE local trace only (WEB-HOME-01A): the
+      // authoritative record is the server-side user_consents row.
+    }
+  }
+
+  // WEB-HOME-01A: server-side consent write (the authoritative record).
+  function createConsentService() {
+    const api = window.ConsentWriteService;
+    return api.createConsentWriteService({
+      invokeFunction: api.createConsentOpsInvoker({ supabaseClient: window.supabaseClient })
+    });
+  }
+
+  // Returns true only when the account_upgrade consent row is confirmed
+  // written server-side. Reuses the SAME idempotency key across retries.
+  async function ensureUpgradeConsentRecorded() {
+    if (upgradeConsentRecorded) return true;
+    if (!upgradeConsentIdempotencyKey) {
+      upgradeConsentIdempotencyKey = crypto.randomUUID();
+    }
+    try {
+      const result = await createConsentService().recordConsent({
+        consentScope: "account_upgrade",
+        source: "account_upgrade_form",
+        idempotencyKey: upgradeConsentIdempotencyKey
+      });
+      if (result?.ok) {
+        upgradeConsentRecorded = true;
+        return true;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
   }
 
   function hideAll() {
@@ -197,12 +254,32 @@
   }
 
   async function handleSendOtp() {
+    if (!hasTermsConsent()) {
+      if (refs.sendOtpStatus) {
+        refs.sendOtpStatus.textContent = "請先勾選「我已閱讀並同意服務條款與隱私權政策」。";
+      }
+      return;
+    }
+
     const email = String(refs.emailInput?.value || "").trim();
     pendingEmail = email;
 
     if (refs.sendOtpStatus) refs.sendOtpStatus.textContent = "寄送中...";
 
     try {
+      // WEB-HOME-01A: the authoritative account_upgrade consent row must be
+      // confirmed written server-side BEFORE any OTP is sent — a
+      // localStorage trace alone never counts as consent.
+      const consentWritten = await ensureUpgradeConsentRecorded();
+      if (!consentWritten) {
+        if (refs.sendOtpStatus) {
+          refs.sendOtpStatus.textContent = "同意紀錄儲存失敗，請再試一次。";
+        }
+        return;
+      }
+
+      recordTermsConsent(window.UserStore?.getAuthUserId?.());
+
       const guard = createGuard();
       const result = await guard.startUpgrade({ email });
 

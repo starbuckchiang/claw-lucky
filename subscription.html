@@ -60,6 +60,12 @@
     <div id="otpStep1" class="subscription-otp-step">
       <label class="subscription-field-label" for="otpEmailInput">Email</label>
       <input class="subscription-input" type="email" id="otpEmailInput" placeholder="you@example.com" />
+      <div class="subscription-consent-row">
+        <input type="checkbox" id="termsConsentCheckbox" />
+        <label for="termsConsentCheckbox">
+          我已閱讀並同意<a href="./terms.html">服務條款</a>與<a href="./privacy.html">隱私權政策</a>
+        </label>
+      </div>
       <div class="button-row">
         <button type="button" class="btn" id="sendOtpBtn">寄送驗證碼</button>
       </div>
@@ -104,9 +110,12 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
 <script src="./js/user.js?v=20260815-1"></script>
 <script src="./js/services/auth/auth-service.js?v=20260803-1"></script>
+<script src="./js/services/auth/policy-versions.js?v=20261007-1"></script>
+<script src="./js/services/auth/terms-consent.js?v=20261007-1"></script>
+<script src="./js/services/auth/consent-write-service.js?v=20261007-1"></script>
 <script src="./js/services/auth/email-otp-service.js?v=20260815-5"></script>
 <script src="./js/services/auth/account-merge-service.js?v=20260816-1"></script>
 <script src="./js/services/auth/subscription-entry-guard.js?v=20260816-1"></script>
-<script src="./js/pages/subscription-entry.js?v=20260816-1"></script>
+<script src="./js/pages/subscription-entry.js?v=20261007-1"></script>
 </body>
 </html>
