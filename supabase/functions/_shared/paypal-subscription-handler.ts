@@ -57,6 +57,10 @@ export const ERROR_HTTP_STATUS = Object.freeze({
   ADDRESS_FIELDS_REQUIRED: 400,
   ADDRESS_LOCKED_AFTER_FEE_PAID: 409,
   REFUND_REQUEST_ALREADY_PENDING: 409,
+  SHIPPING_FEE_ORDER_NOT_FOUND: 404,
+  SHIPPING_FEE_ORDER_NOT_PAID: 409,
+  SHIPPING_FEE_STATUS_INVALID: 409,
+  SHIPPING_FEE_AMOUNT_MISMATCH: 409,
   DB_ERROR: 503,
   INTERNAL_ERROR: 500,
 });
@@ -143,6 +147,10 @@ function mapRpcException(error: any) {
     "ADDRESS_FIELDS_REQUIRED",
     "ADDRESS_LOCKED_AFTER_FEE_PAID",
     "REFUND_REQUEST_ALREADY_PENDING",
+    "SHIPPING_FEE_ORDER_NOT_FOUND",
+    "SHIPPING_FEE_ORDER_NOT_PAID",
+    "SHIPPING_FEE_STATUS_INVALID",
+    "SHIPPING_FEE_AMOUNT_MISMATCH",
   ];
   for (const code of known) {
     if (msg.includes(code)) {
@@ -1105,6 +1113,55 @@ export async function handleRequestRefund({ body, user, deps }: any) {
 }
 
 // deno-lint-ignore no-explicit-any
+export async function handleConfirmGiftShippingFeePayment({ body, user, deps }: any) {
+  const auth = requireVerifiedOfficialUser(user);
+  if (!auth.ok) {
+    return { statusCode: toHttpStatus(auth.code), body: errorBody(auth.code, auth.message) };
+  }
+
+  const paypalOrderId = String(body?.paypalOrderId || "").trim();
+  if (!paypalOrderId) {
+    return {
+      statusCode: 400,
+      body: errorBody("INVALID_REQUEST", "paypalOrderId is required."),
+    };
+  }
+
+  const repo = deps.subscriptionRepository;
+  if (!repo?.confirmGiftShippingFeePayment) {
+    return {
+      statusCode: 503,
+      body: errorBody("DB_ERROR", "Gift repository is not configured."),
+    };
+  }
+
+  try {
+    await repo.confirmGiftShippingFeePayment({ userId: auth.userId, paypalOrderId });
+  } catch (error) {
+    const mapped = mapRpcException(error);
+    return {
+      statusCode: toHttpStatus(mapped.code),
+      body: errorBody(mapped.code, mapped.message),
+    };
+  }
+
+  // deno-lint-ignore no-explicit-any
+  let row: any = null;
+  if (typeof repo.getGiftEntitlement === "function") {
+    try {
+      row = await repo.getGiftEntitlement(auth.userId);
+    } catch (_e) {
+      row = null;
+    }
+  }
+
+  return {
+    statusCode: 200,
+    body: { ok: true, gift: safeGiftSummary(row) },
+  };
+}
+
+// deno-lint-ignore no-explicit-any
 export async function handlePaypalSubscriptionRequest({
   body,
   user,
@@ -1149,12 +1206,16 @@ export async function handlePaypalSubscriptionRequest({
     const result = await handleRequestRefund({ body, user, deps });
     return { ...result, correlationId };
   }
+  if (action === "confirm_gift_shipping_fee_payment") {
+    const result = await handleConfirmGiftShippingFeePayment({ body, user, deps });
+    return { ...result, correlationId };
+  }
 
   return {
     statusCode: 400,
     body: errorBody(
       "INVALID_REQUEST",
-      "action must be create_session, confirm_subscription, get_status, cancel_subscription, get_gift_status, submit_gift_address, or request_refund.",
+      "action must be create_session, confirm_subscription, get_status, cancel_subscription, get_gift_status, submit_gift_address, request_refund, or confirm_gift_shipping_fee_payment.",
     ),
     correlationId,
   };
@@ -1321,6 +1382,16 @@ export function createSubscriptionRepositoryFromSupabase(serviceClient: any) {
         p_shipping_refund_currency: input.shippingRefundCurrency,
         p_gift_return_required: input.giftReturnRequired,
         p_calculation_rule_version: input.calculationRuleVersion,
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+
+    // deno-lint-ignore no-explicit-any
+    async confirmGiftShippingFeePayment(input: any) {
+      const { data, error } = await serviceClient.rpc("confirm_gift_shipping_fee_payment", {
+        p_user_id: input.userId,
+        p_paypal_order_id: input.paypalOrderId,
       });
       if (error) throw error;
       return Array.isArray(data) ? data[0] : data;

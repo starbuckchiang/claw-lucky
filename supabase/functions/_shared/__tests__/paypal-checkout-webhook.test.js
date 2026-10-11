@@ -162,6 +162,21 @@ test("paypal-plans whitelist", () => {
   assert.equal(getPaypalPlan("x"), null);
 });
 
+test("paypal-plans: gift_shipping_fee is a flat NT$44 Orders-v2-only plan, never allowlisted as a Subscriptions plan id", () => {
+  const plan = getPaypalPlan("gift_shipping_fee");
+  assert.equal(plan.amount, "44.00");
+  assert.equal(plan.currency, "TWD");
+
+  const { resolveSubscriptionPlanAllowlist } = require("../lib/paypal-plans");
+  assert.equal(
+    resolveSubscriptionPlanAllowlist("gift_shipping_fee", {
+      PAYPAL_PLAN_ID_MONTHLY: "P-M",
+      PAYPAL_PLAN_ID_YEARLY: "P-Y"
+    }),
+    null
+  );
+});
+
 test("paypal-client sandbox and live", () => {
   assert.throws(() => resolveApiBase("staging"), /PAYPAL_ENV_UNKNOWN/);
   assert.equal(resolveApiBase("sandbox"), SANDBOX_API_BASE);

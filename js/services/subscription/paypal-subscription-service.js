@@ -80,6 +80,13 @@
       });
     }
 
+    async function confirmGiftShippingFeePayment({ paypalOrderId } = {}) {
+      return invokeFunction({
+        action: "confirm_gift_shipping_fee_payment",
+        paypalOrderId
+      });
+    }
+
     return {
       createSession,
       confirmSubscription,
@@ -87,7 +94,8 @@
       cancelSubscription,
       getGiftStatus,
       submitGiftAddress,
-      requestRefund
+      requestRefund,
+      confirmGiftShippingFeePayment
     };
   }
 

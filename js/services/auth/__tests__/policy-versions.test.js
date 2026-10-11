@@ -90,7 +90,7 @@ test("terms.html/privacy.html display the unified effective date and subscriptio
   assert.doesNotMatch(termsHtml, /一次性付款/);
 });
 
-test("subscription checkboxes are present and not pre-checked; frontend uses createSubscription, never createOrder", () => {
+test("subscription checkboxes are present and not pre-checked; main plan purchase uses createSubscription, never Orders v2 createOrder directly", () => {
   const subscriptionHtml = fs.readFileSync(path.join(REPO_ROOT, "subscription.html"), "utf8");
   const entryJs = fs.readFileSync(path.join(REPO_ROOT, "js", "pages", "subscription-entry.js"), "utf8");
 
@@ -102,5 +102,11 @@ test("subscription checkboxes are present and not pre-checked; frontend uses cre
   assert.doesNotMatch(paymentCheckbox[0], /\bchecked\b/);
 
   assert.match(entryJs, /actions\.subscription\.create|handlers\.createSubscription/);
-  assert.doesNotMatch(entryJs, /actions\.order\.create|\bcreateOrder\b/);
+  // PROD-RELEASE-DAY3C: createOrder is now legitimately used, but ONLY via
+  // the shared, pre-scoped createGiftShippingFeeButtonHandlers() helper for
+  // the unrelated NT$44 gift shipping-fee payment — the MAIN plan purchase
+  // (monthly/yearly) must never call Orders v2 createOrder directly.
+  assert.doesNotMatch(entryJs, /actions\.order\.create/);
+  assert.doesNotMatch(entryJs, /checkoutService\.createOrder\(/);
+  assert.match(entryJs, /createGiftShippingFeeButtonHandlers/);
 });

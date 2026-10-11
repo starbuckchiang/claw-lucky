@@ -20,27 +20,35 @@ test("SDK URL uses vault=true intent=subscription currency=USD components=button
   assert.equal(flow.SDK_VAULT, "true");
 });
 
-test("subscription.html does not load paypal-checkout or createOrder path", () => {
+test("subscription.html uses the subscription SDK/flow for plan purchase; paypal-checkout-service is loaded ONLY for the gift shipping-fee payment (PROD-RELEASE-DAY3C)", () => {
   const html = fs.readFileSync(path.join(ROOT, "subscription.html"), "utf8");
   assert.match(html, /paypal-subscription-service\.js/);
   assert.match(html, /paypal-subscription-flow\.js/);
-  assert.doesNotMatch(html, /paypal-checkout-service\.js/);
+  assert.match(html, /paypal-checkout-service\.js/);
   assert.match(html, /自動續訂/);
   assert.doesNotMatch(html, /一次性方案付款/);
   assert.match(html, /data-plan-id="monthly"/);
   assert.match(html, /data-plan-id="yearly"/);
 });
 
-test("subscription-entry.js does not call createOrder or capture_order", () => {
+test("subscription-entry.js: createOrder/captureOrder are used ONLY for the gift shipping-fee plan, never for monthly/yearly plan purchase", () => {
   const src = fs.readFileSync(path.join(ROOT, "js/pages/subscription-entry.js"), "utf8");
-  assert.doesNotMatch(src, /\bcreateOrder\b/);
-  assert.doesNotMatch(src, /\bcapture_order\b/);
-  assert.doesNotMatch(src, /\bcaptureOrder\b/);
-  assert.doesNotMatch(src, /paypal-checkout/);
+  const flowSrc = fs.readFileSync(
+    path.join(ROOT, "js/services/subscription/paypal-subscription-flow.js"),
+    "utf8"
+  );
   assert.match(src, /createSubscription/);
   assert.match(src, /onApprove/);
   assert.match(src, /paypal-subscription/);
   assert.match(src, /cancelSubscription/);
+  // subscription-entry.js never hardcodes a planCode for the one-time
+  // checkout itself — it ALWAYS delegates to the shared, pre-scoped
+  // createGiftShippingFeeButtonHandlers() helper (tested separately below),
+  // which is the SINGLE place "gift_shipping_fee" is ever written.
+  assert.match(src, /createGiftShippingFeeButtonHandlers/);
+  assert.doesNotMatch(src, /checkoutService\.createOrder\(/);
+  assert.match(flowSrc, /planCode:\s*"gift_shipping_fee"/);
+  assert.doesNotMatch(flowSrc, /planCode:\s*["']monthly["']|planCode:\s*["']yearly["']/);
 });
 
 test("buildCreateSubscriptionPayload uses server plan_id and custom_id=checkout_session_id", () => {
@@ -445,4 +453,157 @@ test("yearly and monthly plan codes are the only UI plan codes", () => {
   const html = fs.readFileSync(path.join(ROOT, "subscription.html"), "utf8");
   const ids = [...html.matchAll(/data-plan-id="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(ids.sort(), ["monthly", "yearly"]);
+});
+
+test("buildPaypalOrdersCaptureSdkUrl: intent=capture, NO vault, caller-chosen currency, components=buttons", () => {
+  const url = flow.buildPaypalOrdersCaptureSdkUrl("CLIENT", "TWD");
+  assert.match(url, /intent=capture/);
+  assert.match(url, /currency=TWD/);
+  assert.match(url, /components=buttons/);
+  assert.doesNotMatch(url, /vault=true/);
+  assert.equal(flow.isOrdersCaptureSdkUrl(url), true);
+  assert.equal(flow.isOrdersCaptureSdkUrl(flow.buildPaypalSdkUrl("CLIENT")), false);
+});
+
+test("loadPaypalOrdersCaptureSdk: replaces an existing subscription SDK script, never coexists with it", async () => {
+  const removed = [];
+  const appended = [];
+  const nodes = [
+    {
+      src: "https://www.paypal.com/sdk/js?client-id=X&currency=USD&intent=subscription&vault=true&components=buttons",
+      parentNode: { removeChild(n) { removed.push(n); } }
+    }
+  ];
+
+  const fakeDoc = {
+    querySelectorAll(sel) {
+      if (String(sel).includes("paypal.com/sdk/js")) {
+        return nodes.filter((n) => !removed.includes(n));
+      }
+      return [];
+    },
+    createElement() {
+      return {
+        src: "",
+        async: false,
+        dataset: {},
+        onload: null,
+        onerror: null,
+        addEventListener() {}
+      };
+    },
+    head: {
+      appendChild(script) {
+        appended.push(script);
+        nodes.push(script);
+        setTimeout(() => {
+          globalThis.paypal = { Buttons() {} };
+          if (script.onload) script.onload();
+        }, 0);
+      }
+    }
+  };
+
+  const paypal = await flow.loadPaypalOrdersCaptureSdk({
+    clientId: "CLIENT",
+    currency: "TWD",
+    documentRef: fakeDoc,
+    existingPaypal: null
+  });
+
+  assert.equal(removed.length, 1);
+  assert.equal(appended.length, 1);
+  assert.match(appended[0].src, /intent=capture/);
+  assert.match(appended[0].src, /currency=TWD/);
+  assert.doesNotMatch(appended[0].src, /vault=true/);
+  assert.ok(paypal.Buttons);
+  delete globalThis.paypal;
+});
+
+test("createGiftShippingFeeButtonHandlers: createOrder uses ONLY planCode=gift_shipping_fee, double-click locked", async () => {
+  const calls = [];
+  const lock = flow.createBusyLock();
+  const checkoutService = {
+    async createOrder(input) {
+      calls.push(input);
+      return { ok: true, orderId: "PO-1", status: "created" };
+    },
+    async captureOrder() {
+      return { ok: true, status: "paid" };
+    }
+  };
+  const subscriptionService = {
+    async confirmGiftShippingFeePayment() {
+      return { ok: true, gift: { status: "awaiting_shipment" } };
+    }
+  };
+
+  const handlers = flow.createGiftShippingFeeButtonHandlers({
+    checkoutService,
+    subscriptionService,
+    busyLock: lock
+  });
+
+  const orderId = await handlers.createOrder();
+  assert.equal(orderId, "PO-1");
+  assert.equal(calls[0].planCode, "gift_shipping_fee");
+  assert.equal(lock.isBusy(), true);
+
+  await assert.rejects(() => handlers.createOrder(), /BUSY/);
+  assert.equal(calls.length, 1);
+});
+
+test("createGiftShippingFeeButtonHandlers: onApprove ALWAYS re-confirms server-side after capture, never trusts capture alone", async () => {
+  const lock = flow.createBusyLock();
+  lock.tryAcquire();
+  const confirmCalls = [];
+  const checkoutService = {
+    async createOrder() {
+      return { ok: true, orderId: "PO-1" };
+    },
+    async captureOrder() {
+      return { ok: true, status: "paid" };
+    }
+  };
+  const subscriptionService = {
+    async confirmGiftShippingFeePayment(input) {
+      confirmCalls.push(input);
+      return { ok: true, gift: { status: "awaiting_shipment" } };
+    }
+  };
+
+  const handlers = flow.createGiftShippingFeeButtonHandlers({ checkoutService, subscriptionService, busyLock: lock });
+  const result = await handlers.onApprove({ orderID: "PO-1" });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.gift.status, "awaiting_shipment");
+  assert.deepEqual(confirmCalls[0], { paypalOrderId: "PO-1" });
+  assert.equal(lock.isBusy(), false);
+});
+
+test("createGiftShippingFeeButtonHandlers: a capture failure never calls confirm, lock still released", async () => {
+  const lock = flow.createBusyLock();
+  lock.tryAcquire();
+  let confirmCalled = false;
+  const checkoutService = {
+    async createOrder() {
+      return { ok: true, orderId: "PO-1" };
+    },
+    async captureOrder() {
+      return { ok: false, error: { code: "PAYPAL_CAPTURE_FAILED" } };
+    }
+  };
+  const subscriptionService = {
+    async confirmGiftShippingFeePayment() {
+      confirmCalled = true;
+      return { ok: true };
+    }
+  };
+
+  const handlers = flow.createGiftShippingFeeButtonHandlers({ checkoutService, subscriptionService, busyLock: lock });
+  const result = await handlers.onApprove({ orderID: "PO-1" });
+
+  assert.equal(result.ok, false);
+  assert.equal(confirmCalled, false);
+  assert.equal(lock.isBusy(), false);
 });

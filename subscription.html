@@ -163,8 +163,10 @@
       </div>
     </dl>
     <p class="subscription-status-text" id="giftFeeNote" hidden>
-      運費金額已確認，付款功能尚未開放，請留意後續通知或聯絡客服完成運費付款。付款、運費與收件地址皆完成後 3 個工作天內出貨。
+      運費金額已確認。請完成下方 NT$44 運費付款（僅收台灣境內，中華郵政普通掛號小包，101–200 克），訂閱付款、運費付款與完整收件地址皆完成後 3 個工作天內出貨。
     </p>
+    <div id="giftFeeButtonsMount" hidden></div>
+    <p class="subscription-status-text" id="giftFeeStatusText"></p>
 
     <dl class="subscription-status-meta" id="giftTrackingMeta" hidden>
       <div>
@@ -264,8 +266,9 @@
 <script src="./js/services/auth/email-otp-service.js?v=20260815-5"></script>
 <script src="./js/services/auth/account-merge-service.js?v=20260816-1"></script>
 <script src="./js/services/auth/subscription-entry-guard.js?v=20260816-1"></script>
-<script src="./js/services/subscription/paypal-subscription-service.js?v=20260907-1"></script>
-<script src="./js/services/subscription/paypal-subscription-flow.js?v=20260907-1"></script>
-<script src="./js/pages/subscription-entry.js?v=20261011-1"></script>
+<script src="./js/services/subscription/paypal-subscription-service.js?v=20261011-1"></script>
+<script src="./js/services/subscription/paypal-checkout-service.js?v=20261011-1"></script>
+<script src="./js/services/subscription/paypal-subscription-flow.js?v=20261011-1"></script>
+<script src="./js/pages/subscription-entry.js?v=20261011-2"></script>
 </body>
 </html>

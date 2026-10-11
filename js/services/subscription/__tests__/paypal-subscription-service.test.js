@@ -79,3 +79,20 @@ test("paypal-subscription-service forwards gift status/address and refund-reques
     reason: "changed my mind"
   });
 });
+
+test("paypal-subscription-service forwards confirm_gift_shipping_fee_payment with ONLY paypalOrderId", async () => {
+  const calls = [];
+  const svc = createPaypalSubscriptionService({
+    async invokeFunction(body) {
+      calls.push(body);
+      return { ok: true };
+    }
+  });
+
+  await svc.confirmGiftShippingFeePayment({ paypalOrderId: "PO-123" });
+
+  assert.deepEqual(calls[0], {
+    action: "confirm_gift_shipping_fee_payment",
+    paypalOrderId: "PO-123"
+  });
+});

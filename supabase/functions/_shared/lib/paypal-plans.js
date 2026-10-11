@@ -18,6 +18,16 @@ const PAYPAL_PLANS = Object.freeze({
     name: "年方案",
     amount: "48.00",
     currency: "USD"
+  }),
+  // PROD-RELEASE-DAY3C: confirmed flat Taiwan-only shipping fee for the
+  // first-payment physical gift. Fixed amount, no regional variation —
+  // reuses the SAME generic Orders v2 one-time-CAPTURE infrastructure as
+  // monthly/yearly (payment_orders keyed by user_id+plan_code).
+  gift_shipping_fee: Object.freeze({
+    planCode: "gift_shipping_fee",
+    name: "實體贈品運費",
+    amount: "44.00",
+    currency: "TWD"
   })
 });
 
@@ -38,6 +48,11 @@ function listPaypalPlanCodes() {
 function resolveSubscriptionPlanAllowlist(planCode, env = {}) {
   const plan = getPaypalPlan(planCode);
   if (!plan) return null;
+  if (plan.planCode !== "monthly" && plan.planCode !== "yearly") {
+    // Orders v2 one-time plans (e.g. gift_shipping_fee) have no PayPal
+    // Subscriptions Plan ID and must never be matched here.
+    return null;
+  }
 
   const code = plan.planCode;
   const envKeyPrimary = code === "monthly"

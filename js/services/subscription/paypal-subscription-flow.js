@@ -60,6 +60,188 @@
     return /[?&]intent=capture(?:&|$)/.test(url);
   }
 
+  // PROD-RELEASE-DAY3C (line 151-198): the NT$44 gift shipping-fee payment
+  // is a one-time Orders v2 CAPTURE, fundamentally incompatible with the
+  // subscription SDK config above (intent=subscription&vault=true) — the
+  // PayPal JS SDK does not support mixing both in one script instance. By
+  // the time this is needed the user is ALREADY a paying subscriber (the
+  // gift is only ever granted after a first successful payment), so the
+  // subscription SDK has already served its purpose and is safely replaced.
+  function buildPaypalOrdersCaptureSdkUrl(clientId, currency) {
+    const id = String(clientId || "").trim();
+    if (!id) {
+      throw new Error("PAYPAL_CLIENT_ID is required for PayPal SDK.");
+    }
+    const params = new URLSearchParams({
+      "client-id": id,
+      currency: String(currency || "TWD").trim().toUpperCase(),
+      intent: "capture",
+      components: SDK_COMPONENTS
+    });
+    return `https://www.paypal.com/sdk/js?${params.toString()}`;
+  }
+
+  function isOrdersCaptureSdkUrl(src) {
+    const url = String(src || "");
+    if (!url.includes("paypal.com/sdk/js")) return false;
+    return (
+      /[?&]intent=capture(?:&|$)/.test(url)
+      && !/[?&]vault=true(?:&|$)/.test(url)
+    );
+  }
+
+  /**
+   * Load (or replace) the single PayPal SDK script with Orders v2 CAPTURE
+   * params — replaces ANY other-configured SDK script already on the page
+   * (mirrors loadPaypalSubscriptionSdk's own replace-in-place behavior).
+   */
+  function loadPaypalOrdersCaptureSdk({
+    clientId,
+    currency,
+    documentRef,
+    existingPaypal,
+    createScriptElement
+  } = {}) {
+    const doc = documentRef || (typeof document !== "undefined" ? document : null);
+    if (!doc) {
+      return Promise.reject(new Error("document is required to load PayPal SDK."));
+    }
+
+    const desiredUrl = buildPaypalOrdersCaptureSdkUrl(clientId, currency);
+    const scripts = Array.from(doc.querySelectorAll('script[src*="paypal.com/sdk/js"]'));
+
+    for (const node of scripts) {
+      if (!isOrdersCaptureSdkUrl(node.src)) {
+        node.parentNode?.removeChild(node);
+      }
+    }
+
+    const remaining = Array.from(doc.querySelectorAll('script[src*="paypal.com/sdk/js"]'));
+    const matching = remaining.find((node) => isOrdersCaptureSdkUrl(node.src) && node.src === desiredUrl);
+
+    if (matching && existingPaypal?.Buttons) {
+      return Promise.resolve(existingPaypal);
+    }
+
+    if (matching && !existingPaypal?.Buttons) {
+      return new Promise((resolve, reject) => {
+        matching.addEventListener("load", () => {
+          const scope = typeof window !== "undefined" ? window : globalThis;
+          const paypal = scope.paypal || null;
+          if (paypal?.Buttons) resolve(paypal);
+          else reject(new Error("PayPal SDK 載入失敗。"));
+        });
+        matching.addEventListener("error", () => reject(new Error("PayPal SDK 無法載入。")));
+      });
+    }
+
+    for (const node of remaining) {
+      node.parentNode?.removeChild(node);
+    }
+
+    return new Promise((resolve, reject) => {
+      const createEl = typeof createScriptElement === "function"
+        ? createScriptElement
+        : () => doc.createElement("script");
+      const script = createEl();
+      script.src = desiredUrl;
+      script.async = true;
+      script.dataset.paypalSdk = "orders-capture";
+      script.onload = () => {
+        const scope = typeof window !== "undefined" ? window : globalThis;
+        const paypal = scope.paypal || null;
+        if (paypal?.Buttons) resolve(paypal);
+        else reject(new Error("PayPal SDK 載入失敗。"));
+      };
+      script.onerror = () => reject(new Error("PayPal SDK 無法載入。"));
+      doc.head.appendChild(script);
+    });
+  }
+
+  /**
+   * createOrder/onApprove callback factory for the NT$44 gift shipping-fee
+   * PayPal Buttons instance. Capture confirmation is ALWAYS re-verified
+   * server-side afterward (confirmGiftShippingFeePayment) — the frontend's
+   * own "approved" callback is never treated as proof of payment by itself.
+   */
+  function createGiftShippingFeeButtonHandlers({
+    checkoutService,
+    subscriptionService,
+    busyLock,
+    onOrderCreated,
+    onAuthExpired,
+    onSafeError
+  }) {
+    async function createOrder() {
+      if (!busyLock.tryAcquire()) {
+        throw new Error("BUSY");
+      }
+      try {
+        const result = await checkoutService.createOrder({
+          planCode: "gift_shipping_fee",
+          idempotencyKey: `gift-shipping-fee:${Date.now()}`
+        });
+        if (isAuthExpiredError(result)) {
+          busyLock.release();
+          if (typeof onAuthExpired === "function") onAuthExpired(result);
+          throw new Error("AUTH_EXPIRED");
+        }
+        if (!result?.ok || !result.orderId) {
+          busyLock.release();
+          const msg = sanitizeUserError(result, "無法建立運費付款，請稍後再試。");
+          if (typeof onSafeError === "function") onSafeError(msg, result);
+          throw new Error(msg);
+        }
+        if (typeof onOrderCreated === "function") onOrderCreated(result);
+        return result.orderId;
+      } catch (error) {
+        if (busyLock.isBusy() && String(error?.message) !== "BUSY") {
+          busyLock.release();
+        }
+        throw error;
+      }
+    }
+
+    async function onApprove(data) {
+      const orderId = String(data?.orderID || "").trim();
+      try {
+        const captured = await checkoutService.captureOrder({ orderId });
+        if (isAuthExpiredError(captured)) {
+          if (typeof onAuthExpired === "function") onAuthExpired(captured);
+          return { ok: false, authExpired: true };
+        }
+        if (!captured?.ok) {
+          return captured;
+        }
+        // Server-authoritative confirmation — never trust the capture
+        // response alone to move the gift entitlement forward.
+        const confirmed = await subscriptionService.confirmGiftShippingFeePayment({ paypalOrderId: orderId });
+        if (isAuthExpiredError(confirmed)) {
+          if (typeof onAuthExpired === "function") onAuthExpired(confirmed);
+          return { ok: false, authExpired: true };
+        }
+        return confirmed;
+      } finally {
+        busyLock.release();
+      }
+    }
+
+    function onCancel() {
+      busyLock.release();
+      return { message: "尚未完成運費付款", hint: "可再次點擊付款按鈕重試。" };
+    }
+
+    function onError() {
+      busyLock.release();
+      if (typeof onSafeError === "function") {
+        onSafeError("運費付款發生錯誤，請稍後再試。");
+      }
+      return { message: "運費付款發生錯誤，請稍後再試。" };
+    }
+
+    return { createOrder, onApprove, onCancel, onError };
+  }
+
   /**
    * Load (or replace) a single PayPal SDK script with subscription params.
    * Rejects duplicate inserts; replaces legacy capture SDK if found.
@@ -573,6 +755,10 @@
     isSubscriptionSdkUrl,
     isLegacyOrdersSdkUrl,
     loadPaypalSubscriptionSdk,
+    buildPaypalOrdersCaptureSdkUrl,
+    isOrdersCaptureSdkUrl,
+    loadPaypalOrdersCaptureSdk,
+    createGiftShippingFeeButtonHandlers,
     buildCreateSubscriptionPayload,
     resolveSubscriptionUiState,
     shouldStopStatusPoll,
