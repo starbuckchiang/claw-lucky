@@ -56,6 +56,10 @@ const ERROR_HTTP_STATUS = Object.freeze({
   PAYPAL_CONFIG: 503,
   PAYPAL_GET_SUBSCRIPTION_FAILED: 502,
   PAYPAL_CANCEL_SUBSCRIPTION_FAILED: 502,
+  GIFT_NOT_ELIGIBLE: 404,
+  ADDRESS_FIELDS_REQUIRED: 400,
+  ADDRESS_LOCKED_AFTER_FEE_QUOTE: 409,
+  REFUND_REQUEST_ALREADY_PENDING: 409,
   DB_ERROR: 503,
   INTERNAL_ERROR: 500
 });
@@ -134,7 +138,12 @@ function mapRpcException(error) {
     "CHECKOUT_SESSION_EXPIRED",
     "PAYPAL_SUBSCRIPTION_ALREADY_BOUND",
     "PAYPAL_SUBSCRIPTION_ID_IN_USE",
-    "INVALID_PAYPAL_SUBSCRIPTION_ID"
+    "INVALID_PAYPAL_SUBSCRIPTION_ID",
+    "SUBSCRIPTION_NOT_FOUND",
+    "GIFT_NOT_ELIGIBLE",
+    "ADDRESS_FIELDS_REQUIRED",
+    "ADDRESS_LOCKED_AFTER_FEE_QUOTE",
+    "REFUND_REQUEST_ALREADY_PENDING"
   ];
   for (const code of known) {
     if (msg.includes(code)) {
@@ -818,6 +827,196 @@ async function handleCancelSubscription({ body, user, deps }) {
   };
 }
 
+function safeGiftSummary(row) {
+  if (!row) return null;
+  return {
+    status: row.status || null,
+    recipient_name: row.recipient_name || null,
+    recipient_phone: row.recipient_phone || null,
+    address_line1: row.address_line1 || null,
+    address_line2: row.address_line2 || null,
+    city: row.city || null,
+    region: row.region || null,
+    postal_code: row.postal_code || null,
+    country: row.country || null,
+    shipping_fee_currency: row.shipping_fee_currency || null,
+    shipping_fee_amount: row.shipping_fee_amount != null ? formatAmount(row.shipping_fee_amount) : null,
+    shipping_fee_paid_at: row.shipping_fee_paid_at || null,
+    shipped_at: row.shipped_at || null,
+    granted_at: row.granted_at || null
+  };
+}
+
+async function handleGetGiftStatus({ user, deps }) {
+  const auth = requireVerifiedOfficialUser(user);
+  if (!auth.ok) {
+    return { statusCode: toHttpStatus(auth.code), body: errorBody(auth.code, auth.message) };
+  }
+
+  const repo = deps.subscriptionRepository;
+  if (!repo?.getGiftEntitlement) {
+    return {
+      statusCode: 503,
+      body: errorBody("DB_ERROR", "Gift repository is not configured.")
+    };
+  }
+
+  let row;
+  try {
+    row = await repo.getGiftEntitlement(auth.userId);
+  } catch (_error) {
+    return {
+      statusCode: toHttpStatus("DB_ERROR"),
+      body: errorBody("DB_ERROR", "Failed to load gift status.")
+    };
+  }
+
+  return {
+    statusCode: 200,
+    body: { ok: true, gift: safeGiftSummary(row) }
+  };
+}
+
+const REQUIRED_ADDRESS_FIELDS = [
+  "recipient_name",
+  "recipient_phone",
+  "address_line1",
+  "city",
+  "region",
+  "postal_code",
+  "country"
+];
+
+function hasAllAddressFields(body) {
+  return REQUIRED_ADDRESS_FIELDS.every((key) => String(body?.[key] || "").trim() !== "");
+}
+
+async function handleSubmitGiftAddress({ body, user, deps }) {
+  const auth = requireVerifiedOfficialUser(user);
+  if (!auth.ok) {
+    return { statusCode: toHttpStatus(auth.code), body: errorBody(auth.code, auth.message) };
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return {
+      statusCode: 400,
+      body: errorBody("INVALID_REQUEST", "Request body must be a JSON object.")
+    };
+  }
+
+  if (!hasAllAddressFields(body)) {
+    return {
+      statusCode: toHttpStatus("ADDRESS_FIELDS_REQUIRED"),
+      body: errorBody(
+        "ADDRESS_FIELDS_REQUIRED",
+        "recipient_name, recipient_phone, address_line1, city, region, postal_code, and country are required."
+      )
+    };
+  }
+
+  const repo = deps.subscriptionRepository;
+  if (!repo?.submitGiftShippingAddress) {
+    return {
+      statusCode: 503,
+      body: errorBody("DB_ERROR", "Gift repository is not configured.")
+    };
+  }
+
+  try {
+    await repo.submitGiftShippingAddress({
+      userId: auth.userId,
+      recipientName: String(body.recipient_name).trim(),
+      recipientPhone: String(body.recipient_phone).trim(),
+      addressLine1: String(body.address_line1).trim(),
+      addressLine2: body.address_line2 != null ? String(body.address_line2).trim() : null,
+      city: String(body.city).trim(),
+      region: String(body.region).trim(),
+      postalCode: String(body.postal_code).trim(),
+      country: String(body.country).trim()
+    });
+  } catch (error) {
+    const mapped = mapRpcException(error);
+    return {
+      statusCode: toHttpStatus(mapped.code),
+      body: errorBody(mapped.code, mapped.message)
+    };
+  }
+
+  let row = null;
+  if (typeof repo.getGiftEntitlement === "function") {
+    try {
+      row = await repo.getGiftEntitlement(auth.userId);
+    } catch (_e) {
+      row = null;
+    }
+  }
+
+  return {
+    statusCode: 200,
+    body: { ok: true, gift: safeGiftSummary(row) }
+  };
+}
+
+async function handleRequestRefund({ body, user, deps }) {
+  const auth = requireVerifiedOfficialUser(user);
+  if (!auth.ok) {
+    return { statusCode: toHttpStatus(auth.code), body: errorBody(auth.code, auth.message) };
+  }
+
+  const repo = deps.subscriptionRepository;
+  if (!repo?.findLatestByUserId || !repo?.requestSubscriptionRefund) {
+    return {
+      statusCode: 503,
+      body: errorBody("DB_ERROR", "Refund repository is not configured.")
+    };
+  }
+
+  let row;
+  try {
+    row = await repo.findLatestByUserId(auth.userId);
+  } catch (_error) {
+    return {
+      statusCode: toHttpStatus("DB_ERROR"),
+      body: errorBody("DB_ERROR", "Failed to load subscription.")
+    };
+  }
+
+  if (!row || !row.id) {
+    return {
+      statusCode: toHttpStatus("SUBSCRIPTION_NOT_FOUND"),
+      body: errorBody("SUBSCRIPTION_NOT_FOUND", "No subscription found for this account.")
+    };
+  }
+
+  const reason = body && body.reason != null ? String(body.reason).trim().slice(0, 500) : null;
+
+  let result;
+  try {
+    result = await repo.requestSubscriptionRefund({
+      userId: auth.userId,
+      subscriptionId: row.id,
+      reason
+    });
+  } catch (error) {
+    const mapped = mapRpcException(error);
+    return {
+      statusCode: toHttpStatus(mapped.code),
+      body: errorBody(mapped.code, mapped.message)
+    };
+  }
+
+  return {
+    statusCode: 201,
+    body: {
+      ok: true,
+      refund_request: {
+        id: result?.request_id || null,
+        status: result?.status || "pending"
+      }
+    }
+  };
+}
+
 async function handlePaypalSubscriptionRequest({ body, user, correlationId, deps = {} }) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return {
@@ -845,12 +1044,24 @@ async function handlePaypalSubscriptionRequest({ body, user, correlationId, deps
     const result = await handleCancelSubscription({ body, user, deps });
     return { ...result, correlationId };
   }
+  if (action === "get_gift_status") {
+    const result = await handleGetGiftStatus({ user, deps });
+    return { ...result, correlationId };
+  }
+  if (action === "submit_gift_address") {
+    const result = await handleSubmitGiftAddress({ body, user, deps });
+    return { ...result, correlationId };
+  }
+  if (action === "request_refund") {
+    const result = await handleRequestRefund({ body, user, deps });
+    return { ...result, correlationId };
+  }
 
   return {
     statusCode: 400,
     body: errorBody(
       "INVALID_REQUEST",
-      "action must be create_session, confirm_subscription, get_status, or cancel_subscription."
+      "action must be create_session, confirm_subscription, get_status, cancel_subscription, get_gift_status, submit_gift_address, or request_refund."
     ),
     correlationId
   };
@@ -964,6 +1175,42 @@ function createSubscriptionRepositoryFromSupabase(serviceClient) {
         .eq("paypal_event_id", paypalEventId)
         .eq("processing_status", "pending_resolution");
       if (error) throw error;
+    },
+
+    async getGiftEntitlement(userId) {
+      const { data, error } = await serviceClient
+        .from("physical_gift_entitlements")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+
+    async submitGiftShippingAddress(input) {
+      const { data, error } = await serviceClient.rpc("submit_gift_shipping_address", {
+        p_user_id: input.userId,
+        p_recipient_name: input.recipientName,
+        p_recipient_phone: input.recipientPhone,
+        p_address_line1: input.addressLine1,
+        p_address_line2: input.addressLine2 || null,
+        p_city: input.city,
+        p_region: input.region,
+        p_postal_code: input.postalCode,
+        p_country: input.country
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    },
+
+    async requestSubscriptionRefund(input) {
+      const { data, error } = await serviceClient.rpc("request_subscription_refund", {
+        p_user_id: input.userId,
+        p_subscription_id: input.subscriptionId,
+        p_reason: input.reason || null
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
     }
   };
 }
@@ -974,10 +1221,14 @@ module.exports = {
   handleConfirmSubscription,
   handleGetStatus,
   handleCancelSubscription,
+  handleGetGiftStatus,
+  handleSubmitGiftAddress,
+  handleRequestRefund,
   createSubscriptionRepositoryFromSupabase,
   createPaypalClient,
   requireVerifiedOfficialUser,
   safeSubscriptionSummary,
+  safeGiftSummary,
   reconcileActiveSubscriptionIfNeeded,
   toHttpStatus,
   ERROR_HTTP_STATUS,
