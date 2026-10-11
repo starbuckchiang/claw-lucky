@@ -145,6 +145,10 @@ function createGenerationOrchestrator({
       correlationId: trace.correlationId
     });
     if (!generationResult.ok) {
+      if (typeof usageService.releaseReservation === "function") {
+        await usageService.releaseReservation(userId);
+      }
+
       await failJobIfNeeded(jobId, {
         failureCode: generationResult.error.code,
         failureMessage: generationResult.error.message
@@ -182,6 +186,10 @@ function createGenerationOrchestrator({
       costPoints: costResult.data.costPoints
     });
     if (!pointsDeduction.ok) {
+      if (typeof usageService.releaseReservation === "function") {
+        await usageService.releaseReservation(userId);
+      }
+
       await failJobIfNeeded(jobId, {
         failureCode: pointsDeduction.error.code,
         failureMessage: pointsDeduction.error.message

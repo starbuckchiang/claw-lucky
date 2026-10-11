@@ -115,11 +115,23 @@ export function calculateSubscriptionRefund(input: any) {
   const shippingFeeAmount = Number(input.shippingFeeAmount || 0);
   const shippingFeeCurrency = String(input.shippingFeeCurrency || "TWD").toUpperCase();
 
+  // Shipping fee is never prorated. This is the DEFAULT (ordinary/
+  // contractual) outcome only — full refund if not yet shipped, zero once
+  // shipped. It is NOT the final word: a statutory withdrawal claim can
+  // override it (see shippingRefundLegalReviewRecommended below).
   const shippingRefundAmount = giftEverGranted && !giftShipped
     ? roundToCurrencyMinorUnit(shippingFeeAmount, shippingFeeCurrency)
     : 0;
 
   const giftReturnRequired = giftEverGranted && giftShipped && withinCoolingOff;
+
+  // Whenever the gift already shipped, the DEFAULT shipping-fee outcome
+  // (no refund) is only correct for an ordinary change-of-mind refund — a
+  // statutory withdrawal right can require refunding the fee AND having the
+  // business bear the necessary return-shipping cost. Never auto-resolve
+  // this; always route it to manual review.
+  const shippingRefundLegalReviewRecommended = giftEverGranted && giftShipped;
+  const returnShippingCostBorneByBusinessIfLegalWithdrawal = shippingRefundLegalReviewRecommended;
 
   return {
     withinCoolingOff,
@@ -131,6 +143,8 @@ export function calculateSubscriptionRefund(input: any) {
     shippingRefundAmount,
     shippingRefundCurrency: shippingFeeCurrency,
     giftReturnRequired,
+    shippingRefundLegalReviewRecommended,
+    returnShippingCostBorneByBusinessIfLegalWithdrawal,
     calculationRuleVersion: CALCULATION_RULE_VERSION,
     snapshot: {
       period_start: periodStart.toISOString(),
@@ -145,6 +159,8 @@ export function calculateSubscriptionRefund(input: any) {
       shipping_refund_amount: shippingRefundAmount,
       shipping_refund_currency: shippingFeeCurrency,
       gift_return_required: giftReturnRequired,
+      shipping_refund_legal_review_recommended: shippingRefundLegalReviewRecommended,
+      return_shipping_cost_borne_by_business_if_legal_withdrawal: returnShippingCostBorneByBusinessIfLegalWithdrawal,
       calculation_rule_version: CALCULATION_RULE_VERSION,
     },
   };

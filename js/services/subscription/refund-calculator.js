@@ -16,9 +16,16 @@
  *     clamped to [0, totalDays]. unusedDays = totalDays - usedDays.
  *   - refundAmount = paidAmount * unusedDays / totalDays, rounded ONLY at
  *     the very end to the currency's smallest unit.
- *   - Shipping fee is never prorated: full refund only if not yet shipped;
- *     zero refund once shipped (the shipping service was already rendered),
- *     regardless of the 7-day window.
+ *   - Shipping fee is never prorated. DEFAULT (ordinary, non-statutory)
+ *     outcome: full refund only if not yet shipped; zero refund once shipped
+ *     (the shipping service was already rendered). This default is NOT an
+ *     absolute rule: if the customer is exercising a STATUTORY withdrawal
+ *     right (法定解除權), the shipping fee may still need to be refunded and
+ *     the business may need to bear the gift's return shipping cost — this
+ *     calculator never decides that on its own; it only flags the case
+ *     (`shippingRefundLegalReviewRecommended`) for a human operator to
+ *     resolve, per "有疑義時交人工審核，不自動拒絕". The default amount is
+ *     always persisted as a historical record; a human may override it.
  */
 
 const ASIA_TAIPEI_OFFSET_MINUTES = 8 * 60; // fixed UTC+8, no DST in Taiwan.
@@ -171,7 +178,10 @@ function calculateSubscriptionRefund(input) {
   const shippingFeeAmount = Number(input.shippingFeeAmount || 0);
   const shippingFeeCurrency = String(input.shippingFeeCurrency || "TWD").toUpperCase();
 
-  // Shipping fee is never prorated: full refund only if not yet shipped.
+  // Shipping fee is never prorated. This is the DEFAULT (ordinary/
+  // contractual) outcome only — full refund if not yet shipped, zero once
+  // shipped. It is NOT the final word: a statutory withdrawal claim can
+  // override it (see shippingRefundLegalReviewRecommended below).
   const shippingRefundAmount = giftEverGranted && !giftShipped
     ? roundToCurrencyMinorUnit(shippingFeeAmount, shippingFeeCurrency)
     : 0;
@@ -179,6 +189,14 @@ function calculateSubscriptionRefund(input) {
   // Gift must be physically returned only when it already shipped AND the
   // request landed inside the 7-day window (legal/contractual withdrawal).
   const giftReturnRequired = giftEverGranted && giftShipped && withinCoolingOff;
+
+  // Whenever the gift already shipped, the DEFAULT shipping-fee outcome
+  // (no refund) is only correct for an ordinary change-of-mind refund — a
+  // statutory withdrawal right can require refunding the fee AND having the
+  // business bear the necessary return-shipping cost. Never auto-resolve
+  // this; always route it to manual review.
+  const shippingRefundLegalReviewRecommended = giftEverGranted && giftShipped;
+  const returnShippingCostBorneByBusinessIfLegalWithdrawal = shippingRefundLegalReviewRecommended;
 
   return {
     withinCoolingOff,
@@ -190,6 +208,8 @@ function calculateSubscriptionRefund(input) {
     shippingRefundAmount,
     shippingRefundCurrency: shippingFeeCurrency,
     giftReturnRequired,
+    shippingRefundLegalReviewRecommended,
+    returnShippingCostBorneByBusinessIfLegalWithdrawal,
     calculationRuleVersion: CALCULATION_RULE_VERSION,
     snapshot: {
       period_start: periodStart.toISOString(),
@@ -204,6 +224,8 @@ function calculateSubscriptionRefund(input) {
       shipping_refund_amount: shippingRefundAmount,
       shipping_refund_currency: shippingFeeCurrency,
       gift_return_required: giftReturnRequired,
+      shipping_refund_legal_review_recommended: shippingRefundLegalReviewRecommended,
+      return_shipping_cost_borne_by_business_if_legal_withdrawal: returnShippingCostBorneByBusinessIfLegalWithdrawal,
       calculation_rule_version: CALCULATION_RULE_VERSION
     }
   };

@@ -119,6 +119,18 @@ function createFakeSupabaseClient() {
     }
   };
 
+  const subscriptionsTable = {
+    select() {
+      return {
+        eq: () => ({
+          order: () => ({
+            limit: () => ({ maybeSingle: async () => ({ data: null, error: null }) })
+          })
+        })
+      };
+    }
+  };
+
   const TABLES = {
     wallpaper_generation_jobs: jobsTable,
     daily_generation_usage: usageTable,
@@ -126,7 +138,8 @@ function createFakeSupabaseClient() {
     generation_cost_config: costConfigTable,
     prompt_versions: promptTable,
     mascots: mascotsTable,
-    gifts: giftsTable
+    gifts: giftsTable,
+    paypal_subscriptions: subscriptionsTable
   };
 
   return {
@@ -136,6 +149,15 @@ function createFakeSupabaseClient() {
         throw new Error(`Unexpected table in fake supabase client: ${tableName}`);
       }
       return table;
+    },
+    async rpc(fnName) {
+      if (fnName === "reserve_wallpaper_quota") {
+        return { data: { allowed: true, remaining: 2 }, error: null };
+      }
+      if (fnName === "confirm_wallpaper_quota_usage" || fnName === "release_wallpaper_quota_reservation") {
+        return { data: null, error: null };
+      }
+      throw new Error(`Unexpected rpc in fake supabase client: ${fnName}`);
     },
     // createWallpaperStorageUploader() validates this exists at construction
     // time (buildOrchestrator always builds a storage uploader), even though

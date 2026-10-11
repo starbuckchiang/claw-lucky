@@ -30,11 +30,14 @@
 const { createGenerationOrchestrator } = require("../../../js/services/wallpaper/generation-orchestrator.js");
 const { createGenerationService } = require("../../../js/services/wallpaper/generation-service.js");
 const { createJobService } = require("../../../js/services/wallpaper/job-service.js");
-const { createUsageService } = require("../../../js/services/wallpaper/usage-service.js");
 const { createPointsService } = require("../../../js/services/wallpaper/points-service.js");
 const { createGenerationRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/generation-repository.js");
 const { createJobRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/job-repository.js");
-const { createUsageRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/usage-repository.js");
+const { createMembershipQuotaService } = require("../../../js/services/wallpaper/membership-quota-service.js");
+const {
+  createWallpaperQuotaRepositoryFromSupabaseClient,
+  createSubscriptionLookupRepositoryFromSupabaseClient
+} = require("../../../js/services/wallpaper/membership-quota-repository.js");
 const { createPointsRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/points-repository.js");
 const { createMascotRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/mascot-repository.js");
 const { createGiftRepositoryFromSupabaseClient } = require("../../../js/services/wallpaper/gift-repository.js");
@@ -247,7 +250,8 @@ function buildOrchestrator({
 
   const generationRepository = createGenerationRepositoryFromSupabaseClient({ supabaseClient });
   const jobRepository = createJobRepositoryFromSupabaseClient({ supabaseClient });
-  const usageRepository = createUsageRepositoryFromSupabaseClient({ supabaseClient });
+  const quotaRepository = createWallpaperQuotaRepositoryFromSupabaseClient({ supabaseClient });
+  const subscriptionRepository = createSubscriptionLookupRepositoryFromSupabaseClient({ supabaseClient });
   const pointsRepository = createPointsRepositoryFromSupabaseClient({ supabaseClient });
 
   // P2-AI-02 Prompt Architecture / P2-AI-03 Shopkeeper Context Agent: the
@@ -278,7 +282,12 @@ function buildOrchestrator({
   });
 
   const jobService = createJobService({ jobRepository });
-  const usageService = createUsageService({ usageRepository });
+  // PROD-RELEASE-DAY3C: membership-aware quota (free: 3 lifetime within a
+  // 30-day trial window; paid: 10/calendar month) replaces the old flat
+  // daily-count gate. Exposes the identical checkDailyLimit/recordSuccess
+  // interface the orchestrator already expects, plus an additive
+  // releaseReservation the orchestrator calls on a failed attempt.
+  const usageService = createMembershipQuotaService({ subscriptionRepository, quotaRepository });
   const pointsService = createPointsService({ pointsRepository });
 
   return createGenerationOrchestrator({

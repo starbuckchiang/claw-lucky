@@ -251,6 +251,52 @@ test("calculateSubscriptionRefund: gift return required only when shipped AND wi
   assert.equal(overAndShipped.shippingRefundAmount, 0, "already-rendered shipping fee is never refunded");
 });
 
+test("calculateSubscriptionRefund: whenever the gift already shipped, the shipping-fee outcome is flagged for legal-withdrawal review (never silently final)", () => {
+  const overAndShipped = calculateSubscriptionRefund({
+    subscriptionActivatedAt: taipei("2026-01-01T00:00:00"),
+    periodStart: taipei("2026-09-01T00:00:00"),
+    periodEnd: taipei("2026-10-01T00:00:00"),
+    requestedAt: taipei("2026-09-20T00:00:00"),
+    paidAmount: 10,
+    currency: "USD",
+    shippingFeeAmount: 44,
+    shippingFeeCurrency: "TWD",
+    giftShipped: true,
+    giftEverGranted: true
+  });
+  assert.equal(overAndShipped.shippingRefundLegalReviewRecommended, true);
+  assert.equal(overAndShipped.returnShippingCostBorneByBusinessIfLegalWithdrawal, true);
+  assert.equal(overAndShipped.snapshot.shipping_refund_legal_review_recommended, true);
+
+  const withinAndShipped = calculateSubscriptionRefund({
+    subscriptionActivatedAt: taipei("2026-10-01T00:00:00"),
+    periodStart: taipei("2026-10-01T00:00:00"),
+    periodEnd: taipei("2026-11-01T00:00:00"),
+    requestedAt: taipei("2026-10-05T00:00:00"),
+    paidAmount: 5,
+    currency: "USD",
+    shippingFeeAmount: 44,
+    shippingFeeCurrency: "TWD",
+    giftShipped: true,
+    giftEverGranted: true
+  });
+  assert.equal(withinAndShipped.shippingRefundLegalReviewRecommended, true, "ambiguity exists both inside and outside the cooling-off window");
+
+  const notShippedYet = calculateSubscriptionRefund({
+    subscriptionActivatedAt: taipei("2026-01-01T00:00:00"),
+    periodStart: taipei("2026-09-01T00:00:00"),
+    periodEnd: taipei("2026-10-01T00:00:00"),
+    requestedAt: taipei("2026-09-10T00:00:00"),
+    paidAmount: 10,
+    currency: "USD",
+    shippingFeeAmount: 44,
+    shippingFeeCurrency: "TWD",
+    giftShipped: false,
+    giftEverGranted: true
+  });
+  assert.equal(notShippedYet.shippingRefundLegalReviewRecommended, false, "no ambiguity when nothing shipped yet (fee is simply refunded in full)");
+});
+
 test("calculateSubscriptionRefund: subscription and shipping amounts stay in their OWN original currencies, never mixed", () => {
   const result = calculateSubscriptionRefund({
     subscriptionActivatedAt: taipei("2026-10-01T00:00:00"),

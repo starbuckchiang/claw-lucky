@@ -17,11 +17,14 @@
 import { createGenerationOrchestrator } from "./lib/generation-orchestrator.ts";
 import { createGenerationService } from "./lib/generation-service.ts";
 import { createJobService } from "./lib/job-service.ts";
-import { createUsageService } from "./lib/usage-service.ts";
 import { createPointsService } from "./lib/points-service.ts";
 import { createGenerationRepositoryFromSupabaseClient } from "./lib/generation-repository.ts";
 import { createJobRepositoryFromSupabaseClient } from "./lib/job-repository.ts";
-import { createUsageRepositoryFromSupabaseClient } from "./lib/usage-repository.ts";
+import { createMembershipQuotaService } from "./lib/membership-quota-service.ts";
+import {
+  createWallpaperQuotaRepositoryFromSupabaseClient,
+  createSubscriptionLookupRepositoryFromSupabaseClient,
+} from "./lib/membership-quota-repository.ts";
 import { createPointsRepositoryFromSupabaseClient } from "./lib/points-repository.ts";
 import { createMascotRepositoryFromSupabaseClient } from "./lib/mascot-repository.ts";
 import { createGiftRepositoryFromSupabaseClient } from "./lib/gift-repository.ts";
@@ -229,7 +232,8 @@ export function buildOrchestrator({
 
   const generationRepository = createGenerationRepositoryFromSupabaseClient({ supabaseClient });
   const jobRepository = createJobRepositoryFromSupabaseClient({ supabaseClient });
-  const usageRepository = createUsageRepositoryFromSupabaseClient({ supabaseClient });
+  const quotaRepository = createWallpaperQuotaRepositoryFromSupabaseClient({ supabaseClient });
+  const subscriptionRepository = createSubscriptionLookupRepositoryFromSupabaseClient({ supabaseClient });
   const pointsRepository = createPointsRepositoryFromSupabaseClient({ supabaseClient });
 
   // P2-AI-02 Prompt Architecture / P2-AI-03 Shopkeeper Context Agent: the
@@ -260,7 +264,11 @@ export function buildOrchestrator({
   });
 
   const jobService = createJobService({ jobRepository });
-  const usageService = createUsageService({ usageRepository });
+  // PROD-RELEASE-DAY3C: membership-aware quota (free: 3 lifetime within a
+  // 30-day trial window; paid: 10/calendar month) replaces the old flat
+  // daily-count gate — same checkDailyLimit/recordSuccess interface, plus
+  // an additive releaseReservation the orchestrator calls on failure.
+  const usageService = createMembershipQuotaService({ subscriptionRepository, quotaRepository });
   const pointsService = createPointsService({ pointsRepository });
 
   return createGenerationOrchestrator({
