@@ -1,0 +1,27 @@
+<!--
+PENDING CONTENT — PROD-RELEASE-DAY3C follow-up.
+
+This file is the content_path target for `auth.email.template.email_change`
+in supabase/config.toml, which `supabase config push` would apply to a
+project's Auth "Change Email Address" email template.
+
+DO NOT run `supabase config push` with this file as-is — it is a placeholder,
+NOT the previously-approved Chinese 6-digit OTP wording used on Production.
+Pushing this placeholder would make Sandbox WORSE (replace the stock GoTrue
+English default with an unapproved guess), which this task explicitly
+prohibits ("不要重新設計登入").
+
+To finish this: replace this file's content with the EXACT approved
+Subject + HTML body currently configured on Production's Dashboard
+(Authentication -> Email Templates -> Change Email Address), then this
+becomes a real, repeatable, version-controlled deployment artifact for
+Sandbox (and any future environment) instead of Dashboard-only tribal
+knowledge.
+
+The approved template must render the 6-digit code via {{ .Token }}
+(NOT {{ .ConfirmationURL }}, which is the link-based default that produces
+the "Confirm your new email address" English email currently seen on
+Sandbox).
+-->
+<h2>PLACEHOLDER — replace with the approved Chinese OTP template body</h2>
+<p>驗證碼：{{ .Token }}</p>

@@ -8,3 +8,23 @@ verify_jwt = false
 
 [functions.paypal-subscription]
 verify_jwt = true
+
+# PROD-RELEASE-DAY3C follow-up: make the Auth Email Template for the
+# existing Anonymous-Upgrade OTP flow (authClient.updateUser({email}) ->
+# GoTrue "email_change" type) a REPEATABLE, version-controlled deployment
+# artifact — `supabase config push --project-ref <ref>` applies this to a
+# project's Auth settings, instead of leaving it as Dashboard-only state
+# that silently reverts to the stock English default on any environment
+# that was never manually clicked-through (exactly what happened on
+# Sandbox). otp_length is set explicitly even though 6 is already GoTrue's
+# own default, so this file is the single source of truth going forward.
+#
+# content_path below is STILL A PLACEHOLDER (see that file's own header) —
+# do NOT `config push` until it holds the actual approved wording copied
+# from Production's current Dashboard template.
+[auth.email]
+otp_length = 6
+
+[auth.email.template.email_change]
+subject = "PENDING-REPLACE-WITH-APPROVED-SUBJECT"
+content_path = "./supabase/templates/email_change.html"
