@@ -40,12 +40,42 @@
     statusPaidThrough: document.getElementById("statusPaidThrough"),
     cancelRow: document.getElementById("cancelRow"),
     cancelSubscriptionBtn: document.getElementById("cancelSubscriptionBtn"),
+    serviceEntryRow: document.getElementById("serviceEntryRow"),
     statusActionText: document.getElementById("statusActionText"),
     errorPanel: document.getElementById("errorPanel"),
     errorMessage: document.getElementById("errorMessage"),
     retryBtn: document.getElementById("retryBtn"),
     otpPanelTitle: document.getElementById("otpPanelTitle"),
-    otpPanelDesc: document.getElementById("otpPanelDesc")
+    otpPanelDesc: document.getElementById("otpPanelDesc"),
+    openRefundFormBtn: document.getElementById("openRefundFormBtn"),
+    refundForm: document.getElementById("refundForm"),
+    refundReasonInput: document.getElementById("refundReasonInput"),
+    submitRefundBtn: document.getElementById("submitRefundBtn"),
+    cancelRefundFormBtn: document.getElementById("cancelRefundFormBtn"),
+    refundResult: document.getElementById("refundResult"),
+    refundSubAmount: document.getElementById("refundSubAmount"),
+    refundShipAmount: document.getElementById("refundShipAmount"),
+    refundGiftReturn: document.getElementById("refundGiftReturn"),
+    giftPanel: document.getElementById("giftPanel"),
+    giftHeadline: document.getElementById("giftHeadline"),
+    giftDetail: document.getElementById("giftDetail"),
+    giftHoldNotice: document.getElementById("giftHoldNotice"),
+    giftAddressForm: document.getElementById("giftAddressForm"),
+    giftRecipientName: document.getElementById("giftRecipientName"),
+    giftRecipientPhone: document.getElementById("giftRecipientPhone"),
+    giftAddressLine1: document.getElementById("giftAddressLine1"),
+    giftAddressLine2: document.getElementById("giftAddressLine2"),
+    giftCity: document.getElementById("giftCity"),
+    giftRegion: document.getElementById("giftRegion"),
+    giftPostalCode: document.getElementById("giftPostalCode"),
+    giftCountry: document.getElementById("giftCountry"),
+    submitGiftAddressBtn: document.getElementById("submitGiftAddressBtn"),
+    giftAddressStatusText: document.getElementById("giftAddressStatusText"),
+    giftFeeMeta: document.getElementById("giftFeeMeta"),
+    giftFeeAmount: document.getElementById("giftFeeAmount"),
+    giftFeeNote: document.getElementById("giftFeeNote"),
+    giftTrackingMeta: document.getElementById("giftTrackingMeta"),
+    giftTrackingNumber: document.getElementById("giftTrackingNumber")
   };
 
   let pendingGuard = null;
@@ -243,6 +273,9 @@
         refs.statusPaidThrough.textContent = ui.paidThroughLocal || "—";
       }
       if (refs.cancelRow) refs.cancelRow.hidden = !ui.showCancelButton;
+      if (refs.serviceEntryRow) {
+        refs.serviceEntryRow.hidden = !(ui.mode === "active" || ui.mode === "cancelled_with_access");
+      }
     }
 
     setPlanSectionVisible(ui.showPlanButtons);
@@ -429,7 +462,151 @@
     if (startPolling && ui.mode === "awaiting_first_payment") {
       beginPaidThroughPolling();
     }
+    loadGiftStatus();
     return result.subscription;
+  }
+
+  const GIFT_STATUS_TEXT = {
+    granted: "恭喜獲得首購贈品！請填寫收件資料。",
+    fee_quoted: "收件資料已送出，運費已確認。",
+    fee_paid: "運費已付款，準備出貨中。",
+    awaiting_shipment: "商品準備中，即將出貨。",
+    shipped: "商品已出貨。"
+  };
+
+  async function loadGiftStatus() {
+    if (!refs.giftPanel) return;
+    try {
+      const svc = createPaypalService();
+      const result = await svc.getGiftStatus();
+      if (!result?.ok || !result.gift) {
+        refs.giftPanel.hidden = true;
+        return;
+      }
+      renderGiftStatus(result.gift);
+    } catch (_error) {
+      // Soft-fail: gift panel just stays hidden.
+    }
+  }
+
+  function renderGiftStatus(gift) {
+    refs.giftPanel.hidden = false;
+    if (refs.giftHeadline) {
+      refs.giftHeadline.textContent = GIFT_STATUS_TEXT[gift.status] || "實體贈品";
+    }
+    if (refs.giftDetail) {
+      refs.giftDetail.textContent = GIFT_STATUS_TEXT[gift.status] || "";
+    }
+    if (refs.giftHoldNotice) refs.giftHoldNotice.hidden = !gift.on_hold;
+
+    const needsAddress = gift.status === "granted";
+    if (refs.giftAddressForm) refs.giftAddressForm.hidden = !needsAddress;
+    if (needsAddress && refs.giftRecipientName) {
+      refs.giftRecipientName.value = gift.recipient_name || "";
+      refs.giftRecipientPhone.value = gift.recipient_phone || "";
+      refs.giftAddressLine1.value = gift.address_line1 || "";
+      refs.giftAddressLine2.value = gift.address_line2 || "";
+      refs.giftCity.value = gift.city || "";
+      refs.giftRegion.value = gift.region || "";
+      refs.giftPostalCode.value = gift.postal_code || "";
+    }
+
+    const feeKnown = gift.shipping_fee_amount != null;
+    if (refs.giftFeeMeta) refs.giftFeeMeta.hidden = !feeKnown;
+    if (refs.giftFeeAmount) {
+      refs.giftFeeAmount.textContent = feeKnown
+        ? `NT$${gift.shipping_fee_amount} (${gift.shipping_fee_currency || "TWD"})`
+        : "—";
+    }
+    if (refs.giftFeeNote) {
+      refs.giftFeeNote.hidden = !(gift.status === "fee_quoted");
+    }
+
+    if (refs.giftTrackingMeta) refs.giftTrackingMeta.hidden = !gift.tracking_number;
+    if (refs.giftTrackingNumber) refs.giftTrackingNumber.textContent = gift.tracking_number || "";
+  }
+
+  async function handleSubmitGiftAddress() {
+    if (!refs.giftRecipientName) return;
+    if (refs.giftAddressStatusText) refs.giftAddressStatusText.textContent = "送出中…";
+    if (refs.submitGiftAddressBtn) refs.submitGiftAddressBtn.disabled = true;
+    try {
+      const svc = createPaypalService();
+      const result = await svc.submitGiftAddress({
+        recipientName: refs.giftRecipientName.value,
+        recipientPhone: refs.giftRecipientPhone.value,
+        addressLine1: refs.giftAddressLine1.value,
+        addressLine2: refs.giftAddressLine2.value,
+        city: refs.giftCity.value,
+        region: refs.giftRegion.value,
+        postalCode: refs.giftPostalCode.value,
+        country: "台灣"
+      });
+      if (flow.isAuthExpiredError(result)) {
+        showAuthExpired();
+        return;
+      }
+      if (!result?.ok) {
+        if (refs.giftAddressStatusText) {
+          refs.giftAddressStatusText.textContent = flow.sanitizeUserError(result, "送出失敗，請稍後再試。");
+        }
+        return;
+      }
+      if (refs.giftAddressStatusText) refs.giftAddressStatusText.textContent = "收件資料已送出。";
+      if (result.gift) renderGiftStatus(result.gift);
+    } catch (error) {
+      if (refs.giftAddressStatusText) {
+        refs.giftAddressStatusText.textContent = flow.sanitizeUserError(error, "送出失敗，請稍後再試。");
+      }
+    } finally {
+      if (refs.submitGiftAddressBtn) refs.submitGiftAddressBtn.disabled = false;
+    }
+  }
+
+  function showRefundForm() {
+    if (refs.refundForm) refs.refundForm.hidden = false;
+    if (refs.refundResult) refs.refundResult.hidden = true;
+  }
+
+  function hideRefundForm() {
+    if (refs.refundForm) refs.refundForm.hidden = true;
+  }
+
+  async function handleSubmitRefund() {
+    if (refs.submitRefundBtn) refs.submitRefundBtn.disabled = true;
+    setStatusActionText("送出中…");
+    try {
+      const svc = createPaypalService();
+      const result = await svc.requestRefund({
+        reason: refs.refundReasonInput ? refs.refundReasonInput.value : ""
+      });
+      if (flow.isAuthExpiredError(result)) {
+        showAuthExpired();
+        return;
+      }
+      if (!result?.ok) {
+        setStatusActionText(flow.sanitizeUserError(result, "退款申請送出失敗，請稍後再試。"));
+        return;
+      }
+      hideRefundForm();
+      if (refs.refundResult) refs.refundResult.hidden = false;
+      const r = result.refund_request || {};
+      if (refs.refundSubAmount) {
+        refs.refundSubAmount.textContent = `${r.subscription_refund_amount ?? "—"} ${r.subscription_refund_currency || ""}`;
+      }
+      if (refs.refundShipAmount) {
+        refs.refundShipAmount.textContent = `${r.shipping_refund_amount ?? "—"} ${r.shipping_refund_currency || ""}`;
+      }
+      if (refs.refundGiftReturn) {
+        refs.refundGiftReturn.textContent = r.gift_return_required ? "需要" : "不需要";
+      }
+      setStatusActionText("退款申請已送出，待人工審核。");
+      loadGiftStatus();
+    } catch (error) {
+      setStatusActionText(flow.sanitizeUserError(error, "退款申請送出失敗，請稍後再試。"));
+    } finally {
+      if (refs.submitRefundBtn) refs.submitRefundBtn.disabled = false;
+    }
   }
 
   function beginPaidThroughPolling() {
@@ -948,6 +1125,34 @@
     refs.cancelSubscriptionBtn.addEventListener("click", (event) => {
       event.preventDefault();
       handleCancelSubscription();
+    });
+  }
+
+  if (refs.openRefundFormBtn) {
+    refs.openRefundFormBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      showRefundForm();
+    });
+  }
+
+  if (refs.cancelRefundFormBtn) {
+    refs.cancelRefundFormBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      hideRefundForm();
+    });
+  }
+
+  if (refs.submitRefundBtn) {
+    refs.submitRefundBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleSubmitRefund();
+    });
+  }
+
+  if (refs.submitGiftAddressBtn) {
+    refs.submitGiftAddressBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleSubmitGiftAddress();
     });
   }
 
