@@ -18,6 +18,7 @@ const {
   normalizeMerchantId,
   amountsEqual
 } = require("./lib/paypal-client");
+const { calculateSubscriptionRefund } = require("../../../js/services/subscription/refund-calculator");
 
 const ACCEPTABLE_CONFIRM_STATUSES = new Set([
   "APPROVAL_PENDING",
@@ -58,7 +59,7 @@ const ERROR_HTTP_STATUS = Object.freeze({
   PAYPAL_CANCEL_SUBSCRIPTION_FAILED: 502,
   GIFT_NOT_ELIGIBLE: 404,
   ADDRESS_FIELDS_REQUIRED: 400,
-  ADDRESS_LOCKED_AFTER_FEE_QUOTE: 409,
+  ADDRESS_LOCKED_AFTER_FEE_PAID: 409,
   REFUND_REQUEST_ALREADY_PENDING: 409,
   DB_ERROR: 503,
   INTERNAL_ERROR: 500
@@ -142,7 +143,7 @@ function mapRpcException(error) {
     "SUBSCRIPTION_NOT_FOUND",
     "GIFT_NOT_ELIGIBLE",
     "ADDRESS_FIELDS_REQUIRED",
-    "ADDRESS_LOCKED_AFTER_FEE_QUOTE",
+    "ADDRESS_LOCKED_AFTER_FEE_PAID",
     "REFUND_REQUEST_ALREADY_PENDING"
   ];
   for (const code of known) {
@@ -843,6 +844,8 @@ function safeGiftSummary(row) {
     shipping_fee_amount: row.shipping_fee_amount != null ? formatAmount(row.shipping_fee_amount) : null,
     shipping_fee_paid_at: row.shipping_fee_paid_at || null,
     shipped_at: row.shipped_at || null,
+    tracking_number: row.tracking_number || null,
+    on_hold: Boolean(row.held_by_refund_request_id),
     granted_at: row.granted_at || null
   };
 }
@@ -963,6 +966,7 @@ async function handleRequestRefund({ body, user, deps }) {
     return { statusCode: toHttpStatus(auth.code), body: errorBody(auth.code, auth.message) };
   }
 
+  const requestedAt = new Date();
   const repo = deps.subscriptionRepository;
   if (!repo?.findLatestByUserId || !repo?.requestSubscriptionRefund) {
     return {
@@ -988,6 +992,54 @@ async function handleRequestRefund({ body, user, deps }) {
     };
   }
 
+  if (!row.start_time || !row.last_payment_time || !row.next_billing_time) {
+    return {
+      statusCode: 409,
+      body: errorBody(
+        "REFUND_CALC_PERIOD_UNKNOWN",
+        "This subscription has no confirmed paid period yet; a refund cannot be calculated."
+      )
+    };
+  }
+
+  let giftRow = null;
+  if (typeof repo.getGiftEntitlement === "function") {
+    try {
+      giftRow = await repo.getGiftEntitlement(auth.userId);
+    } catch (_e) {
+      giftRow = null;
+    }
+  }
+
+  const giftEverGranted = Boolean(giftRow);
+  const giftShipped = giftRow?.status === "shipped";
+  const shippingFeeAmount = giftRow?.shipping_fee_paid_at ? Number(giftRow.shipping_fee_amount || 0) : 0;
+  const shippingFeeCurrency = giftRow?.shipping_fee_currency || "TWD";
+
+  let calc;
+  try {
+    calc = calculateSubscriptionRefund({
+      subscriptionActivatedAt: row.start_time,
+      periodStart: row.last_payment_time,
+      periodEnd: row.next_billing_time,
+      requestedAt,
+      paidAmount: row.recurring_amount,
+      currency: row.currency,
+      shippingFeeAmount,
+      shippingFeeCurrency,
+      giftShipped,
+      giftEverGranted
+    });
+  } catch (_error) {
+    return {
+      statusCode: 409,
+      body: errorBody(
+        "REFUND_CALC_PERIOD_UNKNOWN",
+        "This subscription's billing period could not be used to calculate a refund."
+      )
+    };
+  }
+
   const reason = body && body.reason != null ? String(body.reason).trim().slice(0, 500) : null;
 
   let result;
@@ -995,7 +1047,20 @@ async function handleRequestRefund({ body, user, deps }) {
     result = await repo.requestSubscriptionRefund({
       userId: auth.userId,
       subscriptionId: row.id,
-      reason
+      reason,
+      periodStart: calc.snapshot.period_start,
+      periodEnd: calc.snapshot.period_end,
+      requestedAt: calc.snapshot.requested_at,
+      totalDays: calc.totalDays,
+      usedDays: calc.usedDays,
+      unusedDays: calc.unusedDays,
+      withinCoolingOff: calc.withinCoolingOff,
+      subscriptionRefundAmount: calc.subscriptionRefundAmount,
+      subscriptionRefundCurrency: calc.subscriptionRefundCurrency,
+      shippingRefundAmount: calc.shippingRefundAmount,
+      shippingRefundCurrency: calc.shippingRefundCurrency,
+      giftReturnRequired: calc.giftReturnRequired,
+      calculationRuleVersion: calc.calculationRuleVersion
     });
   } catch (error) {
     const mapped = mapRpcException(error);
@@ -1011,7 +1076,14 @@ async function handleRequestRefund({ body, user, deps }) {
       ok: true,
       refund_request: {
         id: result?.request_id || null,
-        status: result?.status || "pending"
+        status: result?.status || "pending",
+        within_cooling_off: calc.withinCoolingOff,
+        subscription_refund_amount: formatAmount(calc.subscriptionRefundAmount),
+        subscription_refund_currency: calc.subscriptionRefundCurrency,
+        shipping_refund_amount: formatAmount(calc.shippingRefundAmount),
+        shipping_refund_currency: calc.shippingRefundCurrency,
+        gift_return_required: calc.giftReturnRequired,
+        refund_success: false
       }
     }
   };
@@ -1207,7 +1279,20 @@ function createSubscriptionRepositoryFromSupabase(serviceClient) {
       const { data, error } = await serviceClient.rpc("request_subscription_refund", {
         p_user_id: input.userId,
         p_subscription_id: input.subscriptionId,
-        p_reason: input.reason || null
+        p_reason: input.reason || null,
+        p_period_start: input.periodStart,
+        p_period_end: input.periodEnd,
+        p_requested_at: input.requestedAt,
+        p_total_days: input.totalDays,
+        p_used_days: input.usedDays,
+        p_unused_days: input.unusedDays,
+        p_within_cooling_off: input.withinCoolingOff,
+        p_subscription_refund_amount: input.subscriptionRefundAmount,
+        p_subscription_refund_currency: input.subscriptionRefundCurrency,
+        p_shipping_refund_amount: input.shippingRefundAmount,
+        p_shipping_refund_currency: input.shippingRefundCurrency,
+        p_gift_return_required: input.giftReturnRequired,
+        p_calculation_rule_version: input.calculationRuleVersion
       });
       if (error) throw error;
       return Array.isArray(data) ? data[0] : data;

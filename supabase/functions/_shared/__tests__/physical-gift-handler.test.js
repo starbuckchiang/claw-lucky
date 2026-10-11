@@ -40,7 +40,26 @@ const VALID_ADDRESS_BODY = {
   country: "台灣"
 };
 
-function fakeGiftRepo({ entitlement = null, addressThrows = null, refundThrows = null, subscription = { id: "sub-1", user_id: "user-1" } } = {}) {
+function defaultSubscriptionFixture() {
+  const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
+  return {
+    id: "sub-1",
+    user_id: "user-1",
+    start_time: new Date(now - 100 * DAY).toISOString(),
+    last_payment_time: new Date(now - 10 * DAY).toISOString(),
+    next_billing_time: new Date(now + 20 * DAY).toISOString(),
+    recurring_amount: 10,
+    currency: "USD"
+  };
+}
+
+function fakeGiftRepo({
+  entitlement = null,
+  addressThrows = null,
+  refundThrows = null,
+  subscription = defaultSubscriptionFixture()
+} = {}) {
   let row = entitlement ? { ...entitlement } : null;
   return {
     calls: { submitGiftShippingAddress: 0, requestSubscriptionRefund: 0, findLatestByUserId: 0 },
@@ -160,15 +179,15 @@ test("handleSubmitGiftAddress: not eligible maps to 404 GIFT_NOT_ELIGIBLE", asyn
   assert.equal(result.body.error.code, "GIFT_NOT_ELIGIBLE");
 });
 
-test("handleSubmitGiftAddress: once a fee is quoted, address is locked (409)", async () => {
-  const repo = fakeGiftRepo({ addressThrows: "ADDRESS_LOCKED_AFTER_FEE_QUOTE" });
+test("handleSubmitGiftAddress: once already paid, address is locked (409)", async () => {
+  const repo = fakeGiftRepo({ addressThrows: "ADDRESS_LOCKED_AFTER_FEE_PAID" });
   const result = await handleSubmitGiftAddress({
     body: VALID_ADDRESS_BODY,
     user: officialUser(),
     deps: { subscriptionRepository: repo }
   });
   assert.equal(result.statusCode, 409);
-  assert.equal(result.body.error.code, "ADDRESS_LOCKED_AFTER_FEE_QUOTE");
+  assert.equal(result.body.error.code, "ADDRESS_LOCKED_AFTER_FEE_PAID");
 });
 
 test("handleRequestRefund: 404 when the user has no subscription at all", async () => {
@@ -183,6 +202,20 @@ test("handleRequestRefund: 404 when the user has no subscription at all", async 
   assert.equal(repo.calls.requestSubscriptionRefund, 0);
 });
 
+test("handleRequestRefund: 409 when the subscription has no confirmed paid period yet", async () => {
+  const repo = fakeGiftRepo({
+    subscription: { id: "sub-1", user_id: "user-1", start_time: null, last_payment_time: null, next_billing_time: null }
+  });
+  const result = await handleRequestRefund({
+    body: {},
+    user: officialUser(),
+    deps: { subscriptionRepository: repo }
+  });
+  assert.equal(result.statusCode, 409);
+  assert.equal(result.body.error.code, "REFUND_CALC_PERIOD_UNKNOWN");
+  assert.equal(repo.calls.requestSubscriptionRefund, 0);
+});
+
 test("handleRequestRefund: succeeds and never auto-approves (always pending)", async () => {
   const repo = fakeGiftRepo();
   const result = await handleRequestRefund({
@@ -192,6 +225,7 @@ test("handleRequestRefund: succeeds and never auto-approves (always pending)", a
   });
   assert.equal(result.statusCode, 201);
   assert.equal(result.body.refund_request.status, "pending");
+  assert.equal(result.body.refund_request.refund_success, false);
 });
 
 test("handleRequestRefund: a second request while one is already pending is rejected (409)", async () => {

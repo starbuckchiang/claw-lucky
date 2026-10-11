@@ -67,6 +67,10 @@ CREATE TABLE IF NOT EXISTS public.physical_gift_entitlements (
     shipping_fee_paid_at TIMESTAMPTZ,
     shipped_at TIMESTAMPTZ,
     tracking_note TEXT,
+    tracking_number TEXT,
+    -- Set when an open refund request exists for this user and the gift has
+    -- not shipped yet — blocks shipment while the request is being reviewed.
+    held_by_refund_request_id UUID,
     granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -117,6 +121,25 @@ CREATE TABLE IF NOT EXISTS public.subscription_refund_requests (
     requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     reviewed_at TIMESTAMPTZ,
     reviewed_note TEXT,
+    -- Refund calculation snapshot (computed once by the already-tested shared
+    -- calculator, persisted here verbatim — this table never re-derives dates).
+    period_start TIMESTAMPTZ,
+    period_end TIMESTAMPTZ,
+    total_days INTEGER,
+    used_days INTEGER,
+    unused_days INTEGER,
+    within_cooling_off BOOLEAN,
+    subscription_refund_amount NUMERIC(12, 2),
+    subscription_refund_currency TEXT,
+    shipping_refund_amount NUMERIC(12, 2),
+    shipping_refund_currency TEXT,
+    gift_return_required BOOLEAN,
+    calculation_rule_version TEXT,
+    -- Separate from `status`: `status` is the STAFF DECISION only.
+    -- `refund_success` is NEVER auto-set — only a human operator flips it
+    -- true after confirming the real PayPal refund actually completed. The
+    -- UI must never show "refunded" based on `status='approved'` alone.
+    refund_success BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -127,6 +150,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_subscription_refund_requests_one_pending_pe
 
 CREATE INDEX IF NOT EXISTS idx_subscription_refund_requests_user_requested_at_desc
     ON public.subscription_refund_requests (user_id, requested_at DESC);
+
+-- physical_gift_entitlements.held_by_refund_request_id can only reference
+-- this table once it exists — added here rather than at table-creation time.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+         WHERE conname = 'fk_physical_gift_entitlements_held_by_refund_request'
+    ) THEN
+        ALTER TABLE public.physical_gift_entitlements
+            ADD CONSTRAINT fk_physical_gift_entitlements_held_by_refund_request
+            FOREIGN KEY (held_by_refund_request_id)
+            REFERENCES public.subscription_refund_requests(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -259,10 +298,18 @@ BEGIN
         RAISE EXCEPTION 'GIFT_NOT_ELIGIBLE';
     END IF;
 
-    IF v_row.status NOT IN ('granted', 'address_submitted') THEN
-        RAISE EXCEPTION 'ADDRESS_LOCKED_AFTER_FEE_QUOTE';
+    IF v_row.status NOT IN ('granted', 'fee_quoted') THEN
+        RAISE EXCEPTION 'ADDRESS_LOCKED_AFTER_FEE_PAID';
     END IF;
 
+    -- PROD-RELEASE-DAY3C logistics confirmed (Taiwan-only, flat fee): the
+    -- shipping fee is a FIXED, non-negotiable NT$44 regardless of region —
+    -- there is nothing left for a human operator to "quote", so it is set
+    -- automatically the moment a valid address is submitted. The actual fee
+    -- PAYMENT step (customer pays NT$44 before shipment) is a separate,
+    -- not-yet-implemented flow — status only reaches 'fee_quoted' here, never
+    -- 'fee_paid'/'awaiting_shipment' (those still require a real payment
+    -- confirmation this migration does not create).
     UPDATE public.physical_gift_entitlements
        SET recipient_name = btrim(p_recipient_name),
            recipient_phone = btrim(p_recipient_phone),
@@ -272,7 +319,10 @@ BEGIN
            region = btrim(p_region),
            postal_code = btrim(p_postal_code),
            country = btrim(p_country),
-           status = 'address_submitted',
+           status = 'fee_quoted',
+           shipping_fee_amount = 44.00,
+           shipping_fee_currency = 'TWD',
+           shipping_fee_quoted_at = NOW(),
            updated_at = NOW()
      WHERE id = v_row.id
     RETURNING * INTO v_row;
@@ -291,12 +341,28 @@ GRANT EXECUTE ON FUNCTION public.submit_gift_shipping_address(TEXT, TEXT, TEXT, 
 -- ---------------------------------------------------------------------------
 -- 5) request_subscription_refund — request + manual review only, never
 --    auto-approves, never deducts a fee. Separate from cancel-auto-renew.
+--    Persists a pre-computed refund snapshot (dates/amounts are computed by
+--    the shared, unit-tested refund-calculator in the Edge Function; this
+--    RPC validates ownership/idempotency and stores the snapshot verbatim).
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.request_subscription_refund(
     p_user_id TEXT,
     p_subscription_id UUID,
-    p_reason TEXT
+    p_reason TEXT,
+    p_period_start TIMESTAMPTZ,
+    p_period_end TIMESTAMPTZ,
+    p_requested_at TIMESTAMPTZ,
+    p_total_days INTEGER,
+    p_used_days INTEGER,
+    p_unused_days INTEGER,
+    p_within_cooling_off BOOLEAN,
+    p_subscription_refund_amount NUMERIC,
+    p_subscription_refund_currency TEXT,
+    p_shipping_refund_amount NUMERIC,
+    p_shipping_refund_currency TEXT,
+    p_gift_return_required BOOLEAN,
+    p_calculation_rule_version TEXT
 ) RETURNS TABLE (
     request_id UUID,
     status TEXT
@@ -314,6 +380,12 @@ BEGIN
     END IF;
     IF p_subscription_id IS NULL THEN
         RAISE EXCEPTION 'INVALID_SUBSCRIPTION_ID';
+    END IF;
+    IF p_total_days IS NULL OR p_total_days <= 0
+       OR p_used_days IS NULL OR p_used_days < 0
+       OR p_unused_days IS NULL OR p_unused_days < 0
+       OR p_used_days + p_unused_days <> p_total_days THEN
+        RAISE EXCEPTION 'INVALID_REFUND_SNAPSHOT';
     END IF;
 
     SELECT * INTO v_sub
@@ -333,11 +405,27 @@ BEGIN
     END IF;
 
     INSERT INTO public.subscription_refund_requests (
-        user_id, subscription_id, reason, status, requested_at
+        user_id, subscription_id, reason, status, requested_at,
+        period_start, period_end, total_days, used_days, unused_days,
+        within_cooling_off, subscription_refund_amount, subscription_refund_currency,
+        shipping_refund_amount, shipping_refund_currency, gift_return_required,
+        calculation_rule_version, refund_success
     ) VALUES (
-        p_user_id, p_subscription_id, NULLIF(btrim(COALESCE(p_reason, '')), ''), 'pending', NOW()
+        p_user_id, p_subscription_id, NULLIF(btrim(COALESCE(p_reason, '')), ''), 'pending', p_requested_at,
+        p_period_start, p_period_end, p_total_days, p_used_days, p_unused_days,
+        p_within_cooling_off, p_subscription_refund_amount, upper(p_subscription_refund_currency),
+        p_shipping_refund_amount, upper(p_shipping_refund_currency), p_gift_return_required,
+        p_calculation_rule_version, FALSE
     )
     RETURNING id INTO v_id;
+
+    -- Hold any not-yet-shipped gift from shipping while this request is open.
+    UPDATE public.physical_gift_entitlements
+       SET held_by_refund_request_id = v_id,
+           updated_at = NOW()
+     WHERE user_id = p_user_id
+       AND status <> 'shipped'
+       AND held_by_refund_request_id IS NULL;
 
     request_id := v_id;
     status := 'pending';
@@ -345,10 +433,22 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.request_subscription_refund(TEXT, UUID, TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.request_subscription_refund(TEXT, UUID, TEXT) FROM anon;
-REVOKE ALL ON FUNCTION public.request_subscription_refund(TEXT, UUID, TEXT) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.request_subscription_refund(TEXT, UUID, TEXT) TO service_role;
+REVOKE ALL ON FUNCTION public.request_subscription_refund(
+    TEXT, UUID, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, INTEGER, INTEGER, INTEGER,
+    BOOLEAN, NUMERIC, TEXT, NUMERIC, TEXT, BOOLEAN, TEXT
+) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.request_subscription_refund(
+    TEXT, UUID, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, INTEGER, INTEGER, INTEGER,
+    BOOLEAN, NUMERIC, TEXT, NUMERIC, TEXT, BOOLEAN, TEXT
+) FROM anon;
+REVOKE ALL ON FUNCTION public.request_subscription_refund(
+    TEXT, UUID, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, INTEGER, INTEGER, INTEGER,
+    BOOLEAN, NUMERIC, TEXT, NUMERIC, TEXT, BOOLEAN, TEXT
+) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.request_subscription_refund(
+    TEXT, UUID, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, INTEGER, INTEGER, INTEGER,
+    BOOLEAN, NUMERIC, TEXT, NUMERIC, TEXT, BOOLEAN, TEXT
+) TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- 6) process_paypal_subscription_webhook_event — CREATE OR REPLACE, same

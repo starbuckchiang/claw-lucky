@@ -21,22 +21,27 @@ const SQL = fs.readFileSync(
 
 function assertRevokeGrant(name, sig) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const sigEscaped = sig.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Allow the signature to wrap across multiple lines (long signatures in
+  // this file are hand-wrapped for readability) — collapse all whitespace
+  // between tokens to \s+, including right after the opening paren.
+  const sigEscaped = sig
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\s+/g, "\\s+");
   assert.match(
     SQL,
-    new RegExp(`REVOKE ALL ON FUNCTION public\\.${escaped}\\(${sigEscaped}\\) FROM PUBLIC`)
+    new RegExp(`REVOKE ALL ON FUNCTION public\\.${escaped}\\(\\s*${sigEscaped}\\s*\\) FROM PUBLIC`)
   );
   assert.match(
     SQL,
-    new RegExp(`REVOKE ALL ON FUNCTION public\\.${escaped}\\(${sigEscaped}\\) FROM anon`)
+    new RegExp(`REVOKE ALL ON FUNCTION public\\.${escaped}\\(\\s*${sigEscaped}\\s*\\) FROM anon`)
   );
   assert.match(
     SQL,
-    new RegExp(`REVOKE ALL ON FUNCTION public\\.${escaped}\\(${sigEscaped}\\) FROM authenticated`)
+    new RegExp(`REVOKE ALL ON FUNCTION public\\.${escaped}\\(\\s*${sigEscaped}\\s*\\) FROM authenticated`)
   );
   assert.match(
     SQL,
-    new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${escaped}\\(${sigEscaped}\\) TO service_role`)
+    new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${escaped}\\(\\s*${sigEscaped}\\s*\\) TO service_role`)
   );
 }
 
@@ -93,13 +98,16 @@ test("04 grant_physical_gift_if_first_payment: idempotent via ON CONFLICT DO NOT
   assertRevokeGrant("grant_physical_gift_if_first_payment", "TEXT, UUID, TEXT");
 });
 
-test("05 submit_gift_shipping_address: locks the row, rejects once a fee has been quoted", () => {
+test("05 submit_gift_shipping_address: locks the row, auto-sets the confirmed NT$44 fee, rejects once already paid", () => {
   const fn = SQL.match(
     /CREATE OR REPLACE FUNCTION public\.submit_gift_shipping_address\([\s\S]*?\r?\nEND;\r?\n\$\$;/
   )[0];
   assert.match(fn, /FOR UPDATE;/);
-  assert.match(fn, /IF v_row\.status NOT IN \('granted', 'address_submitted'\) THEN/);
-  assert.match(fn, /RAISE EXCEPTION 'ADDRESS_LOCKED_AFTER_FEE_QUOTE';/);
+  assert.match(fn, /IF v_row\.status NOT IN \('granted', 'fee_quoted'\) THEN/);
+  assert.match(fn, /RAISE EXCEPTION 'ADDRESS_LOCKED_AFTER_FEE_PAID';/);
+  assert.match(fn, /status = 'fee_quoted',/);
+  assert.match(fn, /shipping_fee_amount = 44\.00,/);
+  assert.match(fn, /shipping_fee_currency = 'TWD',/);
   assertRevokeGrant(
     "submit_gift_shipping_address",
     "TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT"
@@ -115,8 +123,45 @@ test("06 request_subscription_refund: ownership check, no auto fee deduction, se
   assert.match(fn, /RAISE EXCEPTION 'REFUND_REQUEST_ALREADY_PENDING';/);
   assert.doesNotMatch(fn, /cancel|CANCELLED/);
   assert.doesNotMatch(fn, /processing_fee|fee_amount|\* 0\./i);
-  assertRevokeGrant("request_subscription_refund", "TEXT, UUID, TEXT");
+  assertRevokeGrant(
+    "request_subscription_refund",
+    "TEXT, UUID, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, INTEGER, INTEGER, INTEGER, BOOLEAN, NUMERIC, TEXT, NUMERIC, TEXT, BOOLEAN, TEXT"
+  );
 });
+
+test("06b request_subscription_refund: validates the snapshot is internally consistent (used+unused=total)", () => {
+  const fn = SQL.match(
+    /CREATE OR REPLACE FUNCTION public\.request_subscription_refund\([\s\S]*?\r?\nEND;\r?\n\$\$;/
+  )[0];
+  assert.match(fn, /RAISE EXCEPTION 'INVALID_REFUND_SNAPSHOT';/);
+  assert.match(fn, /p_used_days \+ p_unused_days <> p_total_days/);
+});
+
+test("06c request_subscription_refund: holds any not-yet-shipped gift while the request is open", () => {
+  const fn = SQL.match(
+    /CREATE OR REPLACE FUNCTION public\.request_subscription_refund\([\s\S]*?\r?\nEND;\r?\n\$\$;/
+  )[0];
+  assert.match(
+    fn,
+    /UPDATE public\.physical_gift_entitlements\s+SET held_by_refund_request_id = v_id,[\s\S]*?WHERE user_id = p_user_id\s+AND status <> 'shipped'\s+AND held_by_refund_request_id IS NULL;/
+  );
+});
+
+test("06d subscription_refund_requests: refund_success defaults FALSE and is never auto-set TRUE anywhere in this file", () => {
+  assert.match(SQL, /refund_success BOOLEAN NOT NULL DEFAULT FALSE,/);
+  assert.doesNotMatch(SQL, /refund_success = TRUE/);
+  assert.doesNotMatch(SQL, /refund_success,?\s*\n?\s*\) VALUES \([^)]*TRUE/);
+});
+
+test("06e physical_gift_entitlements: tracking_number + held_by_refund_request_id FK to subscription_refund_requests", () => {
+  assert.match(SQL, /tracking_number TEXT,/);
+  assert.match(SQL, /held_by_refund_request_id UUID,/);
+  assert.match(
+    SQL,
+    /ADD CONSTRAINT fk_physical_gift_entitlements_held_by_refund_request\s+FOREIGN KEY \(held_by_refund_request_id\)\s+REFERENCES public\.subscription_refund_requests\(id\)\s+ON DELETE SET NULL;/
+  );
+});
+
 
 test("07 process_paypal_subscription_webhook_event: physical gift grant happens inside the SAME SALE.COMPLETED success path, before returning", () => {
   const fn = SQL.match(
@@ -165,8 +210,15 @@ test("09 process_paypal_subscription_webhook_event: still SECURITY DEFINER, pinn
   );
 });
 
-test("10 no invented shipping fee amount, region allowlist, or shipment timeline anywhere in this migration", () => {
+test("10 shipping fee is the confirmed flat NT$44 (Taiwan-only), never a shipment timeline or region allowlist", () => {
+  // PROD-RELEASE-DAY3C: shipping fee amount/currency ARE now confirmed
+  // business facts (Taiwan-only, flat NT$44) and are intentionally
+  // hardcoded in submit_gift_shipping_address — this is NOT an invented
+  // placeholder. What must still never appear: a shipment timeline/SLA
+  // (not this migration's concern) or a region allowlist (Taiwan-only is
+  // the ONLY supported destination, so no allowlist branching is needed).
   assert.doesNotMatch(SQL, /\b\d+\s*(days|天|working days|個工作天)\b/i);
-  assert.doesNotMatch(SQL, /TWD|NT\$/);
   assert.doesNotMatch(SQL, /shipping_region_allowlist|region IN \(/);
+  assert.match(SQL, /shipping_fee_amount = 44\.00,/);
+  assert.match(SQL, /shipping_fee_currency = 'TWD',/);
 });
