@@ -44,11 +44,50 @@
       });
     }
 
+    async function getGiftStatus() {
+      return invokeFunction({
+        action: "get_gift_status"
+      });
+    }
+
+    async function submitGiftAddress({
+      recipientName,
+      recipientPhone,
+      addressLine1,
+      addressLine2,
+      city,
+      region,
+      postalCode,
+      country
+    } = {}) {
+      return invokeFunction({
+        action: "submit_gift_address",
+        recipient_name: recipientName,
+        recipient_phone: recipientPhone,
+        address_line1: addressLine1,
+        address_line2: addressLine2,
+        city,
+        region,
+        postal_code: postalCode,
+        country
+      });
+    }
+
+    async function requestRefund({ reason } = {}) {
+      return invokeFunction({
+        action: "request_refund",
+        reason
+      });
+    }
+
     return {
       createSession,
       confirmSubscription,
       getStatus,
-      cancelSubscription
+      cancelSubscription,
+      getGiftStatus,
+      submitGiftAddress,
+      requestRefund
     };
   }
 

@@ -86,8 +86,92 @@
     </div>
     <div class="button-row" id="cancelRow" hidden>
       <button type="button" class="btn btn-secondary" id="cancelSubscriptionBtn">取消自動續訂</button>
+      <button type="button" class="btn btn-secondary" id="openRefundFormBtn">終止訂閱並申請退款</button>
+    </div>
+    <p class="subscription-status-text">
+      「取消自動續訂」只停止後續扣款，當期權益持續至到期，不會退款。
+      「終止訂閱並申請退款」會建立一筆待人工審核的退款申請，核准並確認退款成功後才會終止權益；審核期間權益不受影響。
+    </p>
+    <div id="refundForm" hidden>
+      <label class="subscription-field-label" for="refundReasonInput">退款原因（選填）</label>
+      <textarea class="subscription-input" id="refundReasonInput" rows="3" maxlength="500"></textarea>
+      <div class="button-row">
+        <button type="button" class="btn" id="submitRefundBtn">送出退款申請</button>
+        <button type="button" class="btn btn-secondary" id="cancelRefundFormBtn">取消</button>
+      </div>
+    </div>
+    <div id="refundResult" hidden>
+      <dl class="subscription-status-meta">
+        <div>
+          <dt>預估訂閱退款金額</dt>
+          <dd id="refundSubAmount"></dd>
+        </div>
+        <div>
+          <dt>運費退款金額</dt>
+          <dd id="refundShipAmount"></dd>
+        </div>
+        <div>
+          <dt>贈品是否需退回</dt>
+          <dd id="refundGiftReturn"></dd>
+        </div>
+      </dl>
+      <p class="subscription-status-text">實際退款須經人工審核確認後才會真正退款；審核前權益不受影響。</p>
     </div>
     <p class="subscription-status-text" id="statusActionText"></p>
+  </div>
+</section>
+
+<section class="section" id="giftPanel" hidden>
+  <div class="panel subscription-gift-panel">
+    <span class="badge">首購贈品</span>
+    <h2 class="section-title" id="giftHeadline">實體贈品</h2>
+    <p class="section-desc" id="giftDetail"></p>
+    <p class="subscription-status-text" id="giftHoldNotice" hidden>此贈品因退款申請審核中，暫停出貨。</p>
+
+    <div id="giftAddressForm" hidden>
+      <p class="subscription-status-text">僅寄送台灣地區，寄送方式：中華郵政普通掛號小包。</p>
+      <label class="subscription-field-label" for="giftRecipientName">收件人姓名</label>
+      <input class="subscription-input" id="giftRecipientName" type="text" />
+      <label class="subscription-field-label" for="giftRecipientPhone">聯絡電話</label>
+      <input class="subscription-input" id="giftRecipientPhone" type="tel" />
+      <label class="subscription-field-label" for="giftAddressLine1">地址（第一行）</label>
+      <input class="subscription-input" id="giftAddressLine1" type="text" />
+      <label class="subscription-field-label" for="giftAddressLine2">地址（第二行，選填）</label>
+      <input class="subscription-input" id="giftAddressLine2" type="text" />
+      <label class="subscription-field-label" for="giftCity">縣市</label>
+      <input class="subscription-input" id="giftCity" type="text" />
+      <label class="subscription-field-label" for="giftRegion">鄉鎮市區</label>
+      <input class="subscription-input" id="giftRegion" type="text" />
+      <label class="subscription-field-label" for="giftPostalCode">郵遞區號</label>
+      <input class="subscription-input" id="giftPostalCode" type="text" />
+      <label class="subscription-field-label" for="giftCountry">國家</label>
+      <input class="subscription-input" id="giftCountry" type="text" value="台灣" readonly />
+      <div class="button-row">
+        <button type="button" class="btn" id="submitGiftAddressBtn">送出收件資料</button>
+      </div>
+      <p class="subscription-status-text" id="giftAddressStatusText"></p>
+    </div>
+
+    <dl class="subscription-status-meta" id="giftFeeMeta" hidden>
+      <div>
+        <dt>運費</dt>
+        <dd id="giftFeeAmount"></dd>
+      </div>
+      <div>
+        <dt>寄送方式</dt>
+        <dd>中華郵政普通掛號小包</dd>
+      </div>
+    </dl>
+    <p class="subscription-status-text" id="giftFeeNote" hidden>
+      運費金額已確認，付款功能尚未開放，請留意後續通知或聯絡客服完成運費付款。付款、運費與收件地址皆完成後 3 個工作天內出貨。
+    </p>
+
+    <dl class="subscription-status-meta" id="giftTrackingMeta" hidden>
+      <div>
+        <dt>掛號號碼</dt>
+        <dd id="giftTrackingNumber"></dd>
+      </div>
+    </dl>
   </div>
 </section>
 
@@ -182,6 +266,6 @@
 <script src="./js/services/auth/subscription-entry-guard.js?v=20260816-1"></script>
 <script src="./js/services/subscription/paypal-subscription-service.js?v=20261009-1"></script>
 <script src="./js/services/subscription/paypal-subscription-flow.js?v=20261009-1"></script>
-<script src="./js/pages/subscription-entry.js?v=20261009-2"></script>
+<script src="./js/pages/subscription-entry.js?v=20261011-1"></script>
 </body>
 </html>
