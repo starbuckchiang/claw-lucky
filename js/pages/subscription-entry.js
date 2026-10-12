@@ -4,6 +4,7 @@
   const accountMergeServiceApi = window.AccountMergeService;
   const guardApi = window.SubscriptionEntryGuard;
   const paypalSubscriptionServiceApi = window.PaypalSubscriptionService;
+  const paypalCheckoutServiceApi = window.PaypalCheckoutService;
   const flow = window.PaypalSubscriptionFlow;
 
   if (!paypalSubscriptionServiceApi || !flow) {
@@ -74,6 +75,11 @@
     giftFeeMeta: document.getElementById("giftFeeMeta"),
     giftFeeAmount: document.getElementById("giftFeeAmount"),
     giftFeeNote: document.getElementById("giftFeeNote"),
+    giftFeeButtonsMount: document.getElementById("giftFeeButtonsMount"),
+    giftFeeStatusText: document.getElementById("giftFeeStatusText"),
+    giftDeclineSection: document.getElementById("giftDeclineSection"),
+    declineGiftBtn: document.getElementById("declineGiftBtn"),
+    giftDeclineStatusText: document.getElementById("giftDeclineStatusText"),
     giftTrackingMeta: document.getElementById("giftTrackingMeta"),
     giftTrackingNumber: document.getElementById("giftTrackingNumber")
   };
@@ -87,6 +93,7 @@
   let activePlanId = "";
   let paypalSdkPromise = null;
   let statusPoller = null;
+  let giftFeeButtonsMounted = false;
   // WEB-HOME-01A: page-level consent idempotency keys — created once per
   // consent attempt, KEPT across retries (server write is idempotent on
   // the same key), never regenerated on a retryable failure.
@@ -96,6 +103,8 @@
   let checkoutConsentRecorded = false;
   const paymentLock = flow.createBusyLock();
   const cancelLock = flow.createBusyLock();
+  const giftFeePaymentLock = flow.createBusyLock();
+  let giftFeeSdkPromise = null;
 
   function resetPendingOtpState() {
     pendingGuard = null;
@@ -416,6 +425,51 @@
     return data;
   }
 
+  async function invokePaypalCheckout(body) {
+    const { data, error } = await window.supabaseClient.functions.invoke("paypal-checkout", {
+      body
+    });
+
+    if (error) {
+      try {
+        const parsedBody = await error.context?.json?.();
+        if (parsedBody && typeof parsedBody === "object") {
+          if (flow.isAuthExpiredError(parsedBody) || error.context?.status === 401) {
+            return {
+              ok: false,
+              error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" }
+            };
+          }
+          return parsedBody;
+        }
+      } catch (_parseError) {
+        // fall through
+      }
+      if (error.context?.status === 401 || /jwt|unauthorized|session/i.test(String(error.message || ""))) {
+        return {
+          ok: false,
+          error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" }
+        };
+      }
+      return {
+        ok: false,
+        error: {
+          code: "PAYPAL_CHECKOUT_FAILED",
+          message: flow.sanitizeUserError(error, "運費付款請求失敗，請稍後再試。")
+        }
+      };
+    }
+
+    return data;
+  }
+
+  function createCheckoutService() {
+    if (!paypalCheckoutServiceApi) return null;
+    return paypalCheckoutServiceApi.createPaypalCheckoutService({
+      invokeFunction: invokePaypalCheckout
+    });
+  }
+
   function createPaypalService() {
     return paypalSubscriptionServiceApi.createPaypalSubscriptionService({
       invokeFunction: invokePaypalSubscription
@@ -442,6 +496,106 @@
     });
 
     return paypalSdkPromise;
+  }
+
+  // PROD-RELEASE-DAY3C (line 151-198): a SEPARATE Orders v2 CAPTURE SDK
+  // load, used ONLY for the NT$44 gift shipping-fee payment — never loaded
+  // at the same time as the subscription SDK (loadPaypalOrdersCaptureSdk
+  // replaces it in place). By the time this runs the user is already an
+  // official paying subscriber, so the subscription SDK is no longer needed.
+  function loadGiftFeeSdk() {
+    const clientId = String(window.PAYPAL_CLIENT_ID || "").trim();
+    if (!clientId) {
+      return Promise.reject(new Error("PAYPAL_CLIENT_ID 尚未在 config.js 設定（Sandbox Client ID）。"));
+    }
+
+    if (giftFeeSdkPromise) {
+      return giftFeeSdkPromise;
+    }
+
+    giftFeeSdkPromise = flow.loadPaypalOrdersCaptureSdk({
+      clientId,
+      currency: "TWD",
+      documentRef: document,
+      existingPaypal: window.paypal
+    }).catch((error) => {
+      giftFeeSdkPromise = null;
+      throw error;
+    });
+
+    return giftFeeSdkPromise;
+  }
+
+  function setGiftFeeStatus(text) {
+    if (refs.giftFeeStatusText) {
+      refs.giftFeeStatusText.textContent = text || "";
+    }
+  }
+
+  async function mountGiftFeeButtons() {
+    if (!refs.giftFeeButtonsMount) return;
+    const checkoutService = createCheckoutService();
+    if (!checkoutService) {
+      setGiftFeeStatus("運費付款功能尚未可用，請稍後再試。");
+      return;
+    }
+    refs.giftFeeButtonsMount.innerHTML = "";
+    setGiftFeeStatus("");
+
+    try {
+      const paypal = await loadGiftFeeSdk();
+      const subscriptionService = createPaypalService();
+      const handlers = flow.createGiftShippingFeeButtonHandlers({
+        checkoutService,
+        subscriptionService,
+        busyLock: giftFeePaymentLock,
+        onOrderCreated: () => {
+          setGiftFeeStatus("等待 PayPal 核准運費付款…");
+        },
+        onAuthExpired: () => {
+          showAuthExpired();
+        },
+        onSafeError: (msg) => {
+          setGiftFeeStatus(msg);
+        }
+      });
+
+      paypal.Buttons({
+        style: { layout: "vertical", shape: "rect", label: "pay" },
+        createOrder: async (_data, _actions) => {
+          setGiftFeeStatus("建立運費付款訂單…");
+          return handlers.createOrder();
+        },
+        onApprove: async (data) => {
+          setGiftFeeStatus("付款已核准，正在確認…");
+          try {
+            const result = await handlers.onApprove(data);
+            if (result?.authExpired) {
+              showAuthExpired();
+              return;
+            }
+            if (!result?.ok) {
+              setGiftFeeStatus(flow.sanitizeUserError(result, "運費付款確認失敗，請稍後再試。"));
+              return;
+            }
+            setGiftFeeStatus("運費已付款，準備出貨中。");
+            if (result.gift) renderGiftStatus(result.gift);
+          } catch (error) {
+            setGiftFeeStatus(flow.sanitizeUserError(error, "運費付款確認失敗，請稍後再試。"));
+          }
+        },
+        onCancel: () => {
+          const info = handlers.onCancel();
+          setGiftFeeStatus(`${info.message}。${info.hint}`);
+        },
+        onError: () => {
+          const info = handlers.onError();
+          setGiftFeeStatus(info.message);
+        }
+      }).render(refs.giftFeeButtonsMount);
+    } catch (error) {
+      setGiftFeeStatus(flow.sanitizeUserError(error, "無法載入運費付款按鈕。"));
+    }
   }
 
   async function refreshStatusFromServer({ startPolling = false } = {}) {
@@ -471,7 +625,8 @@
     fee_quoted: "收件資料已送出，運費已確認。",
     fee_paid: "運費已付款，準備出貨中。",
     awaiting_shipment: "商品準備中，即將出貨。",
-    shipped: "商品已出貨。"
+    shipped: "商品已出貨。",
+    declined: "已放棄本次首購贈品。"
   };
 
   async function loadGiftStatus() {
@@ -522,6 +677,24 @@
       refs.giftFeeNote.hidden = !(gift.status === "fee_quoted");
     }
 
+    const needsFeePayment = gift.status === "fee_quoted";
+    if (refs.giftFeeButtonsMount) {
+      refs.giftFeeButtonsMount.hidden = !needsFeePayment;
+    }
+    if (needsFeePayment && !giftFeeButtonsMounted) {
+      giftFeeButtonsMounted = true;
+      mountGiftFeeButtons();
+    }
+    if (!needsFeePayment) {
+      giftFeeButtonsMounted = false;
+      if (refs.giftFeeButtonsMount) refs.giftFeeButtonsMount.innerHTML = "";
+      setGiftFeeStatus("");
+    }
+
+    const canDecline = gift.status === "granted" || gift.status === "fee_quoted";
+    if (refs.giftDeclineSection) refs.giftDeclineSection.hidden = !canDecline;
+    if (!canDecline && refs.giftDeclineStatusText) refs.giftDeclineStatusText.textContent = "";
+
     if (refs.giftTrackingMeta) refs.giftTrackingMeta.hidden = !gift.tracking_number;
     if (refs.giftTrackingNumber) refs.giftTrackingNumber.textContent = gift.tracking_number || "";
   }
@@ -560,6 +733,36 @@
       }
     } finally {
       if (refs.submitGiftAddressBtn) refs.submitGiftAddressBtn.disabled = false;
+    }
+  }
+
+  async function handleDeclineGift() {
+    if (!refs.declineGiftBtn) return;
+    if (!window.confirm("這是一次性的幸運小禮物，若放棄之後不會再補發，確定要放棄嗎？")) {
+      return;
+    }
+    if (refs.giftDeclineStatusText) refs.giftDeclineStatusText.textContent = "處理中…";
+    refs.declineGiftBtn.disabled = true;
+    try {
+      const svc = createPaypalService();
+      const result = await svc.declineGift();
+      if (flow.isAuthExpiredError(result)) {
+        showAuthExpired();
+        return;
+      }
+      if (!result?.ok) {
+        if (refs.giftDeclineStatusText) {
+          refs.giftDeclineStatusText.textContent = flow.sanitizeUserError(result, "放棄失敗，請稍後再試。");
+        }
+        return;
+      }
+      if (result.gift) renderGiftStatus(result.gift);
+    } catch (error) {
+      if (refs.giftDeclineStatusText) {
+        refs.giftDeclineStatusText.textContent = flow.sanitizeUserError(error, "放棄失敗，請稍後再試。");
+      }
+    } finally {
+      refs.declineGiftBtn.disabled = false;
     }
   }
 
@@ -1153,6 +1356,12 @@
     refs.submitGiftAddressBtn.addEventListener("click", (event) => {
       event.preventDefault();
       handleSubmitGiftAddress();
+    });
+  }
+  if (refs.declineGiftBtn) {
+    refs.declineGiftBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleDeclineGift();
     });
   }
 

@@ -73,10 +73,23 @@
       });
     }
 
+    async function declineGift() {
+      return invokeFunction({
+        action: "decline_gift"
+      });
+    }
+
     async function requestRefund({ reason } = {}) {
       return invokeFunction({
         action: "request_refund",
         reason
+      });
+    }
+
+    async function confirmGiftShippingFeePayment({ paypalOrderId } = {}) {
+      return invokeFunction({
+        action: "confirm_gift_shipping_fee_payment",
+        paypalOrderId
       });
     }
 
@@ -87,7 +100,9 @@
       cancelSubscription,
       getGiftStatus,
       submitGiftAddress,
-      requestRefund
+      declineGift,
+      requestRefund,
+      confirmGiftShippingFeePayment
     };
   }
 

@@ -28,6 +28,13 @@ if (!window.supabaseClient) {
 window.SUPABASE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 window.SUPABASE_ANON_KEY = SUPABASE_KEY;
 
+// Auth-07: public PayPal LIVE Client ID only (safe to embed, same
+// convention as the Sandbox dev config). PAYPAL_CLIENT_SECRET /
+// PAYPAL_WEBHOOK_ID / PAYPAL_MERCHANT_ID must NEVER appear here — Edge
+// Function secrets only.
+window.PAYPAL_ENV = "live";
+window.PAYPAL_CLIENT_ID = "BAAMYYHozsmX_GACNXSLvdd1fz6XPpq_D07ujI3UcupFuP8ne1ocqAmjJqbi-MMbRWs0d_SfaivW8nezZs";
+
 // =========================
 // App Config / 全站設定值
 // index07 與 gift.html 後續都可共用
