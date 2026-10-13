@@ -136,8 +136,42 @@
     await loadAll();
   }
 
+  async function handleGrantEntitlementClick() {
+    const targetUserId = window.prompt("請輸入要授與人工測試權益的使用者 ID（Supabase Auth UID）：", "");
+    if (!targetUserId) return;
+    const expiresAtInput = window.prompt(
+      "到期時間（台灣時間，格式 YYYY-MM-DD HH:MM:SS）：",
+      "2026-10-31 23:59:59"
+    );
+    if (!expiresAtInput) return;
+    const expiresAtMatch = String(expiresAtInput).trim().match(
+      /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/
+    );
+    if (!expiresAtMatch) {
+      alert("時間格式錯誤，請使用 YYYY-MM-DD HH:MM:SS（台灣時間）。");
+      return;
+    }
+    const expiresAtIso = `${expiresAtMatch[1]}-${expiresAtMatch[2]}-${expiresAtMatch[3]}T${expiresAtMatch[4]}:${expiresAtMatch[5]}:${expiresAtMatch[6]}+08:00`;
+    const reason = window.prompt("授權原因（會記錄於稽核紀錄）：", "manual test entitlement") || "";
+
+    const result = await invokeAdminOps({
+      action: "grant_manual_wallpaper_entitlement",
+      targetUserId,
+      expiresAt: expiresAtIso,
+      reason
+    });
+    alert(
+      result?.ok
+        ? `已授與人工測試權益，至 ${result.expires_at} 止。`
+        : (result?.error?.message || "操作失敗")
+    );
+  }
+
   if (refs.refreshBtn) {
     refs.refreshBtn.addEventListener("click", loadAll);
+  }
+  if (refs.grantEntitlementBtn) {
+    refs.grantEntitlementBtn.addEventListener("click", handleGrantEntitlementClick);
   }
 
   document.addEventListener("DOMContentLoaded", init);

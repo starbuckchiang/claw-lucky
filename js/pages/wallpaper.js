@@ -54,6 +54,7 @@
     downloadStatus: document.getElementById("downloadStatus"),
     errorBox: document.getElementById("errorBox"),
     errorMessage: document.getElementById("errorMessage"),
+    errorActionLink: document.getElementById("errorActionLink"),
     debugProvider: document.getElementById("debugProvider"),
     debugModel: document.getElementById("debugModel"),
     debugCorrelationId: document.getElementById("debugCorrelationId"),
@@ -138,17 +139,57 @@
   }
 
   function showError(error) {
+    const code = String(error?.code || "GENERATION_FAILED");
+    const friendly = resolveFriendlyError(code, error);
+
     if (refs.errorBox) refs.errorBox.classList.remove("hidden");
-    if (refs.errorMessage) {
-      const code = String(error?.code || "GENERATION_FAILED");
-      const message = String(error?.message || "生成失敗，請稍後再試。");
-      refs.errorMessage.textContent = `[${code}] ${message}`;
+    if (refs.errorMessage) refs.errorMessage.textContent = friendly.message;
+    if (refs.errorActionLink) {
+      if (friendly.actionLabel) {
+        refs.errorActionLink.textContent = friendly.actionLabel;
+        refs.errorActionLink.href = friendly.actionHref || "./subscription.html";
+        refs.errorActionLink.classList.remove("hidden");
+      } else {
+        refs.errorActionLink.classList.add("hidden");
+      }
     }
+
+    // Never leave the status display reading "submitting"/"processing" after
+    // a terminal failure — the submit button is already re-enabled by
+    // setSubmitting(false) in handleSubmit's finally block, but the status
+    // text itself must also reach a clear, non-misleading terminal state.
+    setProgress(friendly.message, 0, "failed", "—");
+  }
+
+  // Maps a backend/client error CODE to a specific, actionable zh-TW message
+  // (per the 2026-10-13 incident fix) — never shows a raw "[CODE] message"
+  // string to the user, and never collapses every failure into the same
+  // generic text. `actionLabel`/`actionHref` give the user a concrete next
+  // step (login / subscribe) instead of a dead end; codes with no specific
+  // action rely on the already-re-enabled 開始生成 button as the retry entry.
+  function resolveFriendlyError(code, error) {
+    if (code === "SUBSCRIPTION_EXPIRED_NO_ENTITLEMENT") {
+      return { message: "訂閱已到期，請重新訂閱。", actionLabel: "前往訂閱", actionHref: "./subscription.html" };
+    }
+    if (code === "DAILY_LIMIT_EXCEEDED") {
+      const isPaid = Boolean(error?.details?.isPaid);
+      return isPaid
+        ? { message: "本月 10 次生成額度已用完，請於下個額度週期再試。", actionLabel: null }
+        : { message: "首月免費 3 次已用完，請訂閱以繼續使用。", actionLabel: "前往訂閱", actionHref: "./subscription.html" };
+    }
+    if (code === "AUTH_EXPIRED" || code === "UNAUTHORIZED") {
+      return { message: "登入已失效，請重新登入。", actionLabel: "前往登入", actionHref: "./subscription.html" };
+    }
+    if (code === "POLLING_FAILURE" || code === "INVALID_STATUS_RESPONSE") {
+      return { message: "目前無法連線，請稍後再試。", actionLabel: null };
+    }
+    return { message: String(error?.message || "生成失敗，請稍後再試。"), actionLabel: null };
   }
 
   function clearError() {
     if (refs.errorBox) refs.errorBox.classList.add("hidden");
     if (refs.errorMessage) refs.errorMessage.textContent = "—";
+    if (refs.errorActionLink) refs.errorActionLink.classList.add("hidden");
   }
 
   function clearResult() {

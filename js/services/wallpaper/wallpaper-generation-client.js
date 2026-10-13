@@ -44,6 +44,18 @@ function createWallpaperHttpApiClient({
       }, "POLLING_FAILURE", "API request failed.");
     }
 
+    // An expired/invalid JWT is rejected by the Supabase gateway itself
+    // (verify_jwt) BEFORE our own handler ever runs, so its body never
+    // matches our {ok:false} shape. Detect this by status alone so it is
+    // never shown to the user as a generic POLLING_FAILURE.
+    if (response.status === 401) {
+      return createNormalizedError({
+        code: "AUTH_EXPIRED",
+        message: "Authentication expired.",
+        retryable: false
+      }, "AUTH_EXPIRED", "Authentication expired.");
+    }
+
     let body = null;
     try {
       body = await response.json();
