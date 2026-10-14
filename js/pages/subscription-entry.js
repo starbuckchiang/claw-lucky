@@ -15,6 +15,7 @@
   const refs = {
     planSection: document.getElementById("planSection"),
     planButtons: Array.from(document.querySelectorAll("[data-plan-id]")),
+    memberLoginLink: document.getElementById("memberLoginLink"),
     otpPanel: document.getElementById("otpPanel"),
     otpStep1: document.getElementById("otpStep1"),
     otpStep2: document.getElementById("otpStep2"),
@@ -30,6 +31,9 @@
     readyPlanLabel: document.getElementById("readyPlanLabel"),
     paypalButtonsMount: document.getElementById("paypalButtonsMount"),
     paymentStatusText: document.getElementById("paymentStatusText"),
+    paypalSdkErrorActions: document.getElementById("paypalSdkErrorActions"),
+    paypalSdkRetryBtn: document.getElementById("paypalSdkRetryBtn"),
+    paypalSdkBackBtn: document.getElementById("paypalSdkBackBtn"),
     statusPanel: document.getElementById("statusPanel"),
     statusBadge: document.getElementById("statusBadge"),
     statusHeadline: document.getElementById("statusHeadline"),
@@ -83,6 +87,28 @@
     giftTrackingMeta: document.getElementById("giftTrackingMeta"),
     giftTrackingNumber: document.getElementById("giftTrackingNumber")
   };
+
+  // PROD-FIX-2026-10-14: `?return=admin` lets admin.html send an
+  // unauthenticated admin here to log in, then come straight back —
+  // without this, a plain login had no way to distinguish "just log in"
+  // from "I want to buy a plan" (see redirectIfReturnTarget/
+  // resumeOfficialCheckout below). Guarded: test/non-browser environments
+  // may not provide window.location at all.
+  const returnTarget = (function resolveReturnTarget() {
+    try {
+      return new URLSearchParams(window.location.search).get("return");
+    } catch (_error) {
+      return null;
+    }
+  })();
+
+  function redirectIfReturnTarget() {
+    if (returnTarget === "admin" && window.location && typeof window.location.replace === "function") {
+      window.location.replace("./admin.html");
+      return true;
+    }
+    return false;
+  }
 
   let pendingGuard = null;
   let pendingPreviousAuthUserId = "";
@@ -371,14 +397,23 @@
 
   // After Official auth (upgrade or existing-account login), prefer showing
   // an already-entitled subscription instead of opening a second PayPal checkout.
+  // PROD-FIX-2026-10-14: only force the "確認自動續訂" checkout panel when the
+  // caller explicitly chose a plan (`checkoutContext.planId` set via a plan
+  // button click). A plain login (no plan chosen — e.g. the member-login
+  // link, or returning here from admin.html) must ALWAYS land on the
+  // member/plan-selection view instead, even for an expired/never-subscribed
+  // account — never force payment just because someone logged in.
   async function resumeOfficialCheckout(checkoutContext) {
+    if (redirectIfReturnTarget()) return;
+
     hideTransientPanels();
     if (refs.readyPanel) refs.readyPanel.hidden = true;
 
     const subscription = await refreshStatusFromServer({ startPolling: true });
     const ui = flow.resolveSubscriptionUiState(subscription);
+    const hasExplicitPlanIntent = Boolean(checkoutContext?.planId);
 
-    if (subscription && !ui.allowNewSubscription) {
+    if (!hasExplicitPlanIntent || (subscription && !ui.allowNewSubscription)) {
       setPlanSectionVisible(ui.showPlanButtons);
       setPlanButtonsDisabled(!ui.allowNewSubscription);
       return;
@@ -479,7 +514,7 @@
   function loadPaypalSdk() {
     const clientId = String(window.PAYPAL_CLIENT_ID || "").trim();
     if (!clientId) {
-      return Promise.reject(new Error("PAYPAL_CLIENT_ID 尚未在 config.js 設定（Sandbox Client ID）。"));
+      return Promise.reject(new Error("PAYPAL_CLIENT_ID 尚未在 config.js 設定。"));
     }
 
     if (paypalSdkPromise) {
@@ -506,7 +541,7 @@
   function loadGiftFeeSdk() {
     const clientId = String(window.PAYPAL_CLIENT_ID || "").trim();
     if (!clientId) {
-      return Promise.reject(new Error("PAYPAL_CLIENT_ID 尚未在 config.js 設定（Sandbox Client ID）。"));
+      return Promise.reject(new Error("PAYPAL_CLIENT_ID 尚未在 config.js 設定。"));
     }
 
     if (giftFeeSdkPromise) {
@@ -856,14 +891,16 @@
     if (!refs.paypalButtonsMount) return;
     refs.paypalButtonsMount.innerHTML = "";
     setPaymentStatus("");
+    if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = true;
 
     if (!planId) {
       setPaymentStatus("缺少方案代碼。");
       return;
     }
 
-    if (String(window.PAYPAL_ENV || "sandbox").toLowerCase() !== "sandbox") {
-      setPaymentStatus("僅允許 PayPal Sandbox。");
+    const paypalEnv = String(window.PAYPAL_ENV || "").toLowerCase();
+    if (paypalEnv !== "sandbox" && paypalEnv !== "live") {
+      setPaymentStatus("付款功能尚未設定完成，請稍後再試。");
       return;
     }
 
@@ -959,9 +996,10 @@
         }
       }).render(refs.paypalButtonsMount);
     } catch (error) {
-      setPaymentStatus(flow.sanitizeUserError(error, "無法載入 PayPal 按鈕。"));
+      setPaymentStatus(flow.sanitizeUserError(error, "無法載入 PayPal 按鈕，請重試或稍後再試。"));
       setPlanButtonsDisabled(false);
       paymentLock.release();
+      if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = false;
     }
   }
 
@@ -1042,6 +1080,40 @@
       showOtpStep1();
     } catch (error) {
       setPlanButtonsDisabled(false);
+      showError(error?.message);
+    }
+  }
+
+  // PROD-FIX-2026-10-14: a plain "登入" entry (member-login link, or
+  // admin.html's return link) that carries NO plan intent at all — unlike
+  // handlePlanClick, `checkoutContext` stays null end-to-end, so
+  // resumeOfficialCheckout() never opens the "確認自動續訂" checkout panel
+  // for this path, regardless of subscription state.
+  async function handleLoginOnlyClick() {
+    hideTransientPanels();
+
+    try {
+      let { session, user } = await getCurrentSessionAndUser();
+      const guard = createGuard();
+      const result = guard.evaluateSubscriptionEntry({
+        session,
+        user,
+        checkoutContext: null
+      });
+
+      if (result.action === guardApi.ACTION.ENTER_CHECKOUT) {
+        await resumeOfficialCheckout(result.checkoutContext);
+        return;
+      }
+
+      ({ session, user } = await ensureAnonymousSession());
+
+      resetPendingOtpState();
+      pendingGuard = result.pending;
+      pendingPreviousAuthUserId = String(user?.id || "");
+      pendingMode = "upgrade";
+      showOtpStep1();
+    } catch (error) {
       showError(error?.message);
     }
   }
@@ -1282,6 +1354,8 @@
       const authState = authService.resolveAuthState({ session, user });
       if (!authState?.isOfficialUser) return;
 
+      if (redirectIfReturnTarget()) return;
+
       await refreshStatusFromServer({ startPolling: true });
     } catch (_error) {
       // Soft-fail: plans remain usable.
@@ -1321,6 +1395,28 @@
     refs.retryBtn.addEventListener("click", (event) => {
       event.preventDefault();
       handleRetry();
+    });
+  }
+
+  if (refs.memberLoginLink) {
+    refs.memberLoginLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (paymentLock.isBusy()) return;
+      handleLoginOnlyClick();
+    });
+  }
+
+  if (refs.paypalSdkRetryBtn) {
+    refs.paypalSdkRetryBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      mountPaypalButtons(activePlanId);
+    });
+  }
+
+  if (refs.paypalSdkBackBtn) {
+    refs.paypalSdkBackBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      resumeOfficialCheckout(null);
     });
   }
 

@@ -16,6 +16,7 @@
 <section class="section">
   <div class="panel subscription-topbar">
     <a class="subscription-back-link" href="./claw-lucky-home.html">← 回首頁</a>
+    <a class="subscription-back-link" href="#" id="memberLoginLink">會員登入</a>
   </div>
 </section>
 
@@ -234,6 +235,10 @@
     </div>
     <div id="paypalButtonsMount" class="subscription-paypal-mount"></div>
     <p class="subscription-status-text" id="paymentStatusText"></p>
+    <div class="button-row" id="paypalSdkErrorActions" hidden>
+      <button type="button" class="btn" id="paypalSdkRetryBtn">重試</button>
+      <button type="button" class="btn btn-secondary" id="paypalSdkBackBtn">返回</button>
+    </div>
   </div>
 </section>
 
@@ -277,6 +282,6 @@
 <script src="./js/services/subscription/paypal-subscription-service.js?v=20261011-2"></script>
 <script src="./js/services/subscription/paypal-checkout-service.js?v=20261011-1"></script>
 <script src="./js/services/subscription/paypal-subscription-flow.js?v=20261011-1"></script>
-<script src="./js/pages/subscription-entry.js?v=20261011-4"></script>
+<script src="./js/pages/subscription-entry.js?v=20261014-1"></script>
 </body>
 </html>

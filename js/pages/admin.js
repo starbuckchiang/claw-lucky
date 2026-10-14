@@ -127,7 +127,7 @@
     const user = data?.session?.user || null;
 
     if (!user || user.is_anonymous) {
-      refs.authStatus.textContent = "請先於訂閱方案頁登入您的正式帳號，再回到這裡。";
+      refs.authStatus.innerHTML = "請先於<a href=\"./subscription.html?return=admin\">訂閱方案頁登入</a>您的正式帳號，登入後會自動返回這裡。";
       refs.content.hidden = true;
       return;
     }
