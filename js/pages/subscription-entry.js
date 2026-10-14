@@ -50,9 +50,7 @@
     statusPaidThroughRow: document.getElementById("statusPaidThroughRow"),
     statusPaidThrough: document.getElementById("statusPaidThrough"),
     manageSubscriptionPanel: document.getElementById("manageSubscriptionPanel"),
-    cancelRow: document.getElementById("cancelRow"),
     cancelSubscriptionBtn: document.getElementById("cancelSubscriptionBtn"),
-    refundRow: document.getElementById("refundRow"),
     serviceEntryRow: document.getElementById("serviceEntryRow"),
     reauthorizeRow: document.getElementById("reauthorizeRow"),
     reauthorizeBtn: document.getElementById("reauthorizeBtn"),
@@ -376,8 +374,8 @@
       if (refs.statusPaidThroughRow) refs.statusPaidThroughRow.hidden = !ui.paidThroughLocal;
       if (refs.statusPaidThrough) refs.statusPaidThrough.textContent = ui.paidThroughLocal || "";
 
-      if (refs.cancelRow) refs.cancelRow.hidden = !ui.showCancelButton;
-      if (refs.refundRow) refs.refundRow.hidden = !ui.showRefundButton;
+      if (refs.cancelSubscriptionBtn) refs.cancelSubscriptionBtn.hidden = !ui.showCancelButton;
+      if (refs.openRefundFormBtn) refs.openRefundFormBtn.hidden = !ui.showRefundButton;
       if (refs.manageSubscriptionPanel) {
         refs.manageSubscriptionPanel.hidden = !(ui.showCancelButton || ui.showRefundButton);
       }
