@@ -106,6 +106,15 @@ ol {
   display: none !important;
 }
 
+/* 2026-10-14 fix: the native `hidden` attribute has the same specificity as
+   any single-class selector (e.g. .button-row { display: flex }), and since
+   author rules load after the UA stylesheet, a flex/grid display override
+   was silently winning and showing elements meant to stay hidden. Restores
+   the HTML-spec-intended behavior everywhere, not just this page. */
+[hidden] {
+  display: none !important;
+}
+
 /* =========================
  Layout Container / 頁面主容器
  ========================= */
