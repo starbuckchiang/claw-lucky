@@ -86,6 +86,10 @@
     <div class="button-row" id="serviceEntryRow" hidden>
       <a class="btn" id="statusServiceEntryLink" href="./claw-lucky-home.html">前往開始使用</a>
     </div>
+    <div class="button-row" id="reauthorizeRow" hidden>
+      <button type="button" class="btn" id="reauthorizeBtn">重新授權</button>
+      <button type="button" class="btn btn-secondary" id="backToMemberBtn">返回會員頁</button>
+    </div>
     <div class="button-row" id="cancelRow" hidden>
       <button type="button" class="btn btn-secondary" id="cancelSubscriptionBtn">取消自動續訂</button>
       <button type="button" class="btn btn-secondary" id="openRefundFormBtn">終止訂閱並申請退款</button>
@@ -120,6 +124,9 @@
       <p class="subscription-status-text">實際退款須經人工審核確認後才會真正退款；審核前權益不受影響。</p>
     </div>
     <p class="subscription-status-text" id="statusActionText"></p>
+    <div class="button-row" id="statusRequeryRow" hidden>
+      <button type="button" class="btn btn-secondary" id="statusRequeryBtn">重新查詢</button>
+    </div>
   </div>
 </section>
 
@@ -237,8 +244,8 @@
     <div id="paypalButtonsMount" class="subscription-paypal-mount"></div>
     <p class="subscription-status-text" id="paymentStatusText"></p>
     <div class="button-row" id="paypalSdkErrorActions" hidden>
-      <button type="button" class="btn" id="paypalSdkRetryBtn">重試</button>
-      <button type="button" class="btn btn-secondary" id="paypalSdkBackBtn">返回</button>
+      <button type="button" class="btn" id="paypalSdkRetryBtn">重新授權</button>
+      <button type="button" class="btn btn-secondary" id="paypalSdkBackBtn">返回會員頁</button>
     </div>
   </div>
 </section>

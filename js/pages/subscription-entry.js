@@ -47,7 +47,12 @@
     cancelRow: document.getElementById("cancelRow"),
     cancelSubscriptionBtn: document.getElementById("cancelSubscriptionBtn"),
     serviceEntryRow: document.getElementById("serviceEntryRow"),
+    reauthorizeRow: document.getElementById("reauthorizeRow"),
+    reauthorizeBtn: document.getElementById("reauthorizeBtn"),
+    backToMemberBtn: document.getElementById("backToMemberBtn"),
     statusActionText: document.getElementById("statusActionText"),
+    statusRequeryRow: document.getElementById("statusRequeryRow"),
+    statusRequeryBtn: document.getElementById("statusRequeryBtn"),
     errorPanel: document.getElementById("errorPanel"),
     errorMessage: document.getElementById("errorMessage"),
     retryBtn: document.getElementById("retryBtn"),
@@ -118,6 +123,10 @@
   let pendingOtpPurpose = null;
   let pendingClaimToken = null;
   let activePlanId = "";
+  // PROD-FIX-2026-10-14: remembers the plan_code of the last rendered
+  // subscription (any status) so "重新授權" can resume the SAME pending
+  // session without the user re-selecting a plan.
+  let lastKnownPlanCode = null;
   let paypalSdkPromise = null;
   let statusPoller = null;
   let giftFeeButtonsMounted = false;
@@ -246,6 +255,15 @@
     }
   }
 
+  // PROD-FIX-2026-10-14: requirement 4 — waiting for first-payment
+  // confirmation must never be an unbounded, dead-end wait. Shown only
+  // once createStatusPoller's own maxAttempts is exhausted or a poll
+  // request itself fails; re-querying always re-reads real server state,
+  // never assumes success/failure locally.
+  function setStatusRequeryVisible(visible) {
+    if (refs.statusRequeryRow) refs.statusRequeryRow.hidden = !visible;
+  }
+
   function stopStatusPolling() {
     if (statusPoller) {
       statusPoller.stop();
@@ -281,8 +299,32 @@
     showError("登入已過期，請重新登入後再繼續訂閱。");
   }
 
+  // PROD-FIX-2026-10-14: requirement 2/3 — reauthorize the SAME pending
+  // subscription (never silently marks anything paid/active locally; the
+  // backend's own acquire_subscription_slot decides whether to reuse the
+  // still-valid pending session or require a fresh one).
+  function handleReauthorizeClick() {
+    if (!lastKnownPlanCode) {
+      showError("找不到原訂閱方案，請返回會員頁重新選擇方案。");
+      return;
+    }
+    showReady({ planId: lastKnownPlanCode });
+  }
+
+  function handleBackToMemberClick() {
+    hideTransientPanels();
+    if (refs.readyPanel) refs.readyPanel.hidden = true;
+    refreshStatusFromServer({ startPolling: true });
+  }
+
+  function handleStatusRequeryClick() {
+    setStatusRequeryVisible(false);
+    beginPaidThroughPolling();
+  }
+
   function renderStatusView(subscription) {
     const ui = flow.resolveSubscriptionUiState(subscription);
+    if (ui.planCode) lastKnownPlanCode = ui.planCode;
 
     if (refs.statusPanel) {
       refs.statusPanel.hidden = ui.mode === "none";
@@ -312,6 +354,7 @@
       if (refs.serviceEntryRow) {
         refs.serviceEntryRow.hidden = !(ui.mode === "active" || ui.mode === "cancelled_with_access");
       }
+      if (refs.reauthorizeRow) refs.reauthorizeRow.hidden = !ui.showReauthorize;
     }
 
     setPlanSectionVisible(ui.showPlanButtons);
@@ -869,6 +912,7 @@
 
   function beginPaidThroughPolling() {
     stopStatusPolling();
+    setStatusRequeryVisible(false);
     const svc = createPaypalService();
     statusPoller = flow.createStatusPoller({
       getStatus: async () => {
@@ -899,11 +943,13 @@
         if (ui.mode === "active") {
           setStatusActionText("訂閱使用中");
         } else if (outcome.timedOut) {
-          setStatusActionText("仍在確認首期付款，請稍後重新整理頁面。");
+          setStatusActionText("仍在確認首期付款，可點擊下方「重新查詢」確認最新狀態。");
+          setStatusRequeryVisible(true);
         }
       }
     }).catch(() => {
-      setStatusActionText("狀態更新失敗，請稍後重新整理。");
+      setStatusActionText("狀態更新失敗，請點擊下方「重新查詢」再試一次。");
+      setStatusRequeryVisible(true);
     });
   }
 
@@ -1005,14 +1051,16 @@
           }
         },
         onCancel: () => {
-          const info = handlers.onCancel();
+          handlers.onCancel();
           setPlanButtonsDisabled(false);
-          setPaymentStatus(`${info.message}。${info.hint}`);
+          setPaymentStatus("授權未完成，訂閱尚未啟用。");
+          if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = false;
         },
         onError: () => {
-          const info = handlers.onError();
+          handlers.onError();
           setPlanButtonsDisabled(false);
-          setPaymentStatus(info.message);
+          setPaymentStatus("授權未完成，訂閱尚未啟用。");
+          if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = false;
         }
       }).render(refs.paypalButtonsMount);
     } catch (error) {
@@ -1445,6 +1493,27 @@
     refs.cancelSubscriptionBtn.addEventListener("click", (event) => {
       event.preventDefault();
       handleCancelSubscription();
+    });
+  }
+
+  if (refs.reauthorizeBtn) {
+    refs.reauthorizeBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleReauthorizeClick();
+    });
+  }
+
+  if (refs.backToMemberBtn) {
+    refs.backToMemberBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleBackToMemberClick();
+    });
+  }
+
+  if (refs.statusRequeryBtn) {
+    refs.statusRequeryBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleStatusRequeryClick();
     });
   }
 

@@ -356,6 +356,7 @@
         showPlanButtons: true,
         showPayButtons: true,
         showCancelButton: false,
+        showReauthorize: false,
         headline: "",
         detail: "",
         planCode: null,
@@ -379,6 +380,7 @@
         showPlanButtons: false,
         showPayButtons: false,
         showCancelButton: false,
+        showReauthorize: false,
         headline: "訂閱權益已暫停",
         detail: "請聯絡客服協助處理。",
         planCode,
@@ -389,14 +391,37 @@
       };
     }
 
-    if (status === "APPROVAL_PENDING" || status === "APPROVED") {
+    // 2026-10-14 fix: APPROVAL_PENDING means the buyer never finished (or
+    // abandoned) PayPal's own approval step — "系統正在確認" was misleading
+    // (nothing is being checked; the buyer needs to act). APPROVED means
+    // the buyer DID approve and PayPal/our webhook is still finalizing —
+    // that genuinely is a backend-driven wait, kept as its own state.
+    if (status === "APPROVAL_PENDING") {
+      return {
+        mode: "approval_pending",
+        showPlanButtons: false,
+        showPayButtons: false,
+        showCancelButton: false,
+        showReauthorize: true,
+        headline: "訂閱授權尚未完成",
+        detail: "尚未完成 PayPal 授權，訂閱尚未啟用。可重新授權，或先返回會員頁。",
+        planCode,
+        status,
+        paidThroughLocal,
+        nextBillingLocal,
+        allowNewSubscription: false
+      };
+    }
+
+    if (status === "APPROVED") {
       return {
         mode: "processing",
         showPlanButtons: false,
         showPayButtons: false,
         showCancelButton: false,
-        headline: "訂閱申請處理中",
-        detail: "請稍候，系統正在確認訂閱申請。",
+        showReauthorize: false,
+        headline: "訂閱已核准，正在確認首期付款",
+        detail: "權益啟用前請稍候。",
         planCode,
         status,
         paidThroughLocal,
@@ -411,6 +436,7 @@
         showPlanButtons: false,
         showPayButtons: false,
         showCancelButton: true,
+        showReauthorize: false,
         headline: "訂閱使用中",
         detail: "自動續訂進行中。可取消自動續訂；取消後仍可使用至已付款週期結束。",
         planCode,
@@ -427,6 +453,7 @@
         showPlanButtons: false,
         showPayButtons: false,
         showCancelButton: false,
+        showReauthorize: false,
         headline: "首期付款確認中",
         detail: "訂閱已核准，正在確認首期付款。權益啟用前請稍候。",
         planCode,
@@ -443,6 +470,7 @@
         showPlanButtons: false,
         showPayButtons: false,
         showCancelButton: false,
+        showReauthorize: false,
         headline: "已取消自動續訂",
         detail: paidThroughLocal
           ? `可使用至 ${paidThroughLocal}。到期前無法建立第二張訂閱。`
@@ -461,6 +489,7 @@
         showPlanButtons: false,
         showPayButtons: false,
         showCancelButton: false,
+        showReauthorize: false,
         headline: "訂閱已暫停",
         detail: "請至 PayPal 或聯絡客服確認付款方式後再試。",
         planCode,
@@ -481,6 +510,7 @@
         showPlanButtons: true,
         showPayButtons: true,
         showCancelButton: false,
+        showReauthorize: false,
         headline: "訂閱已結束",
         detail: "可重新選擇方案訂閱。",
         planCode,
@@ -496,6 +526,7 @@
       showPlanButtons: false,
       showPayButtons: false,
       showCancelButton: false,
+      showReauthorize: false,
       headline: "訂閱狀態更新中",
       detail: "請稍後重新整理頁面。",
       planCode,
