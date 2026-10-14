@@ -121,6 +121,19 @@
     return false;
   }
 
+  // 2026-10-14: `?entry=member` lets the homepage's "我的會員" nav link ask
+  // for the login card directly, instead of a non-official visitor silently
+  // landing on the plain plan-selection view with only a small 會員登入 text
+  // link to notice. "查看訂閱方案" keeps linking here with no param, so it
+  // still shows plans first, unchanged.
+  const entryIntent = (function resolveEntryIntent() {
+    try {
+      return new URLSearchParams(window.location.search).get("entry");
+    } catch (_error) {
+      return null;
+    }
+  })();
+
   // 2026-10-14 return-flow fix: a pending PayPal authorization keeps
   // re-rendering the SAME "待授權" status card on every refreshStatusFromServer()
   // call (backend state is unchanged), so a naive "返回選擇方案" handler that
@@ -1519,10 +1532,16 @@
   async function bootstrap() {
     try {
       const { session, user } = await getCurrentSessionAndUser();
-      if (!session || !user) return;
+      if (!session || !user) {
+        if (entryIntent === "member") await handleLoginOnlyClick();
+        return;
+      }
 
       const authState = authService.resolveAuthState({ session, user });
-      if (!authState?.isOfficialUser) return;
+      if (!authState?.isOfficialUser) {
+        if (entryIntent === "member") await handleLoginOnlyClick();
+        return;
+      }
 
       if (redirectIfReturnTarget()) return;
 
