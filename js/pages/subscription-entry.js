@@ -17,6 +17,7 @@
     planButtons: Array.from(document.querySelectorAll("[data-plan-id]")),
     memberLoginLink: document.getElementById("memberLoginLink"),
     loggedInEmailText: document.getElementById("loggedInEmailText"),
+    logoutBtn: document.getElementById("logoutBtn"),
     otpPanel: document.getElementById("otpPanel"),
     otpStep1: document.getElementById("otpStep1"),
     otpStep2: document.getElementById("otpStep2"),
@@ -40,12 +41,18 @@
     statusHeadline: document.getElementById("statusHeadline"),
     statusDetail: document.getElementById("statusDetail"),
     statusMeta: document.getElementById("statusMeta"),
+    statusPlanCodeRow: document.getElementById("statusPlanCodeRow"),
     statusPlanCode: document.getElementById("statusPlanCode"),
+    statusValueRow: document.getElementById("statusValueRow"),
     statusValue: document.getElementById("statusValue"),
+    statusNextBillingRow: document.getElementById("statusNextBillingRow"),
     statusNextBilling: document.getElementById("statusNextBilling"),
+    statusPaidThroughRow: document.getElementById("statusPaidThroughRow"),
     statusPaidThrough: document.getElementById("statusPaidThrough"),
+    manageSubscriptionPanel: document.getElementById("manageSubscriptionPanel"),
     cancelRow: document.getElementById("cancelRow"),
     cancelSubscriptionBtn: document.getElementById("cancelSubscriptionBtn"),
+    refundRow: document.getElementById("refundRow"),
     serviceEntryRow: document.getElementById("serviceEntryRow"),
     reauthorizeRow: document.getElementById("reauthorizeRow"),
     reauthorizeBtn: document.getElementById("reauthorizeBtn"),
@@ -153,6 +160,25 @@
   function planLabel(planId) {
     const button = refs.planButtons.find((btn) => btn.dataset.planId === planId);
     return button?.dataset.planLabel || planId;
+  }
+
+  // 2026-10-14 visual fix: raw backend status codes (APPROVAL_PENDING etc.)
+  // must never be the primary on-screen text — this maps ui.mode to a short
+  // zh-TW chip label; the full sentence always lives in ui.headline/detail.
+  const STATUS_BADGE_LABEL = {
+    active: "使用中",
+    cancelled_with_access: "已取消續訂",
+    approval_pending: "待授權",
+    processing: "確認中",
+    awaiting_first_payment: "確認中",
+    suspended: "已暫停",
+    access_blocked: "已暫停",
+    expired: "已結束",
+    unknown: "狀態更新中"
+  };
+
+  function statusBadgeLabel(ui) {
+    return STATUS_BADGE_LABEL[ui.mode] || ui.headline || "";
   }
 
   // WEB-HOME-01: the upgrade/login OTP flow must not start until the
@@ -331,26 +357,30 @@
     }
 
     if (ui.mode !== "none") {
-      if (refs.statusBadge) refs.statusBadge.textContent = ui.status || ui.mode;
+      if (refs.statusBadge) refs.statusBadge.textContent = statusBadgeLabel(ui);
       if (refs.statusHeadline) refs.statusHeadline.textContent = ui.headline;
       if (refs.statusDetail) refs.statusDetail.textContent = ui.detail;
       if (refs.statusMeta) {
         const showMeta = Boolean(ui.planCode || ui.status || ui.paidThroughLocal || ui.nextBillingLocal);
         refs.statusMeta.hidden = !showMeta;
       }
-      if (refs.statusPlanCode) {
-        refs.statusPlanCode.textContent = ui.planCode
-          ? planLabel(ui.planCode)
-          : "—";
-      }
-      if (refs.statusValue) refs.statusValue.textContent = ui.status || "—";
-      if (refs.statusNextBilling) {
-        refs.statusNextBilling.textContent = ui.nextBillingLocal || "—";
-      }
-      if (refs.statusPaidThrough) {
-        refs.statusPaidThrough.textContent = ui.paidThroughLocal || "—";
-      }
+      if (refs.statusPlanCodeRow) refs.statusPlanCodeRow.hidden = !ui.planCode;
+      if (refs.statusPlanCode) refs.statusPlanCode.textContent = ui.planCode ? planLabel(ui.planCode) : "";
+      if (refs.statusValueRow) refs.statusValueRow.hidden = !ui.mode;
+      if (refs.statusValue) refs.statusValue.textContent = statusBadgeLabel(ui);
+      // Empty 下次扣款／可使用至 fields are hidden entirely, never shown as
+      // a blank dash — only render the row when the backend actually gave
+      // a real timestamp for it.
+      if (refs.statusNextBillingRow) refs.statusNextBillingRow.hidden = !ui.nextBillingLocal;
+      if (refs.statusNextBilling) refs.statusNextBilling.textContent = ui.nextBillingLocal || "";
+      if (refs.statusPaidThroughRow) refs.statusPaidThroughRow.hidden = !ui.paidThroughLocal;
+      if (refs.statusPaidThrough) refs.statusPaidThrough.textContent = ui.paidThroughLocal || "";
+
       if (refs.cancelRow) refs.cancelRow.hidden = !ui.showCancelButton;
+      if (refs.refundRow) refs.refundRow.hidden = !ui.showRefundButton;
+      if (refs.manageSubscriptionPanel) {
+        refs.manageSubscriptionPanel.hidden = !(ui.showCancelButton || ui.showRefundButton);
+      }
       if (refs.serviceEntryRow) {
         refs.serviceEntryRow.hidden = !(ui.mode === "active" || ui.mode === "cancelled_with_access");
       }
@@ -420,14 +450,32 @@
   // Only ever reads the already-verified session's own email — never
   // accepts/derives it from anywhere else.
   function updateLoggedInEmailDisplay(user) {
-    if (!refs.loggedInEmailText) return;
     const email = user && !user.is_anonymous ? String(user.email || "").trim() : "";
-    if (email) {
-      refs.loggedInEmailText.textContent = `已登入：${email}`;
-      refs.loggedInEmailText.hidden = false;
-    } else {
-      refs.loggedInEmailText.textContent = "";
-      refs.loggedInEmailText.hidden = true;
+    if (refs.loggedInEmailText) {
+      refs.loggedInEmailText.textContent = email ? `已登入：${email}` : "";
+      refs.loggedInEmailText.hidden = !email;
+    }
+    if (refs.logoutBtn) refs.logoutBtn.hidden = !email;
+  }
+
+  // 2026-10-14: logout only ends the current Auth session and clears
+  // local/in-memory UI state (pending plan, return path, polling) — never
+  // touches the PayPal subscription, never requests a refund, never
+  // deletes the account. A failed signOut must never be shown as success.
+  async function handleLogoutClick() {
+    if (refs.logoutBtn) refs.logoutBtn.disabled = true;
+    try {
+      stopStatusPolling();
+      const { error } = await window.supabaseClient.auth.signOut();
+      if (error) {
+        showError(flow.sanitizeUserError({ message: error.message }, "登出失敗，請稍後再試。"));
+        return;
+      }
+      window.location.href = "./claw-lucky-home.html";
+    } catch (error) {
+      showError(flow.sanitizeUserError(error, "登出失敗，請稍後再試。"));
+    } finally {
+      if (refs.logoutBtn) refs.logoutBtn.disabled = false;
     }
   }
 
@@ -1472,6 +1520,13 @@
       event.preventDefault();
       if (paymentLock.isBusy()) return;
       handleLoginOnlyClick();
+    });
+  }
+
+  if (refs.logoutBtn) {
+    refs.logoutBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleLogoutClick();
     });
   }
 

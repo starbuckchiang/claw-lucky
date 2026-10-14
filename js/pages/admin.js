@@ -13,7 +13,9 @@
     content: document.getElementById("adminContent"),
     refundList: document.getElementById("refundList"),
     giftList: document.getElementById("giftList"),
-    refreshBtn: document.getElementById("refreshBtn")
+    refreshBtn: document.getElementById("refreshBtn"),
+    loggedInEmailText: document.getElementById("adminLoggedInEmailText"),
+    logoutBtn: document.getElementById("adminLogoutBtn")
   };
 
   async function invokeAdminOps(body) {
@@ -129,11 +131,39 @@
     if (!user || user.is_anonymous) {
       refs.authStatus.innerHTML = "請先於<a href=\"./subscription.html?return=admin\">訂閱方案頁登入</a>您的正式帳號，登入後會自動返回這裡。";
       refs.content.hidden = true;
+      if (refs.loggedInEmailText) refs.loggedInEmailText.hidden = true;
+      if (refs.logoutBtn) refs.logoutBtn.hidden = true;
       return;
     }
 
+    if (refs.loggedInEmailText) {
+      const email = String(user.email || "").trim();
+      refs.loggedInEmailText.textContent = email ? `已登入：${email}` : "";
+      refs.loggedInEmailText.hidden = !email;
+    }
+    if (refs.logoutBtn) refs.logoutBtn.hidden = false;
+
     refs.authStatus.textContent = "載入中…";
     await loadAll();
+  }
+
+  // 2026-10-14: logout only ends the current Auth session — never touches
+  // the PayPal subscription, never requests a refund, never deletes the
+  // account. A failed signOut must never be shown as success.
+  async function handleLogoutClick() {
+    if (refs.logoutBtn) refs.logoutBtn.disabled = true;
+    try {
+      const { error } = await window.supabaseClient.auth.signOut();
+      if (error) {
+        alert(error.message || "登出失敗，請稍後再試。");
+        return;
+      }
+      window.location.href = "./claw-lucky-home.html";
+    } catch (error) {
+      alert(error?.message || "登出失敗，請稍後再試。");
+    } finally {
+      if (refs.logoutBtn) refs.logoutBtn.disabled = false;
+    }
   }
 
   async function handleGrantEntitlementClick() {
@@ -172,6 +202,9 @@
   }
   if (refs.grantEntitlementBtn) {
     refs.grantEntitlementBtn.addEventListener("click", handleGrantEntitlementClick);
+  }
+  if (refs.logoutBtn) {
+    refs.logoutBtn.addEventListener("click", handleLogoutClick);
   }
 
   document.addEventListener("DOMContentLoaded", init);

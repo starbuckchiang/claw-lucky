@@ -18,6 +18,7 @@
     <a class="subscription-back-link" href="./claw-lucky-home.html">← 回首頁</a>
     <a class="subscription-back-link" href="#" id="memberLoginLink">會員登入</a>
     <span class="subscription-status-text" id="loggedInEmailText" hidden></span>
+    <button type="button" class="text-btn" id="logoutBtn" hidden>登出</button>
   </div>
 </section>
 
@@ -62,23 +63,23 @@
 
 <section class="section" id="statusPanel" hidden>
   <div class="panel subscription-status-panel">
-    <span class="badge" id="statusBadge">Status</span>
+    <span class="badge subscription-status-badge" id="statusBadge"></span>
     <h2 class="section-title" id="statusHeadline"></h2>
     <p class="section-desc" id="statusDetail"></p>
     <dl class="subscription-status-meta" id="statusMeta" hidden>
-      <div>
+      <div id="statusPlanCodeRow">
         <dt>方案</dt>
         <dd id="statusPlanCode"></dd>
       </div>
-      <div>
+      <div id="statusValueRow">
         <dt>狀態</dt>
         <dd id="statusValue"></dd>
       </div>
-      <div>
+      <div id="statusNextBillingRow" hidden>
         <dt>下次扣款</dt>
         <dd id="statusNextBilling"></dd>
       </div>
-      <div>
+      <div id="statusPaidThroughRow" hidden>
         <dt>可使用至</dt>
         <dd id="statusPaidThrough"></dd>
       </div>
@@ -88,22 +89,35 @@
     </div>
     <div class="button-row" id="reauthorizeRow" hidden>
       <button type="button" class="btn" id="reauthorizeBtn">重新授權</button>
-      <button type="button" class="btn btn-secondary" id="backToMemberBtn">返回會員頁</button>
+      <button type="button" class="btn btn-outline" id="backToMemberBtn">返回會員頁</button>
     </div>
+    <p class="subscription-status-text" id="statusActionText"></p>
+    <div class="button-row" id="statusRequeryRow" hidden>
+      <button type="button" class="btn btn-outline" id="statusRequeryBtn">重新查詢</button>
+    </div>
+  </div>
+
+  <div class="panel subscription-manage-panel" id="manageSubscriptionPanel" hidden>
+    <h3 class="subscription-manage-title">管理訂閱</h3>
     <div class="button-row" id="cancelRow" hidden>
-      <button type="button" class="btn btn-secondary" id="cancelSubscriptionBtn">取消自動續訂</button>
-      <button type="button" class="btn btn-secondary" id="openRefundFormBtn">終止訂閱並申請退款</button>
+      <button type="button" class="btn btn-outline" id="cancelSubscriptionBtn">取消自動續訂</button>
     </div>
-    <p class="subscription-status-text">
-      「取消自動續訂」只停止後續扣款，當期權益持續至到期，不會退款。
-      「終止訂閱並申請退款」會建立一筆待人工審核的退款申請，核准並確認退款成功後才會終止權益；審核期間權益不受影響。
-    </p>
+    <div class="button-row" id="refundRow" hidden>
+      <button type="button" class="btn btn-outline" id="openRefundFormBtn">申請退款</button>
+    </div>
+    <details class="subscription-collapsible">
+      <summary>取消與退款說明</summary>
+      <p class="subscription-status-text">
+        「取消自動續訂」只停止後續扣款，當期權益持續至到期，不會退款。
+        「申請退款」會建立一筆待人工審核的退款申請，核准並確認退款成功後才會終止權益；審核期間權益不受影響。
+      </p>
+    </details>
     <div id="refundForm" hidden>
       <label class="subscription-field-label" for="refundReasonInput">退款原因（選填）</label>
       <textarea class="subscription-input" id="refundReasonInput" rows="3" maxlength="500"></textarea>
       <div class="button-row">
         <button type="button" class="btn" id="submitRefundBtn">送出退款申請</button>
-        <button type="button" class="btn btn-secondary" id="cancelRefundFormBtn">取消</button>
+        <button type="button" class="btn btn-outline" id="cancelRefundFormBtn">取消</button>
       </div>
     </div>
     <div id="refundResult" hidden>
@@ -122,10 +136,6 @@
         </div>
       </dl>
       <p class="subscription-status-text">實際退款須經人工審核確認後才會真正退款；審核前權益不受影響。</p>
-    </div>
-    <p class="subscription-status-text" id="statusActionText"></p>
-    <div class="button-row" id="statusRequeryRow" hidden>
-      <button type="button" class="btn btn-secondary" id="statusRequeryBtn">重新查詢</button>
     </div>
   </div>
 </section>
@@ -289,7 +299,7 @@
 <script src="./js/services/auth/subscription-entry-guard.js?v=20260816-1"></script>
 <script src="./js/services/subscription/paypal-subscription-service.js?v=20261011-2"></script>
 <script src="./js/services/subscription/paypal-checkout-service.js?v=20261011-1"></script>
-<script src="./js/services/subscription/paypal-subscription-flow.js?v=20261011-1"></script>
-<script src="./js/pages/subscription-entry.js?v=20261014-2"></script>
+<script src="./js/services/subscription/paypal-subscription-flow.js?v=20261014-2"></script>
+<script src="./js/pages/subscription-entry.js?v=20261014-3"></script>
 </body>
 </html>

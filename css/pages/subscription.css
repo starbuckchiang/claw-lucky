@@ -5,6 +5,12 @@
 .subscription-topbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.subscription-topbar #logoutBtn {
+  margin-left: auto;
 }
 
 .subscription-back-link {
@@ -159,4 +165,90 @@
   color: #7a3f22;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* =========================
+ 2026-10-14: Status card visual refresh (scoped to this card only — the
+ rest of the site/page keeps the original big-pill/heavy-shadow buttons).
+ ========================= */
+
+.subscription-status-panel,
+.subscription-manage-panel {
+  box-shadow: 0 4px 10px rgba(92, 52, 28, 0.08);
+}
+
+.subscription-manage-panel {
+  max-width: 480px;
+  margin: 12px auto 0;
+  text-align: center;
+}
+
+.subscription-manage-title {
+  margin: 0 0 10px;
+  color: #4a2416;
+  font-size: 16px;
+}
+
+/* Raw backend status codes never render as the primary heading — this is a
+ small, muted secondary chip, not the bold filled .badge used elsewhere. */
+.subscription-status-badge {
+  background: transparent;
+  color: #7a3f22;
+  border: 1px solid rgba(122, 63, 34, 0.35);
+  font-weight: 600;
+}
+
+.subscription-status-panel .button-row,
+.subscription-manage-panel .button-row {
+  gap: 12px;
+}
+
+.subscription-status-panel .btn,
+.subscription-status-panel .btn-outline,
+.subscription-manage-panel .btn,
+.subscription-manage-panel .btn-outline {
+  min-width: 0;
+  width: auto;
+  padding: 12px 20px;
+  min-height: 44px;
+  border-radius: 11px;
+  box-shadow: none;
+  font-size: 15px;
+}
+
+.subscription-status-panel .btn-outline,
+.subscription-manage-panel .btn-outline {
+  background: transparent;
+  color: #7a3f22;
+  border: 2px solid rgba(122, 63, 34, 0.45);
+}
+
+.subscription-collapsible {
+  margin-top: 14px;
+  text-align: left;
+}
+
+.subscription-collapsible summary {
+  cursor: pointer;
+  color: #7a3f22;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.subscription-collapsible p {
+  margin-top: 8px;
+}
+
+@media (max-width: 520px) {
+  .subscription-status-panel .button-row,
+  .subscription-manage-panel .button-row {
+    flex-direction: column;
+  }
+
+  .subscription-status-panel .btn,
+  .subscription-status-panel .btn-outline,
+  .subscription-manage-panel .btn,
+  .subscription-manage-panel .btn-outline {
+    width: 100%;
+  }
 }

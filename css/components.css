@@ -27,6 +27,39 @@
   flex-wrap: wrap;
 }
 
+/* 2026-10-14: low-emphasis text-only action (e.g. 登出) — never the
+   heavy filled-pill .btn look, usable anywhere components.css is linked. */
+.text-btn {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  color: #7a3f22;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.text-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 2026-10-14: admin.html top row (logged-in email + logout) */
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.admin-topbar #adminLogoutBtn {
+  margin-left: auto;
+}
+
 /* PROD-RELEASE-DAY3C: minimal admin backend list rows */
 .admin-list {
   list-style: none;

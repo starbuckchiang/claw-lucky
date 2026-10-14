@@ -15,6 +15,10 @@
   <main class="page-wrap">
     <section class="section">
       <div class="panel">
+        <div class="admin-topbar">
+          <span class="subscription-status-text" id="adminLoggedInEmailText" hidden></span>
+          <button type="button" class="text-btn" id="adminLogoutBtn" hidden>登出</button>
+        </div>
         <h1>管理後台（最小版）</h1>
         <p class="subscription-status-text">退款審核／確認、實體贈品出貨。每個動作皆由後端重新檢查管理員權限，並留下稽核紀錄。</p>
         <p class="subscription-status-text" id="adminAuthStatus"></p>
@@ -41,6 +45,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./config.js?v=20261011-1"></script>
-  <script src="./js/pages/admin.js?v=20261014-1"></script>
+  <script src="./js/pages/admin.js?v=20261014-2"></script>
 </body>
 </html>
