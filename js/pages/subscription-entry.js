@@ -16,6 +16,7 @@
     planSection: document.getElementById("planSection"),
     planButtons: Array.from(document.querySelectorAll("[data-plan-id]")),
     memberLoginLink: document.getElementById("memberLoginLink"),
+    loggedInEmailText: document.getElementById("loggedInEmailText"),
     otpPanel: document.getElementById("otpPanel"),
     otpStep1: document.getElementById("otpStep1"),
     otpStep2: document.getElementById("otpStep2"),
@@ -371,6 +372,22 @@
     return { session: data?.session || null, user: data?.session?.user || null };
   }
 
+  // PROD-FIX-2026-10-14: shows which account is currently logged in (the
+  // "我的會員" entry point otherwise gives no visible confirmation of this).
+  // Only ever reads the already-verified session's own email — never
+  // accepts/derives it from anywhere else.
+  function updateLoggedInEmailDisplay(user) {
+    if (!refs.loggedInEmailText) return;
+    const email = user && !user.is_anonymous ? String(user.email || "").trim() : "";
+    if (email) {
+      refs.loggedInEmailText.textContent = `已登入：${email}`;
+      refs.loggedInEmailText.hidden = false;
+    } else {
+      refs.loggedInEmailText.textContent = "";
+      refs.loggedInEmailText.hidden = true;
+    }
+  }
+
   // Upgrade OTP uses updateUser() and account-merge needs an anonymous
   // session. subscription.html does not call initUser on boot, so visitors
   // often have no session — which surfaces as "Auth session missing!" and
@@ -408,6 +425,9 @@
 
     hideTransientPanels();
     if (refs.readyPanel) refs.readyPanel.hidden = true;
+
+    const { user } = await getCurrentSessionAndUser();
+    updateLoggedInEmailDisplay(user);
 
     const subscription = await refreshStatusFromServer({ startPolling: true });
     const ui = flow.resolveSubscriptionUiState(subscription);
@@ -1356,6 +1376,7 @@
 
       if (redirectIfReturnTarget()) return;
 
+      updateLoggedInEmailDisplay(user);
       await refreshStatusFromServer({ startPolling: true });
     } catch (_error) {
       // Soft-fail: plans remain usable.
