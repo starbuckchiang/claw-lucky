@@ -407,7 +407,7 @@
         showRefundButton: false,
         showReauthorize: true,
         headline: "訂閱授權尚未完成",
-        detail: "尚未完成 PayPal 授權，訂閱尚未啟用。可重新授權，或先返回會員頁。",
+        detail: "尚未完成 PayPal 授權，訂閱尚未啟用。可重新授權，或返回選擇方案。",
         planCode,
         status,
         paidThroughLocal,
