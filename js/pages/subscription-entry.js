@@ -36,6 +36,8 @@
     paypalSdkErrorActions: document.getElementById("paypalSdkErrorActions"),
     paypalSdkRetryBtn: document.getElementById("paypalSdkRetryBtn"),
     paypalSdkBackBtn: document.getElementById("paypalSdkBackBtn"),
+    copyUsd5DiagBtn: document.getElementById("copyUsd5DiagBtn"),
+    copyUsd5DiagStatus: document.getElementById("copyUsd5DiagStatus"),
     statusPanel: document.getElementById("statusPanel"),
     statusBadge: document.getElementById("statusBadge"),
     statusHeadline: document.getElementById("statusHeadline"),
@@ -599,27 +601,126 @@
     showReady(checkoutContext);
   }
 
+  const usd5Diag = { load: [], attempts: [] };
+  let usd5Current = null;
+
+  function usd5Clip(value) {
+    const text = String(value || "")
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted]")
+      .slice(0, 160);
+    if (/eyJ|bearer|token|cookie|secret|authorization/i.test(text)) return "[redacted]";
+    return text;
+  }
+
+  function usd5ReadDebugId(parsed) {
+    const details = parsed?.error?.details;
+    if (!details || typeof details !== "object") return null;
+    const raw = details.debugId || details.debug_id || null;
+    if (raw == null) return null;
+    const text = String(raw);
+    return /^[A-Za-z0-9_-]{4,80}$/.test(text) ? text : null;
+  }
+
+  function usd5Emit(event, fields) {
+    try {
+      if (!usd5Current) return;
+      const row = Object.assign({ at: new Date().toISOString(), event }, fields || {});
+      usd5Current.events.push(row);
+      if (fields && fields.checkoutSessionId) {
+        usd5Current.checkoutSessionId = String(fields.checkoutSessionId);
+      }
+    } catch (_error) {
+      // Diagnostic failures must not change checkout.
+    }
+  }
+
+  function beginUsd5Attempt() {
+    const attempt = {
+      attemptId: (window.crypto && typeof crypto.randomUUID === "function")
+        ? crypto.randomUUID()
+        : String(Date.now()),
+      checkoutSessionId: null,
+      events: []
+    };
+    usd5Diag.attempts.push(attempt);
+    usd5Current = attempt;
+    return attempt;
+  }
+
+  function usd5Load(event, fields) {
+    try {
+      usd5Diag.load.push(Object.assign({ at: new Date().toISOString(), event }, fields || {}));
+    } catch (_error) {
+      // ignore
+    }
+  }
+
+  function usd5WatchApi(body) {
+    if (!usd5Current || !body || typeof body !== "object") return false;
+    const action = String(body.action || "");
+    if (action === "create_session") {
+      return String(body.plan_code || body.planCode || "").toLowerCase() === "monthly";
+    }
+    return action === "confirm_subscription";
+  }
+
   async function invokePaypalSubscription(body) {
-    const { data, error } = await window.supabaseClient.functions.invoke("paypal-subscription", {
-      body
-    });
+    const watch = usd5WatchApi(body);
+    let data;
+    let error;
+    try {
+      const invoked = await window.supabaseClient.functions.invoke("paypal-subscription", { body });
+      data = invoked.data;
+      error = invoked.error;
+    } catch (invokeError) {
+      if (watch) {
+        usd5Emit("api_exception", {
+          action: String(body?.action || ""),
+          message: usd5Clip(invokeError?.message)
+        });
+      }
+      throw invokeError;
+    }
 
     if (error) {
+      let parsedBody = null;
       try {
-        const parsedBody = await error.context?.json?.();
-        if (parsedBody && typeof parsedBody === "object") {
-          if (flow.isAuthExpiredError(parsedBody) || error.context?.status === 401) {
-            return {
-              ok: false,
-              error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" }
-            };
-          }
-          return parsedBody;
-        }
+        parsedBody = await error.context?.json?.();
       } catch (_parseError) {
-        // fall through
+        parsedBody = null;
       }
-      if (error.context?.status === 401 || /jwt|unauthorized|session/i.test(String(error.message || ""))) {
+      const httpStatus = error.context?.status ?? null;
+      if (parsedBody && typeof parsedBody === "object") {
+        if (watch) {
+          usd5Emit("api_response", {
+            action: String(body.action || ""),
+            httpStatus,
+            ok: parsedBody.ok === true,
+            errorCode: parsedBody.error?.code || null,
+            debugId: usd5ReadDebugId(parsedBody),
+            checkoutSessionId: parsedBody.checkout_session_id || null
+          });
+        }
+        if (flow.isAuthExpiredError(parsedBody) || error.context?.status === 401) {
+          return {
+            ok: false,
+            error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" }
+          };
+        }
+        return parsedBody;
+      }
+      const authExpired = error.context?.status === 401
+        || /jwt|unauthorized|session/i.test(String(error.message || ""));
+      if (watch) {
+        usd5Emit("api_response", {
+          action: String(body.action || ""),
+          httpStatus,
+          ok: false,
+          errorCode: authExpired ? "AUTH_EXPIRED" : "PAYPAL_SUBSCRIPTION_FAILED",
+          debugId: null
+        });
+      }
+      if (authExpired) {
         return {
           ok: false,
           error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" }
@@ -634,6 +735,16 @@
       };
     }
 
+    if (watch) {
+      usd5Emit("api_response", {
+        action: String(body.action || ""),
+        httpStatus: "2xx",
+        ok: data?.ok === true,
+        errorCode: data?.error?.code || null,
+        debugId: usd5ReadDebugId(data),
+        checkoutSessionId: data?.checkout_session_id || null
+      });
+    }
     return data;
   }
 
@@ -1072,6 +1183,8 @@
     refs.paypalButtonsMount.innerHTML = "";
     setPaymentStatus("");
     if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = true;
+    const usd5 = planId === "monthly";
+    if (refs.copyUsd5DiagBtn) refs.copyUsd5DiagBtn.hidden = !usd5;
 
     if (!planId) {
       setPaymentStatus("缺少方案代碼。");
@@ -1100,12 +1213,20 @@
         onSafeError: (msg) => {
           setPaymentStatus(msg);
           setPlanButtonsDisabled(false);
-        }
+        },
+        onDiag: usd5 ? (event, fields) => usd5Emit(event, fields) : undefined
       });
 
-      paypal.Buttons({
+      const rendered = paypal.Buttons({
         style: { layout: "vertical", shape: "rect", label: "subscribe" },
         onClick: (_data, actions) => {
+          if (usd5) {
+            beginUsd5Attempt();
+            usd5Emit("onclick", {
+              consentChecked: hasPaymentConsent(),
+              busy: paymentLock.isBusy()
+            });
+          }
           if (!hasPaymentConsent()) {
             setPaymentStatus("請先勾選「我已閱讀並同意服務條款」再進行付款。");
             return actions.reject();
@@ -1123,20 +1244,50 @@
         // a consent failure here means createSession is never called, so
         // there is no slot to release and no pending session left behind).
         createSubscription: async (data, actions) => {
-          const consentWritten = await ensureCheckoutConsentRecorded();
-          if (!consentWritten) {
-            setPaymentStatus("同意紀錄儲存失敗，請再試一次。");
-            setPlanButtonsDisabled(false);
-            throw new Error("CONSENT_RECORD_FAILED");
+          if (usd5 && !usd5Current) beginUsd5Attempt();
+          try {
+            const consentWritten = await ensureCheckoutConsentRecorded();
+            if (usd5) usd5Emit("checkout_consent", { ok: Boolean(consentWritten) });
+            if (!consentWritten) {
+              setPaymentStatus("同意紀錄儲存失敗，請再試一次。");
+              setPlanButtonsDisabled(false);
+              throw new Error("CONSENT_RECORD_FAILED");
+            }
+            return await handlers.createSubscription(data, actions);
+          } catch (error) {
+            if (usd5) {
+              usd5Emit("create_subscription_outer_exception", {
+                name: error?.name || null,
+                message: usd5Clip(error?.message)
+              });
+            }
+            throw error;
           }
-          return handlers.createSubscription(data, actions);
         },
         onApprove: async (data) => {
+          if (usd5) {
+            if (!usd5Current) beginUsd5Attempt();
+            const sid = String(data?.subscriptionID || "");
+            const safeId = /^I-[A-Z0-9]+$/.test(sid) ? sid : null;
+            usd5Emit("callback_on_approve", {
+              phase: "fired",
+              subscriptionIdPresent: Boolean(safeId),
+              subscriptionId: safeId
+            });
+          }
           setPaymentStatus("訂閱已核准，正在確認首期付款");
           hideTransientPanels();
           if (refs.readyPanel) refs.readyPanel.hidden = true;
           try {
             const result = await handlers.onApprove(data);
+            if (usd5) {
+              usd5Emit("callback_on_approve", {
+                phase: "completed",
+                ok: result?.ok === true,
+                authExpired: Boolean(result?.authExpired),
+                errorCode: result?.error?.code || null
+              });
+            }
             if (result?.authExpired) {
               showAuthExpired();
               return;
@@ -1160,24 +1311,68 @@
             setStatusActionText("訂閱已核准，正在確認首期付款");
             beginPaidThroughPolling();
           } catch (error) {
+            if (usd5) {
+              usd5Emit("callback_on_approve", {
+                phase: "internal_failed",
+                message: usd5Clip(error?.message)
+              });
+            }
             setPaymentStatus(flow.sanitizeUserError(error, "訂閱確認失敗，請稍後再試。"));
             setPlanButtonsDisabled(false);
           }
         },
         onCancel: () => {
-          handlers.onCancel();
-          setPlanButtonsDisabled(false);
-          setPaymentStatus("授權未完成，訂閱尚未啟用。");
-          if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = false;
+          if (usd5) {
+            if (!usd5Current) beginUsd5Attempt();
+            usd5Emit("callback_on_cancel", { phase: "fired" });
+          }
+          try {
+            handlers.onCancel();
+            setPlanButtonsDisabled(false);
+            setPaymentStatus("授權未完成，訂閱尚未啟用。");
+            if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = false;
+          } catch (error) {
+            if (usd5) {
+              usd5Emit("callback_on_cancel", {
+                phase: "internal_failed",
+                message: usd5Clip(error?.message)
+              });
+            }
+            throw error;
+          }
         },
-        onError: () => {
-          handlers.onError();
-          setPlanButtonsDisabled(false);
-          setPaymentStatus("授權未完成，訂閱尚未啟用。");
-          if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = false;
+        onError: (err) => {
+          if (usd5) {
+            if (!usd5Current) beginUsd5Attempt();
+            usd5Emit("callback_on_error", {
+              phase: "fired",
+              name: usd5Clip(err?.name),
+              message: usd5Clip(err?.message)
+            });
+          }
+          try {
+            handlers.onError();
+            setPlanButtonsDisabled(false);
+            setPaymentStatus("授權未完成，訂閱尚未啟用。");
+            if (refs.paypalSdkErrorActions) refs.paypalSdkErrorActions.hidden = false;
+          } catch (error) {
+            if (usd5) {
+              usd5Emit("callback_on_error", {
+                phase: "internal_failed",
+                message: usd5Clip(error?.message)
+              });
+            }
+            throw error;
+          }
         }
       }).render(refs.paypalButtonsMount);
+      if (rendered && typeof rendered.then === "function") {
+        rendered.catch((error) => {
+          if (usd5) usd5Load("buttons_render_failed", { message: usd5Clip(error?.message) });
+        });
+      }
     } catch (error) {
+      if (usd5) usd5Load("sdk_script_load_failed", { message: usd5Clip(error?.message) });
       setPaymentStatus(flow.sanitizeUserError(error, "無法載入 PayPal 按鈕，請重試或稍後再試。"));
       setPlanButtonsDisabled(false);
       paymentLock.release();
@@ -1600,6 +1795,26 @@
     refs.logoutBtn.addEventListener("click", (event) => {
       event.preventDefault();
       handleLogoutClick();
+    });
+  }
+
+  if (refs.copyUsd5DiagBtn) {
+    refs.copyUsd5DiagBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const text = JSON.stringify({
+        diag: "usd5-monthly",
+        load: usd5Diag.load,
+        attempts: usd5Diag.attempts
+      });
+      const done = (ok) => {
+        if (!refs.copyUsd5DiagStatus) return;
+        refs.copyUsd5DiagStatus.hidden = false;
+        refs.copyUsd5DiagStatus.textContent = ok ? "已複製診斷紀錄。" : "複製失敗，請再按一次。";
+      };
+      const write = navigator.clipboard && typeof navigator.clipboard.writeText === "function"
+        ? navigator.clipboard.writeText(text)
+        : Promise.reject(new Error("clipboard"));
+      write.then(() => done(true)).catch(() => done(false));
     });
   }
 

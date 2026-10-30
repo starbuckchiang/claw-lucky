@@ -261,6 +261,10 @@
     </div>
     <div id="paypalButtonsMount" class="subscription-paypal-mount"></div>
     <p class="subscription-status-text" id="paymentStatusText"></p>
+    <div class="button-row">
+      <button type="button" class="btn btn-secondary" id="copyUsd5DiagBtn" hidden>複製診斷紀錄</button>
+    </div>
+    <p class="subscription-status-text" id="copyUsd5DiagStatus" hidden></p>
     <div class="button-row" id="paypalSdkErrorActions" hidden>
       <button type="button" class="btn" id="paypalSdkRetryBtn">重新授權</button>
       <button type="button" class="btn btn-secondary" id="paypalSdkBackBtn">返回會員頁</button>
@@ -307,7 +311,7 @@
 <script src="./js/services/auth/subscription-entry-guard.js?v=20260816-1"></script>
 <script src="./js/services/subscription/paypal-subscription-service.js?v=20261011-2"></script>
 <script src="./js/services/subscription/paypal-checkout-service.js?v=20261011-1"></script>
-<script src="./js/services/subscription/paypal-subscription-flow.js?v=20261014-3"></script>
-<script src="./js/pages/subscription-entry.js?v=20261014-5"></script>
+<script src="./js/services/subscription/paypal-subscription-flow.js?v=20261030-usd5diag"></script>
+<script src="./js/pages/subscription-entry.js?v=20261030-usd5diag"></script>
 </body>
 </html>

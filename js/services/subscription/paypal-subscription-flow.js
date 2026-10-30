@@ -687,9 +687,24 @@
     return message;
   }
 
+  function emitMonthlyDiag(onDiag, enabled, event, fields) {
+    if (!enabled || typeof onDiag !== "function") return;
+    try {
+      onDiag(event, fields || {});
+    } catch (_error) {
+      // Diagnostic failures must not change the checkout result.
+    }
+  }
+
+  function paypalSubscriptionIdOrNull(value) {
+    const id = String(value || "").trim();
+    return /^I-[A-Z0-9]+$/.test(id) ? id : null;
+  }
+
   /**
    * createSubscription callback factory used by PayPal Buttons.
    * Locks against double-click; only sends plan_code to Edge.
+   * onDiag is USD 5 / monthly only and never affects control flow.
    */
   function createSubscriptionButtonHandlers({
     subscriptionService,
@@ -697,29 +712,48 @@
     busyLock,
     onSessionCreated,
     onAuthExpired,
-    onSafeError
+    onSafeError,
+    onDiag
   }) {
     const code = String(planCode || "").trim().toLowerCase();
+    const diag = code === "monthly";
     let checkoutSessionId = "";
 
     async function createSubscription(_data, actions) {
+      emitMonthlyDiag(onDiag, diag, "create_subscription_start", {});
       if (!busyLock.tryAcquire()) {
+        emitMonthlyDiag(onDiag, diag, "create_subscription_busy", {});
         throw new Error("BUSY");
       }
       try {
         const result = await subscriptionService.createSession({ planCode: code });
         if (isAuthExpiredError(result)) {
+          emitMonthlyDiag(onDiag, diag, "create_session_result", {
+            ok: false,
+            errorCode: "AUTH_EXPIRED",
+            checkoutSessionId: null
+          });
           busyLock.release();
           if (typeof onAuthExpired === "function") onAuthExpired(result);
           throw new Error("AUTH_EXPIRED");
         }
         if (!result?.ok) {
+          emitMonthlyDiag(onDiag, diag, "create_session_result", {
+            ok: false,
+            errorCode: result?.error?.code || null,
+            checkoutSessionId: null
+          });
           busyLock.release();
           const msg = sanitizeUserError(result, "無法建立訂閱工作階段，請稍後再試。");
           if (typeof onSafeError === "function") onSafeError(msg, result);
           throw new Error(msg);
         }
         checkoutSessionId = String(result.checkout_session_id || "");
+        emitMonthlyDiag(onDiag, diag, "create_session_result", {
+          ok: true,
+          errorCode: null,
+          checkoutSessionId
+        });
         const payload = buildCreateSubscriptionPayload(result);
         if (typeof onSessionCreated === "function") {
           onSessionCreated({
@@ -730,8 +764,22 @@
             currency: result.currency
           });
         }
-        return actions.subscription.create(payload);
+        emitMonthlyDiag(onDiag, diag, "sdk_subscription_create_start", {
+          checkoutSessionId
+        });
+        const subscriptionId = await actions.subscription.create(payload);
+        const safeSubscriptionId = paypalSubscriptionIdOrNull(subscriptionId);
+        emitMonthlyDiag(onDiag, diag, "sdk_subscription_create_done", {
+          checkoutSessionId,
+          subscriptionIdPresent: Boolean(safeSubscriptionId),
+          subscriptionId: safeSubscriptionId
+        });
+        return subscriptionId;
       } catch (error) {
+        emitMonthlyDiag(onDiag, diag, "create_subscription_exception", {
+          name: error?.name || null,
+          message: String(error?.message || "").slice(0, 160)
+        });
         if (busyLock.isBusy()) {
           // keep lock only while PayPal modal may still be opening after success;
           // failures already released above except unexpected throws
@@ -745,22 +793,45 @@
 
     async function onApprove(data) {
       const subscriptionID = String(data?.subscriptionID || "").trim();
+      const safeSubscriptionId = paypalSubscriptionIdOrNull(subscriptionID);
+      emitMonthlyDiag(onDiag, diag, "handler_on_approve_start", {
+        checkoutSessionId,
+        subscriptionIdPresent: Boolean(safeSubscriptionId),
+        subscriptionId: safeSubscriptionId
+      });
       try {
         const result = await subscriptionService.confirmSubscription({
           subscriptionID,
           checkoutSessionId
         });
         if (isAuthExpiredError(result)) {
+          emitMonthlyDiag(onDiag, diag, "handler_on_approve_result", {
+            ok: false,
+            authExpired: true,
+            errorCode: "AUTH_EXPIRED"
+          });
           if (typeof onAuthExpired === "function") onAuthExpired(result);
           return { ok: false, authExpired: true };
         }
+        emitMonthlyDiag(onDiag, diag, "handler_on_approve_result", {
+          ok: result?.ok === true,
+          authExpired: false,
+          errorCode: result?.error?.code || null
+        });
         return result;
+      } catch (error) {
+        emitMonthlyDiag(onDiag, diag, "handler_on_approve_exception", {
+          name: error?.name || null,
+          message: String(error?.message || "").slice(0, 160)
+        });
+        throw error;
       } finally {
         busyLock.release();
       }
     }
 
     function onCancel() {
+      emitMonthlyDiag(onDiag, diag, "handler_on_cancel", { checkoutSessionId });
       busyLock.release();
       return {
         message: "尚未完成訂閱",
@@ -769,6 +840,7 @@
     }
 
     function onError() {
+      emitMonthlyDiag(onDiag, diag, "handler_on_error", { checkoutSessionId });
       busyLock.release();
       if (typeof onSafeError === "function") {
         onSafeError("訂閱流程發生錯誤，請稍後再試。");
