@@ -408,7 +408,7 @@
         showReauthorize: true,
         showAbandonCheckout: true,
         headline: "訂閱授權尚未完成",
-        detail: "尚未完成 PayPal 授權，訂閱尚未啟用。可繼續授權、放棄本次結帳，或返回選擇方案。",
+        detail: "尚未完成 PayPal 授權，訂閱尚未啟用。可繼續授權，或放棄本次結帳後改選方案。",
         planCode,
         status,
         paidThroughLocal,

@@ -57,7 +57,6 @@
     reauthorizeRow: document.getElementById("reauthorizeRow"),
     reauthorizeBtn: document.getElementById("reauthorizeBtn"),
     abandonCheckoutBtn: document.getElementById("abandonCheckoutBtn"),
-    backToPlansBtn: document.getElementById("backToPlansBtn"),
     statusActionText: document.getElementById("statusActionText"),
     statusRequeryRow: document.getElementById("statusRequeryRow"),
     statusRequeryBtn: document.getElementById("statusRequeryBtn"),
@@ -136,39 +135,6 @@
       return null;
     }
   })();
-
-  // 2026-10-14 return-flow fix: a pending PayPal authorization keeps
-  // re-rendering the SAME "待授權" status card on every refreshStatusFromServer()
-  // call (backend state is unchanged), so a naive "返回選擇方案" handler that
-  // just re-queries status would look like a no-op. This session-scoped flag
-  // lets the user's explicit dismissal stick across a reload WITHOUT ever
-  // touching the backend subscription record — cleared the moment the user
-  // actively re-engages (picks a plan again or clicks 重新授權).
-  const RETURN_TO_PLAN_SELECTION_KEY = "clawLuckySubscriptionReturnToPlanSelection";
-
-  function markReturnedToPlanSelection() {
-    try {
-      window.sessionStorage.setItem(RETURN_TO_PLAN_SELECTION_KEY, "1");
-    } catch (_error) {
-      // Soft-fail: storage may be unavailable (private mode, test env).
-    }
-  }
-
-  function clearReturnedToPlanSelectionFlag() {
-    try {
-      window.sessionStorage.removeItem(RETURN_TO_PLAN_SELECTION_KEY);
-    } catch (_error) {
-      // Soft-fail.
-    }
-  }
-
-  function hasReturnedToPlanSelection() {
-    try {
-      return window.sessionStorage.getItem(RETURN_TO_PLAN_SELECTION_KEY) === "1";
-    } catch (_error) {
-      return false;
-    }
-  }
 
   let pendingGuard = null;
   let pendingPreviousAuthUserId = "";
@@ -379,10 +345,9 @@
   // still-valid pending session or require a fresh one).
   function handleReauthorizeClick() {
     if (!lastKnownPlanCode) {
-      showError("找不到原訂閱方案，請返回選擇方案重新選擇。");
+      showError("找不到原訂閱方案，請先放棄本次結帳後重新選擇。");
       return;
     }
-    clearReturnedToPlanSelectionFlag();
     showReady({ planId: lastKnownPlanCode });
   }
 
@@ -404,7 +369,6 @@
         setStatusActionText(flow.sanitizeUserError(result, "無法放棄這次結帳，請稍後再試。"));
         return;
       }
-      clearReturnedToPlanSelectionFlag();
       await refreshStatusFromServer({ startPolling: false });
       setPlanSectionVisible(true);
       setPlanButtonsDisabled(false);
@@ -417,22 +381,6 @@
     }
   }
 
-  // Exits the pending-authorization card and shows the plan-selection
-  // section directly (no history.back() — this must also work when the
-  // page was opened directly, not just navigated to). Never deletes/
-  // cancels the backend subscription record; only clears front-end
-  // checkout-intent/auto-redirect state so a reload stays on plan
-  // selection too (see markReturnedToPlanSelection/renderStatusView).
-  function handleBackToPlansClick() {
-    stopStatusPolling();
-    hideTransientPanels();
-    if (refs.readyPanel) refs.readyPanel.hidden = true;
-    markReturnedToPlanSelection();
-    if (refs.statusPanel) refs.statusPanel.hidden = true;
-    setPlanSectionVisible(true);
-    setPlanButtonsDisabled(false);
-  }
-
   function handleStatusRequeryClick() {
     setStatusRequeryVisible(false);
     beginPaidThroughPolling();
@@ -442,18 +390,8 @@
     const ui = flow.resolveSubscriptionUiState(subscription);
     if (ui.planCode) lastKnownPlanCode = ui.planCode;
 
-    // Only APPROVAL_PENDING is ever suppressed this way — every other mode
-    // (active/cancelled_with_access/processing/etc.) always renders normally.
-    const forcePlanSelection = ui.mode === "approval_pending" && hasReturnedToPlanSelection();
-
     if (refs.statusPanel) {
-      refs.statusPanel.hidden = ui.mode === "none" || forcePlanSelection;
-    }
-
-    if (forcePlanSelection) {
-      setPlanSectionVisible(true);
-      setPlanButtonsDisabled(false);
-      return ui;
+      refs.statusPanel.hidden = ui.mode === "none";
     }
 
     if (ui.mode !== "none") {
@@ -570,7 +508,6 @@
     if (refs.logoutBtn) refs.logoutBtn.disabled = true;
     try {
       stopStatusPolling();
-      clearReturnedToPlanSelectionFlag();
       const { error } = await window.supabaseClient.auth.signOut();
       if (error) {
         showError(flow.sanitizeUserError({ message: error.message }, "登出失敗，請稍後再試。"));
@@ -1474,7 +1411,6 @@
   }
 
   async function handlePlanClick(planId) {
-    clearReturnedToPlanSelectionFlag();
     hideTransientPanels();
     setPlanButtonsDisabled(true);
 
@@ -1897,13 +1833,6 @@
     refs.abandonCheckoutBtn.addEventListener("click", (event) => {
       event.preventDefault();
       handleAbandonCheckoutClick();
-    });
-  }
-
-  if (refs.backToPlansBtn) {
-    refs.backToPlansBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      handleBackToPlansClick();
     });
   }
 
