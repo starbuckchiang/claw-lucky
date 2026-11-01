@@ -24,6 +24,20 @@
       });
     }
 
+    async function releaseUnboundSubscription({ subscriptionID, checkoutSessionId } = {}) {
+      return invokeFunction({
+        action: "release_unbound_paypal_subscription",
+        subscriptionID,
+        checkout_session_id: checkoutSessionId
+      });
+    }
+
+    async function abandonCheckout() {
+      return invokeFunction({
+        action: "abandon_checkout"
+      });
+    }
+
     async function confirmSubscription({ subscriptionID, checkoutSessionId } = {}) {
       return invokeFunction({
         action: "confirm_subscription",
@@ -98,6 +112,8 @@
       confirmSubscription,
       getStatus,
       cancelSubscription,
+      abandonCheckout,
+      releaseUnboundSubscription,
       getGiftStatus,
       submitGiftAddress,
       declineGift,

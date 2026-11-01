@@ -56,6 +56,7 @@
     serviceEntryRow: document.getElementById("serviceEntryRow"),
     reauthorizeRow: document.getElementById("reauthorizeRow"),
     reauthorizeBtn: document.getElementById("reauthorizeBtn"),
+    abandonCheckoutBtn: document.getElementById("abandonCheckoutBtn"),
     backToPlansBtn: document.getElementById("backToPlansBtn"),
     statusActionText: document.getElementById("statusActionText"),
     statusRequeryRow: document.getElementById("statusRequeryRow"),
@@ -384,6 +385,37 @@
     showReady({ planId: lastKnownPlanCode });
   }
 
+  async function handleAbandonCheckoutClick() {
+    if (!paymentLock.tryAcquire()) {
+      setStatusActionText("請先完成或關閉目前的 PayPal 視窗，再放棄這次結帳。");
+      return;
+    }
+    if (refs.abandonCheckoutBtn) refs.abandonCheckoutBtn.disabled = true;
+    setStatusActionText("正在放棄本次結帳…");
+    try {
+      const svc = createPaypalService();
+      const result = await svc.abandonCheckout();
+      if (flow.isAuthExpiredError(result)) {
+        showAuthExpired();
+        return;
+      }
+      if (!result?.ok) {
+        setStatusActionText(flow.sanitizeUserError(result, "無法放棄這次結帳，請稍後再試。"));
+        return;
+      }
+      clearReturnedToPlanSelectionFlag();
+      await refreshStatusFromServer({ startPolling: false });
+      setPlanSectionVisible(true);
+      setPlanButtonsDisabled(false);
+      setStatusActionText("已放棄本次結帳，可以重新選擇月訂閱或年訂閱。");
+    } catch (error) {
+      setStatusActionText(flow.sanitizeUserError(error, "無法放棄這次結帳，請稍後再試。"));
+    } finally {
+      paymentLock.release();
+      if (refs.abandonCheckoutBtn) refs.abandonCheckoutBtn.disabled = false;
+    }
+  }
+
   // Exits the pending-authorization card and shows the plan-selection
   // section directly (no history.back() — this must also work when the
   // page was opened directly, not just navigated to). Never deletes/
@@ -452,6 +484,7 @@
         refs.serviceEntryRow.hidden = !(ui.mode === "active" || ui.mode === "cancelled_with_access");
       }
       if (refs.reauthorizeRow) refs.reauthorizeRow.hidden = !ui.showReauthorize;
+      if (refs.abandonCheckoutBtn) refs.abandonCheckoutBtn.hidden = !ui.showAbandonCheckout;
     }
 
     setPlanSectionVisible(ui.showPlanButtons);
@@ -591,6 +624,16 @@
     const subscription = await refreshStatusFromServer({ startPolling: true });
     const ui = flow.resolveSubscriptionUiState(subscription);
     const hasExplicitPlanIntent = Boolean(checkoutContext?.planId);
+
+    if (ui.mode === "approval_pending" && hasExplicitPlanIntent) {
+      const choice = flow.resolvePendingPlanChoice(ui, checkoutContext.planId);
+      if (choice === "continue") {
+        showReady({ planId: ui.planCode || checkoutContext.planId });
+        return;
+      }
+      setStatusActionText("要改選其他方案，請先按「放棄本次結帳」。放棄只結束這次未完成的授權，不會取消已生效的訂閱。");
+      return;
+    }
 
     if (!hasExplicitPlanIntent || (subscription && !ui.allowNewSubscription)) {
       setPlanSectionVisible(ui.showPlanButtons);
@@ -1843,6 +1886,13 @@
     refs.reauthorizeBtn.addEventListener("click", (event) => {
       event.preventDefault();
       handleReauthorizeClick();
+    });
+  }
+
+  if (refs.abandonCheckoutBtn) {
+    refs.abandonCheckoutBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleAbandonCheckoutClick();
     });
   }
 

@@ -406,8 +406,9 @@
         showCancelButton: false,
         showRefundButton: false,
         showReauthorize: true,
+        showAbandonCheckout: true,
         headline: "訂閱授權尚未完成",
-        detail: "尚未完成 PayPal 授權，訂閱尚未啟用。可重新授權，或返回選擇方案。",
+        detail: "尚未完成 PayPal 授權，訂閱尚未啟用。可繼續授權、放棄本次結帳，或返回選擇方案。",
         planCode,
         status,
         paidThroughLocal,
@@ -696,6 +697,14 @@
     }
   }
 
+  function resolvePendingPlanChoice(ui, requestedPlanId) {
+    if (!ui || ui.mode !== "approval_pending") return "checkout";
+    const pending = String(ui.planCode || "").trim().toLowerCase();
+    const requested = String(requestedPlanId || "").trim().toLowerCase();
+    if (pending && requested && pending === requested) return "continue";
+    return "require_abandon";
+  }
+
   function paypalSubscriptionIdOrNull(value) {
     const id = String(value || "").trim();
     return /^I-[A-Z0-9]+$/.test(id) ? id : null;
@@ -764,6 +773,16 @@
             currency: result.currency
           });
         }
+        const existingSubscriptionId = paypalSubscriptionIdOrNull(result.paypal_subscription_id);
+        if (existingSubscriptionId) {
+          emitMonthlyDiag(onDiag, diag, "sdk_subscription_create_done", {
+            checkoutSessionId,
+            subscriptionIdPresent: true,
+            subscriptionId: existingSubscriptionId,
+            reused: true
+          });
+          return existingSubscriptionId;
+        }
         emitMonthlyDiag(onDiag, diag, "sdk_subscription_create_start", {
           checkoutSessionId
         });
@@ -774,6 +793,29 @@
           subscriptionIdPresent: Boolean(safeSubscriptionId),
           subscriptionId: safeSubscriptionId
         });
+        if (!safeSubscriptionId) {
+          throw new Error("PayPal 沒有回傳訂閱編號。");
+        }
+        const bound = await subscriptionService.confirmSubscription({
+          subscriptionID: safeSubscriptionId,
+          checkoutSessionId
+        });
+        emitMonthlyDiag(onDiag, diag, "bind_subscription_result", {
+          checkoutSessionId,
+          ok: bound?.ok === true,
+          errorCode: bound?.error?.code || null
+        });
+        if (!bound?.ok) {
+          if (typeof subscriptionService.releaseUnboundSubscription === "function") {
+            await subscriptionService.releaseUnboundSubscription({
+              subscriptionID: safeSubscriptionId,
+              checkoutSessionId
+            });
+          }
+          const msg = sanitizeUserError(bound, "無法保存訂閱編號，請稍後再試。");
+          if (typeof onSafeError === "function") onSafeError(msg, bound);
+          throw new Error(msg);
+        }
         return subscriptionId;
       } catch (error) {
         emitMonthlyDiag(onDiag, diag, "create_subscription_exception", {
@@ -835,7 +877,7 @@
       busyLock.release();
       return {
         message: "尚未完成訂閱",
-        hint: "若已開始申請但未綁定，約 30 分鐘後可再嘗試。不會自動重開 PayPal。"
+        hint: "可按「繼續授權」回到這次結帳，或「放棄本次結帳」後改選方案。"
       };
     }
 
@@ -874,6 +916,7 @@
     createGiftShippingFeeButtonHandlers,
     buildCreateSubscriptionPayload,
     resolveSubscriptionUiState,
+    resolvePendingPlanChoice,
     shouldStopStatusPoll,
     createStatusPoller,
     createBusyLock,
