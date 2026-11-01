@@ -509,11 +509,27 @@
       };
     }
 
-    if (
-      status === "EXPIRED"
-      || status === "EXPIRED_SETUP"
-      || (status === "CANCELLED" && !paidOk)
-    ) {
+    if (status === "EXPIRED_SETUP") {
+      return {
+        mode: "not_started",
+        showPlanButtons: true,
+        showPayButtons: true,
+        showCancelButton: false,
+        showRefundButton: false,
+        showReauthorize: false,
+        showStatusChip: false,
+        showStatusValue: false,
+        headline: "訂閱未開始",
+        detail: "這次結帳沒有完成，可以重新選擇方案。",
+        planCode,
+        status,
+        paidThroughLocal,
+        nextBillingLocal,
+        allowNewSubscription: true
+      };
+    }
+
+    if (status === "EXPIRED" || (status === "CANCELLED" && !paidOk)) {
       return {
         mode: "expired",
         showPlanButtons: true,

@@ -220,6 +220,7 @@
     awaiting_first_payment: "確認中",
     suspended: "已暫停",
     access_blocked: "已暫停",
+    not_started: "未開始",
     expired: "已結束",
     unknown: "狀態更新中"
   };
@@ -456,7 +457,10 @@
     }
 
     if (ui.mode !== "none") {
-      if (refs.statusBadge) refs.statusBadge.textContent = statusBadgeLabel(ui);
+      if (refs.statusBadge) {
+        refs.statusBadge.hidden = ui.showStatusChip === false;
+        refs.statusBadge.textContent = statusBadgeLabel(ui);
+      }
       if (refs.statusHeadline) refs.statusHeadline.textContent = ui.headline;
       if (refs.statusDetail) refs.statusDetail.textContent = ui.detail;
       if (refs.statusMeta) {
@@ -465,7 +469,7 @@
       }
       if (refs.statusPlanCodeRow) refs.statusPlanCodeRow.hidden = !ui.planCode;
       if (refs.statusPlanCode) refs.statusPlanCode.textContent = ui.planCode ? planLabel(ui.planCode) : "";
-      if (refs.statusValueRow) refs.statusValueRow.hidden = !ui.mode;
+      if (refs.statusValueRow) refs.statusValueRow.hidden = ui.showStatusValue === false || !ui.mode;
       if (refs.statusValue) refs.statusValue.textContent = statusBadgeLabel(ui);
       // Empty 下次扣款／可使用至 fields are hidden entirely, never shown as
       // a blank dash — only render the row when the backend actually gave

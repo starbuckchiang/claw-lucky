@@ -39,13 +39,23 @@ test("same plan continues and a different plan requires abandon", () => {
   });
   assert.equal(flow.resolvePendingPlanChoice(pending, "monthly"), "continue");
   assert.equal(flow.resolvePendingPlanChoice(pending, "yearly"), "require_abandon");
-  const expired = flow.resolveSubscriptionUiState({
+  const notStarted = flow.resolveSubscriptionUiState({
     status: "EXPIRED_SETUP",
     plan_code: "monthly"
   });
-  assert.equal(expired.allowNewSubscription, true);
-  assert.equal(expired.showAbandonCheckout, undefined);
-  assert.equal(flow.resolvePendingPlanChoice(expired, "yearly"), "checkout");
+  assert.equal(notStarted.mode, "not_started");
+  assert.equal(notStarted.headline, "訂閱未開始");
+  assert.equal(notStarted.showStatusChip, false);
+  assert.equal(notStarted.showStatusValue, false);
+  assert.equal(notStarted.allowNewSubscription, true);
+  assert.equal(notStarted.showAbandonCheckout, undefined);
+  assert.equal(flow.resolvePendingPlanChoice(notStarted, "yearly"), "checkout");
+  const ended = flow.resolveSubscriptionUiState({
+    status: "EXPIRED",
+    plan_code: "monthly"
+  });
+  assert.equal(ended.mode, "expired");
+  assert.equal(ended.headline, "訂閱已結束");
 });
 
 test("saved subscription id is reused and does not create or activate another", async () => {
