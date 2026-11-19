@@ -19,10 +19,92 @@
   text-decoration: none;
 }
 
-.subscription-plan-grid {
+.subscription-plan-grid,
+.audience-grid,
+.plan-pair {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
+}
+
+.audience-grid,
+.plan-pair {
+  grid-template-columns: 1fr 1fr;
+}
+
+.subscription-plan-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.audience-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  min-height: 210px;
+}
+
+.audience-card.is-selected {
+  border-color: #7a3f22;
+}
+
+.audience-card h2,
+.lane-head h2 {
+  margin: 0;
+  color: #4a2416;
+}
+
+.audience-card h2 {
+  font-size: 28px;
+}
+
+.audience-kicker,
+.audience-pay {
+  margin: 0;
+  color: #7a3f22;
+  font-weight: 700;
+}
+
+.audience-note,
+.lane-head p {
+  margin: 0;
+  color: #8a6a52;
+  font-size: 14px;
+}
+
+.audience-card .btn {
+  margin-top: auto;
+}
+
+.audience-lane {
+  margin-top: 20px;
+}
+
+.lane-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.lane-head p {
+  margin-top: 4px;
+}
+
+.switch-link {
+  background: none;
+  color: #7a3f22;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 720px) {
+  .audience-grid,
+  .plan-pair {
+    grid-template-columns: 1fr;
+  }
 }
 
 .subscription-plan-card {

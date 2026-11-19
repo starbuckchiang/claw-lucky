@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="./css/base.css" />
 <link rel="stylesheet" href="./css/layout.css" />
 <link rel="stylesheet" href="./css/components.css" />
-<link rel="stylesheet" href="./css/pages/subscription.css" />
+<link rel="stylesheet" href="./css/pages/subscription.css?v=20261119-audience" />
 </head>
 <body>
 <main class="page-wrap subscription-page">
@@ -25,50 +25,101 @@
 <section class="section">
   <div class="hero-card">
     <span class="hero-kicker">Subscription</span>
-    <h1 class="hero-title">訂閱方案</h1>
+    <h1 class="hero-title">先選你在哪裡付款</h1>
     <p class="hero-desc">
-      月訂閱與年訂閱皆為<strong>自動續訂</strong>：付款後會依週期自動扣款。
-      你可隨時取消自動續訂；取消後仍可使用至已付款週期結束。
-      訪客或匿名使用者需先完成 Email／Google 升級為正式使用者，驗證完成後會自動回到原本選擇的方案。
+      台灣與海外使用不同付款方式與幣別。選一邊之後，只會看到該地區的月繳與年繳。
+      海外方案是<strong>自動續訂</strong>，取消後仍可使用至已付款週期結束。
+      台灣信用卡付款尚未開放。訪客需先完成 Email／Google 升級，驗證後會回到原本選擇的海外方案。
     </p>
   </div>
 </section>
 
 <section class="section section-lg" id="planSection">
-  <div class="subscription-plan-grid">
-    <article class="panel subscription-plan-card" hidden>
-      <div class="subscription-plan-head">
-        <span class="badge">Monthly Test</span>
-        <h2 class="subscription-plan-title">月訂閱測試方案</h2>
-        <p class="subscription-plan-price">USD 1 / 月</p>
-        <p class="subscription-plan-note">測試價格 · 自動續訂 · 可取消</p>
-      </div>
-      <button type="button" class="btn" data-plan-id="monthly_test" data-plan-label="月訂閱測試方案（USD 1／月）">選擇 USD 1 月訂閱測試方案</button>
+  <div class="audience-grid">
+    <article class="panel audience-card" id="cardTaiwan">
+      <p class="audience-kicker">台灣用戶</p>
+      <h2>台灣</h2>
+      <p class="audience-pay">信用卡 · 新台幣</p>
+      <p class="audience-note">月繳 NT$149，年繳 NT$1,399。尚未開放刷卡。</p>
+      <button type="button" class="btn" data-audience="taiwan">我在台灣</button>
     </article>
-
-    <article class="panel subscription-plan-card">
-      <div class="subscription-plan-head">
-        <span class="badge">Monthly</span>
-        <h2 class="subscription-plan-title">月訂閱</h2>
-        <p class="subscription-plan-price">USD 5 / 月</p>
-        <p class="subscription-plan-note">自動續訂 · 可取消</p>
-      </div>
-      <button type="button" class="btn" data-plan-id="monthly" data-plan-label="月訂閱">選擇月訂閱</button>
-    </article>
-
-    <article class="panel subscription-plan-card">
-      <div class="subscription-plan-head">
-        <span class="badge">Yearly</span>
-        <h2 class="subscription-plan-title">年訂閱</h2>
-        <p class="subscription-plan-price">USD 48 / 年</p>
-        <p class="subscription-plan-note">自動續訂 · 可取消</p>
-      </div>
-      <button type="button" class="btn" data-plan-id="yearly" data-plan-label="年訂閱">選擇年訂閱</button>
+    <article class="panel audience-card" id="cardOverseas">
+      <p class="audience-kicker">海外用戶</p>
+      <h2>海外</h2>
+      <p class="audience-pay">PayPal · 美元</p>
+      <p class="audience-note">月繳 USD 5，年繳 USD 48。</p>
+      <button type="button" class="btn" data-audience="overseas">我在海外</button>
     </article>
   </div>
-  <p class="subscription-auto-renew-hint">
-    核准訂閱後，PayPal 會依所選週期自動扣款；取消自動續訂不會立刻失去已付款期間的使用權。
-  </p>
+
+  <div class="audience-lane" id="laneTaiwan" hidden>
+    <div class="lane-head">
+      <div>
+        <h2>台灣 · 信用卡</h2>
+        <p id="taiwanClosedNote">信用卡付款尚未開放。商店許可申請完成後才會開放刷卡，目前不會進入付款頁。</p>
+      </div>
+      <button type="button" class="switch-link" data-audience="">改選地區</button>
+    </div>
+    <div class="plan-pair">
+      <article class="panel subscription-plan-card">
+        <div class="subscription-plan-head">
+          <span class="badge">月繳</span>
+          <h3 class="subscription-plan-title">月訂閱</h3>
+          <p class="subscription-plan-price">NT$149 / 月</p>
+          <p class="subscription-plan-note">每個月扣一次 · 尚未開放</p>
+        </div>
+        <button type="button" class="btn" data-taiwan-closed="monthly">尚未開放</button>
+      </article>
+      <article class="panel subscription-plan-card">
+        <div class="subscription-plan-head">
+          <span class="badge">年繳</span>
+          <h3 class="subscription-plan-title">年訂閱</h3>
+          <p class="subscription-plan-price">NT$1,399 / 年</p>
+          <p class="subscription-plan-note">每一年扣一次 · 尚未開放</p>
+        </div>
+        <button type="button" class="btn" data-taiwan-closed="yearly">尚未開放</button>
+      </article>
+    </div>
+  </div>
+
+  <div class="audience-lane" id="laneOverseas" hidden>
+    <div class="lane-head">
+      <div>
+        <h2>海外 · PayPal</h2>
+        <p>美元自動扣款。取消後不再扣下期，已付款期間仍可使用。</p>
+      </div>
+      <button type="button" class="switch-link" data-audience="">改選地區</button>
+    </div>
+    <div class="plan-pair">
+      <article class="panel subscription-plan-card" hidden>
+        <div class="subscription-plan-head">
+          <span class="badge">Monthly Test</span>
+          <h3 class="subscription-plan-title">月訂閱測試方案</h3>
+          <p class="subscription-plan-price">USD 1 / 月</p>
+          <p class="subscription-plan-note">測試價格 · 自動續訂 · 可取消</p>
+        </div>
+        <button type="button" class="btn" data-plan-id="monthly_test" data-plan-label="月訂閱測試方案（USD 1／月）">選擇 USD 1 月訂閱測試方案</button>
+      </article>
+      <article class="panel subscription-plan-card">
+        <div class="subscription-plan-head">
+          <span class="badge">月繳</span>
+          <h3 class="subscription-plan-title">月訂閱</h3>
+          <p class="subscription-plan-price">USD 5 / 月</p>
+          <p class="subscription-plan-note">每個月扣一次 · 可取消</p>
+        </div>
+        <button type="button" class="btn" data-plan-id="monthly" data-plan-label="月訂閱">選擇月繳</button>
+      </article>
+      <article class="panel subscription-plan-card">
+        <div class="subscription-plan-head">
+          <span class="badge">年繳</span>
+          <h3 class="subscription-plan-title">年訂閱</h3>
+          <p class="subscription-plan-price">USD 48 / 年</p>
+          <p class="subscription-plan-note">每一年扣一次 · 可取消</p>
+        </div>
+        <button type="button" class="btn" data-plan-id="yearly" data-plan-label="年訂閱">選擇年繳</button>
+      </article>
+    </div>
+  </div>
 </section>
 
 <section class="section" id="statusPanel" hidden>
@@ -312,6 +363,6 @@
 <script src="./js/services/subscription/paypal-subscription-service.js?v=20261101-no-back"></script>
 <script src="./js/services/subscription/paypal-checkout-service.js?v=20261011-1"></script>
 <script src="./js/services/subscription/paypal-subscription-flow.js?v=20261101-no-back"></script>
-<script src="./js/pages/subscription-entry.js?v=20261101-no-back"></script>
+<script src="./js/pages/subscription-entry.js?v=20261119-audience"></script>
 </body>
 </html>

@@ -15,6 +15,13 @@
   const refs = {
     planSection: document.getElementById("planSection"),
     planButtons: Array.from(document.querySelectorAll("[data-plan-id]")),
+    audienceButtons: Array.from(document.querySelectorAll("[data-audience]")),
+    taiwanClosedButtons: Array.from(document.querySelectorAll("[data-taiwan-closed]")),
+    laneTaiwan: document.getElementById("laneTaiwan"),
+    laneOverseas: document.getElementById("laneOverseas"),
+    cardTaiwan: document.getElementById("cardTaiwan"),
+    cardOverseas: document.getElementById("cardOverseas"),
+    taiwanClosedNote: document.getElementById("taiwanClosedNote"),
     memberLoginLink: document.getElementById("memberLoginLink"),
     loggedInEmailText: document.getElementById("loggedInEmailText"),
     logoutBtn: document.getElementById("logoutBtn"),
@@ -275,6 +282,15 @@
     refs.planButtons.forEach((btn) => {
       btn.disabled = Boolean(disabled);
     });
+  }
+
+  function showAudience(name) {
+    const taiwan = name === "taiwan";
+    const overseas = name === "overseas";
+    if (refs.laneTaiwan) refs.laneTaiwan.hidden = !taiwan;
+    if (refs.laneOverseas) refs.laneOverseas.hidden = !overseas;
+    if (refs.cardTaiwan) refs.cardTaiwan.classList.toggle("is-selected", taiwan);
+    if (refs.cardOverseas) refs.cardOverseas.classList.toggle("is-selected", overseas);
   }
 
   function setPlanSectionVisible(visible) {
@@ -1729,6 +1745,22 @@
       // Soft-fail: plans remain usable.
     }
   }
+
+  refs.audienceButtons.forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      showAudience(button.dataset.audience || "");
+    });
+  });
+
+  refs.taiwanClosedButtons.forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (refs.taiwanClosedNote) {
+        refs.taiwanClosedNote.textContent = "信用卡付款尚未開放。商店許可申請完成後才會開放刷卡，目前不會進入付款頁。";
+      }
+    });
+  });
 
   refs.planButtons.forEach((button) => {
     button.addEventListener("click", (event) => {
