@@ -4,6 +4,7 @@
   const accountMergeServiceApi = window.AccountMergeService;
   const guardApi = window.SubscriptionEntryGuard;
   const paypalSubscriptionServiceApi = window.PaypalSubscriptionService;
+  const newebpaySubscriptionServiceApi = window.NewebpaySubscriptionService;
   const paypalCheckoutServiceApi = window.PaypalCheckoutService;
   const flow = window.PaypalSubscriptionFlow;
 
@@ -39,6 +40,7 @@
     readyPanel: document.getElementById("readyPanel"),
     readyPlanLabel: document.getElementById("readyPlanLabel"),
     paypalButtonsMount: document.getElementById("paypalButtonsMount"),
+    newebpayCheckoutBtn: document.getElementById("newebpayCheckoutBtn"),
     paymentStatusText: document.getElementById("paymentStatusText"),
     paypalSdkErrorActions: document.getElementById("paypalSdkErrorActions"),
     paypalSdkRetryBtn: document.getElementById("paypalSdkRetryBtn"),
@@ -150,6 +152,7 @@
   let pendingOtpPurpose = null;
   let pendingClaimToken = null;
   let activePlanId = "";
+  let displayedSubscription = null;
   // PROD-FIX-2026-10-14: remembers the plan_code of the last rendered
   // subscription (any status) so "重新授權" can resume the SAME pending
   // session without the user re-selecting a plan.
@@ -403,6 +406,7 @@
   }
 
   function renderStatusView(subscription) {
+    displayedSubscription = subscription || null;
     const ui = flow.resolveSubscriptionUiState(subscription);
     if (ui.planCode) lastKnownPlanCode = ui.planCode;
 
@@ -459,7 +463,10 @@
     if (refs.readyPanel) refs.readyPanel.hidden = false;
     if (refs.readyPlanLabel) refs.readyPlanLabel.textContent = planLabel(activePlanId);
     setPaymentStatus("");
-    mountPaypalButtons(activePlanId);
+    const newebpayPlan = activePlanId === "newebpay_monthly" || activePlanId === "newebpay_yearly";
+    if (refs.newebpayCheckoutBtn) refs.newebpayCheckoutBtn.hidden = !newebpayPlan;
+    if (refs.paypalButtonsMount) refs.paypalButtonsMount.hidden = newebpayPlan;
+    if (!newebpayPlan) mountPaypalButtons(activePlanId);
   }
 
   function setOtpPanelMode(mode) {
@@ -586,6 +593,10 @@
       const choice = flow.resolvePendingPlanChoice(ui, checkoutContext.planId);
       if (choice === "continue") {
         showReady({ planId: ui.planCode || checkoutContext.planId });
+        return;
+      }
+      if (displayedSubscription?.provider === "newebpay") {
+        setStatusActionText("要改選其他方案，請先取消這筆未完成的藍新付款。取消未完成的付款不會影響已生效的訂閱。");
         return;
       }
       setStatusActionText("要改選其他方案，請先按「放棄本次結帳」。放棄只結束這次未完成的授權，不會取消已生效的訂閱。");
@@ -799,6 +810,38 @@
     });
   }
 
+  async function invokeNewebpaySubscription(body) {
+    const { data, error } = await window.supabaseClient.functions.invoke("newebpay-subscription", { body });
+    if (error) {
+      try {
+        const parsedBody = await error.context?.json?.();
+        if (parsedBody && typeof parsedBody === "object") {
+          if (flow.isAuthExpiredError(parsedBody) || error.context?.status === 401) {
+            return { ok: false, error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" } };
+          }
+          return parsedBody;
+        }
+      } catch (_parseError) {
+        // fall through
+      }
+      if (error.context?.status === 401 || /jwt|unauthorized|session/i.test(String(error.message || ""))) {
+        return { ok: false, error: { code: "AUTH_EXPIRED", message: "登入已過期，請重新登入。" } };
+      }
+      return {
+        ok: false,
+        error: { code: "NEWEBPAY_REQUEST_FAILED", message: "藍新訂閱請求失敗，請稍後再試。" }
+      };
+    }
+    return data;
+  }
+
+  function createNewebpayService() {
+    if (!newebpaySubscriptionServiceApi) return null;
+    return newebpaySubscriptionServiceApi.createNewebpaySubscriptionService({
+      invokeFunction: invokeNewebpaySubscription
+    });
+  }
+
   function loadPaypalSdk() {
     const clientId = String(window.PAYPAL_CLIENT_ID || "").trim();
     if (!clientId) {
@@ -921,26 +964,53 @@
     }
   }
 
-  async function refreshStatusFromServer({ startPolling = false } = {}) {
-    const svc = createPaypalService();
-    const result = await svc.getStatus();
+  async function readChosenSubscription() {
+    const paypalResult = await createPaypalService().getStatus();
+    if (flow.isAuthExpiredError(paypalResult)) {
+      return { ok: false, authExpired: true, subscription: null };
+    }
 
-    if (flow.isAuthExpiredError(result)) {
+    let newebpaySubscription = null;
+    const newebpayService = createNewebpayService();
+    if (newebpayService) {
+      try {
+        const newebpayResult = await newebpayService.getStatus();
+        if (flow.isAuthExpiredError(newebpayResult)) {
+          return { ok: false, authExpired: true, subscription: null };
+        }
+        if (newebpayResult?.ok) newebpaySubscription = newebpayResult.subscription || null;
+      } catch (_error) {
+        newebpaySubscription = null;
+      }
+    }
+
+    if (!paypalResult?.ok && !newebpaySubscription) {
+      return { ok: false, authExpired: false, subscription: null };
+    }
+    return {
+      ok: true,
+      authExpired: false,
+      subscription: flow.chooseDisplayedSubscription(
+        paypalResult?.ok ? paypalResult.subscription : null,
+        newebpaySubscription
+      )
+    };
+  }
+
+  async function refreshStatusFromServer({ startPolling = false } = {}) {
+    const chosen = await readChosenSubscription();
+    if (chosen.authExpired) {
       showAuthExpired();
       return null;
     }
+    if (!chosen.ok) return null;
 
-    if (!result?.ok) {
-      // Non-auth failure: keep plans usable when possible.
-      return null;
-    }
-
-    const ui = renderStatusView(result.subscription);
+    const ui = renderStatusView(chosen.subscription);
     if (startPolling && ui.mode === "awaiting_first_payment") {
       beginPaidThroughPolling();
     }
     loadGiftStatus();
-    return result.subscription;
+    return chosen.subscription;
   }
 
   const GIFT_STATUS_TEXT = {
@@ -1686,7 +1756,12 @@
     setStatusActionText("取消中…");
 
     try {
-      const svc = createPaypalService();
+      const newebpay = displayedSubscription?.provider === "newebpay";
+      const svc = newebpay ? createNewebpayService() : createPaypalService();
+      if (!svc) {
+        setStatusActionText("藍新訂閱功能尚未載入，請重新整理頁面。");
+        return;
+      }
       const result = await svc.cancelSubscription();
 
       if (flow.isAuthExpiredError(result)) {
@@ -1702,9 +1777,8 @@
       }
 
       // Do not mark cancelled until API succeeded — then refresh status.
-      const refreshed = await svc.getStatus();
-      if (refreshed?.ok) {
-        renderStatusView(refreshed.subscription);
+      const refreshed = await refreshStatusFromServer();
+      if (refreshed) {
         setStatusActionText("已取消自動續訂。");
       } else if (result.subscription) {
         renderStatusView(result.subscription);
@@ -1746,6 +1820,73 @@
     }
   }
 
+  const NEWEBPAY_CHECKOUT_FIELDS = ["MerchantID_", "PostData_"];
+
+  function submitNewebpayCheckoutForm(actionUrl, fields) {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = actionUrl;
+    form.acceptCharset = "UTF-8";
+    form.hidden = true;
+    Object.keys(fields).forEach((key) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = String(fields[key] ?? "");
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  async function handleNewebpayCheckout() {
+    if (!paymentLock.tryAcquire()) return;
+    if (refs.newebpayCheckoutBtn) refs.newebpayCheckoutBtn.disabled = true;
+    try {
+      if (!hasPaymentConsent()) {
+        setPaymentStatus("請先勾選「我已閱讀並同意服務條款」再進行付款。");
+        return;
+      }
+      const consentWritten = await ensureCheckoutConsentRecorded();
+      if (!consentWritten) {
+        setPaymentStatus("同意紀錄儲存失敗，請再試一次。");
+        return;
+      }
+      const svc = createNewebpayService();
+      if (!svc) {
+        setPaymentStatus("藍新訂閱功能尚未載入，請重新整理頁面。");
+        return;
+      }
+      setPaymentStatus("正在建立藍新付款頁…");
+      const result = await svc.createCheckout({ planCode: activePlanId });
+      if (flow.isAuthExpiredError(result)) {
+        showAuthExpired();
+        return;
+      }
+      if (!result?.ok) {
+        setPaymentStatus(flow.sanitizeUserError(result, "無法建立藍新付款，請稍後再試。"));
+        return;
+      }
+      const fields = result.fields || {};
+      const keys = Object.keys(fields);
+      const allowed = keys.length === NEWEBPAY_CHECKOUT_FIELDS.length
+        && keys.every((key) => NEWEBPAY_CHECKOUT_FIELDS.includes(key));
+      const officialUrl = newebpaySubscriptionServiceApi
+        && newebpaySubscriptionServiceApi.isOfficialCheckoutUrl(result.action_url);
+      const packed = JSON.stringify(fields);
+      if (!allowed || !officialUrl || !fields.MerchantID_ || !fields.PostData_ || /hashkey|hashiv/i.test(packed)) {
+        setPaymentStatus("藍新付款資料不完整，已停止前往付款頁。");
+        return;
+      }
+      submitNewebpayCheckoutForm(result.action_url, fields);
+    } catch (error) {
+      setPaymentStatus(flow.sanitizeUserError(error, "無法建立藍新付款，請稍後再試。"));
+    } finally {
+      paymentLock.release();
+      if (refs.newebpayCheckoutBtn) refs.newebpayCheckoutBtn.disabled = false;
+    }
+  }
+
   refs.audienceButtons.forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -1769,6 +1910,13 @@
       handlePlanClick(button.dataset.planId);
     });
   });
+
+  if (refs.newebpayCheckoutBtn) {
+    refs.newebpayCheckoutBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      handleNewebpayCheckout();
+    });
+  }
 
   if (refs.sendOtpBtn) {
     refs.sendOtpBtn.addEventListener("click", (event) => {

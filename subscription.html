@@ -28,8 +28,8 @@
     <h1 class="hero-title">先選你在哪裡付款</h1>
     <p class="hero-desc">
       台灣與海外使用不同付款方式與幣別。選一邊之後，只會看到該地區的月繳與年繳。
-      海外方案是<strong>自動續訂</strong>，取消後仍可使用至已付款週期結束。
-      台灣信用卡付款尚未開放。訪客需先完成 Email／Google 升級，驗證後會回到原本選擇的海外方案。
+      兩邊都是<strong>自動續訂</strong>，取消後仍可使用至已付款週期結束。
+      訪客需先完成 Email／Google 升級，驗證後會回到原本選擇的方案。
     </p>
   </div>
 </section>
@@ -74,8 +74,8 @@
     <article class="panel audience-card" id="cardTaiwan">
       <p class="audience-kicker">台灣用戶</p>
       <h2>台灣</h2>
-      <p class="audience-pay">信用卡 · 新台幣</p>
-      <p class="audience-note">月繳 NT$149，年繳 NT$1,399。尚未開放刷卡。</p>
+      <p class="audience-pay">藍新信用卡 · 新台幣</p>
+      <p class="audience-note">月繳 NT$149，年繳 NT$1,399。</p>
       <button type="button" class="btn" data-audience="taiwan">我在台灣</button>
     </article>
     <article class="panel audience-card" id="cardOverseas">
@@ -90,8 +90,8 @@
   <div class="audience-lane" id="laneTaiwan" hidden>
     <div class="lane-head">
       <div>
-        <h2>台灣 · 信用卡</h2>
-        <p id="taiwanClosedNote">信用卡付款尚未開放。商店許可申請完成後才會開放刷卡，目前不會進入付款頁。</p>
+        <h2>台灣 · 藍新信用卡</h2>
+        <p>新台幣自動扣款。取消後不再扣下期，已付款期間仍可使用。</p>
       </div>
       <button type="button" class="switch-link" data-audience="">改選地區</button>
     </div>
@@ -101,18 +101,18 @@
           <span class="badge">月繳</span>
           <h3 class="subscription-plan-title">月訂閱</h3>
           <p class="subscription-plan-price">NT$149 / 月</p>
-          <p class="subscription-plan-note">每個月扣一次 · 尚未開放</p>
+          <p class="subscription-plan-note">每個月扣一次 · 可取消</p>
         </div>
-        <button type="button" class="btn" data-taiwan-closed="monthly">尚未開放</button>
+        <button type="button" class="btn" data-plan-id="newebpay_monthly" data-plan-label="藍新信用卡月訂閱（NT$149／月）">選擇月繳</button>
       </article>
       <article class="panel subscription-plan-card">
         <div class="subscription-plan-head">
           <span class="badge">年繳</span>
           <h3 class="subscription-plan-title">年訂閱</h3>
           <p class="subscription-plan-price">NT$1,399 / 年</p>
-          <p class="subscription-plan-note">每一年扣一次 · 尚未開放</p>
+          <p class="subscription-plan-note">每一年扣一次 · 可取消</p>
         </div>
-        <button type="button" class="btn" data-taiwan-closed="yearly">尚未開放</button>
+        <button type="button" class="btn" data-plan-id="newebpay_yearly" data-plan-label="藍新信用卡年訂閱（NT$1,399／年）">選擇年繳</button>
       </article>
     </div>
   </div>
@@ -346,6 +346,7 @@
       </label>
     </div>
     <div id="paypalButtonsMount" class="subscription-paypal-mount"></div>
+    <button type="button" class="btn" id="newebpayCheckoutBtn" hidden>前往藍新信用卡付款</button>
     <p class="subscription-status-text" id="paymentStatusText"></p>
     <div class="button-row">
       <button type="button" class="btn btn-secondary" id="copyUsd5DiagBtn" hidden>複製診斷紀錄</button>
@@ -396,8 +397,9 @@
 <script src="./js/services/auth/account-merge-service.js?v=20260816-1"></script>
 <script src="./js/services/auth/subscription-entry-guard.js?v=20260816-1"></script>
 <script src="./js/services/subscription/paypal-subscription-service.js?v=20261101-no-back"></script>
+<script src="./js/services/subscription/newebpay-subscription-service.js?v=20261125-newebpay"></script>
 <script src="./js/services/subscription/paypal-checkout-service.js?v=20261011-1"></script>
-<script src="./js/services/subscription/paypal-subscription-flow.js?v=20261101-no-back"></script>
-<script src="./js/pages/subscription-entry.js?v=20261119-audience"></script>
+<script src="./js/services/subscription/paypal-subscription-flow.js?v=20261125-newebpay"></script>
+<script src="./js/pages/subscription-entry.js?v=20261125-newebpay"></script>
 </body>
 </html>

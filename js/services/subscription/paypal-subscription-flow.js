@@ -349,7 +349,7 @@
   /**
    * Map get_status.subscription → UI view model.
    */
-  function resolveSubscriptionUiState(subscription, { nowMs = Date.now() } = {}) {
+  function buildSubscriptionUiState(subscription, { nowMs = Date.now() } = {}) {
     if (!subscription) {
       return {
         mode: "none",
@@ -562,6 +562,84 @@
       nextBillingLocal,
       allowNewSubscription: false
     };
+  }
+
+  function applyNewebpayProviderUi(subscription, state) {
+    if (!subscription || String(subscription.provider || "") !== "newebpay") return state;
+    const status = String(subscription.status || "").toUpperCase();
+    const next = Object.assign({}, state, { showRefundButton: false, showAbandonCheckout: false });
+    if (status === "FAILED_SETUP") {
+      next.mode = "expired";
+      next.showPlanButtons = true;
+      next.showPayButtons = true;
+      next.showCancelButton = false;
+      next.showReauthorize = false;
+      next.allowNewSubscription = true;
+      next.headline = "信用卡付款未完成";
+      next.detail = "首期扣款未成功，會員尚未啟用。可重新選擇方案。";
+      return next;
+    }
+    if (status === "PENDING" || next.mode === "approval_pending") {
+      next.mode = "approval_pending";
+      next.showPlanButtons = false;
+      next.showPayButtons = false;
+      next.showCancelButton = true;
+      next.showReauthorize = true;
+      next.allowNewSubscription = false;
+      next.headline = "訂閱授權尚未完成";
+      next.detail = "尚未完成藍新信用卡付款，訂閱尚未啟用。可重新付款，或取消這筆未完成的付款。";
+      return next;
+    }
+    if (next.mode === "active") {
+      next.detail = "藍新信用卡會依所選週期自動扣款。可取消自動續訂；取消後仍可使用至已付款週期結束，不會自動退款。";
+    }
+    if (next.mode === "suspended") {
+      next.showCancelButton = true;
+      next.headline = "最近一次藍新扣款未成功";
+      next.detail = next.paidThroughLocal
+        ? `可使用至 ${next.paidThroughLocal}。可取消自動續訂，取消後不再扣款。`
+        : "可取消自動續訂。取消完成後才能重新訂閱。";
+      next.allowNewSubscription = false;
+      next.showPlanButtons = false;
+      next.showPayButtons = false;
+    }
+    if (next.mode === "cancelled_with_access") {
+      next.detail = next.paidThroughLocal
+        ? `已停止之後的藍新扣款。可使用至 ${next.paidThroughLocal}。`
+        : "已停止之後的藍新扣款。可使用至目前已付款週期結束。";
+    }
+    if (next.mode === "processing" || next.mode === "awaiting_first_payment") {
+      next.headline = "正在確認藍新付款";
+      next.detail = "正在確認藍新付款結果。權益啟用前請稍候。";
+    }
+    return next;
+  }
+
+  function resolveSubscriptionUiState(subscription, options) {
+    return applyNewebpayProviderUi(subscription, buildSubscriptionUiState(subscription, options));
+  }
+
+  function chooseDisplayedSubscription(paypalSubscription, cardSubscription, { nowMs = Date.now() } = {}) {
+    function rank(subscription) {
+      if (!subscription) return 0;
+      if (subscription.access_blocked) return 1;
+      const status = String(subscription.status || "").toUpperCase();
+      const paid = isPaidThroughValid(subscription.paid_through, nowMs);
+      if (paid && (status === "ACTIVE" || status === "CANCELLED" || status === "SUSPENDED")) return 80;
+      if (paid) return 70;
+      if (status === "ACTIVE" || status === "APPROVED" || status === "APPROVAL_PENDING" || status === "PENDING" || status === "SUSPENDED") {
+        return 50;
+      }
+      return 10;
+    }
+    const paypalRank = rank(paypalSubscription);
+    const cardRank = rank(cardSubscription);
+    if (!paypalRank && !cardRank) return null;
+    if (cardRank > paypalRank) return cardSubscription;
+    if (paypalRank > cardRank) return paypalSubscription;
+    const paypalPaid = parseTimeMs(paypalSubscription && paypalSubscription.paid_through) || 0;
+    const cardPaid = parseTimeMs(cardSubscription && cardSubscription.paid_through) || 0;
+    return cardPaid > paypalPaid ? cardSubscription : paypalSubscription;
   }
 
   function shouldStopStatusPoll(subscription, { nowMs = Date.now() } = {}) {
@@ -933,6 +1011,7 @@
     buildCreateSubscriptionPayload,
     resolveSubscriptionUiState,
     resolvePendingPlanChoice,
+    chooseDisplayedSubscription,
     shouldStopStatusPoll,
     createStatusPoller,
     createBusyLock,
