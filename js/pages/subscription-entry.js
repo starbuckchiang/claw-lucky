@@ -898,15 +898,66 @@
     }
   }
 
+  const MPG_GIFT_URL = "https://core.newebpay.com/MPG/mpg_gateway";
+  const MPG_GIFT_FIELDS = ["MerchantID", "TradeInfo", "TradeSha", "Version"];
+
+  async function startNewebpayGiftShippingFee() {
+    if (!giftFeePaymentLock.tryAcquire()) return;
+    setGiftFeeStatus("正在建立藍新運費付款…");
+    try {
+      if (!window.supabaseClient?.functions?.invoke) {
+        setGiftFeeStatus("藍新運費付款尚未載入，請重新整理頁面。");
+        return;
+      }
+      const { data, error } = await window.supabaseClient.functions.invoke("newebpay-mpg-checkout", {
+        body: {}
+      });
+      if (error) {
+        const parsed = await error.context?.json?.().catch(() => null);
+        if (error.context?.status === 401 || parsed?.error?.code === "AUTH_REQUIRED") {
+          showAuthExpired();
+          return;
+        }
+        setGiftFeeStatus(flow.sanitizeUserError(parsed || error, "無法建立藍新運費付款，請稍後再試。"));
+        return;
+      }
+      const fields = data?.fields || {};
+      const keys = Object.keys(fields);
+      const allowed = keys.length === MPG_GIFT_FIELDS.length
+        && keys.every((key) => MPG_GIFT_FIELDS.includes(key));
+      const packed = JSON.stringify(fields);
+      if (!data?.ok || data.amount !== 44 || data.action_url !== MPG_GIFT_URL || !allowed || /hashkey|hashiv|period/i.test(packed)) {
+        setGiftFeeStatus("藍新運費付款資料不完整，已停止前往付款頁。");
+        return;
+      }
+      submitNewebpayCheckoutForm(data.action_url, fields);
+    } catch (error) {
+      setGiftFeeStatus(flow.sanitizeUserError(error, "無法建立藍新運費付款，請稍後再試。"));
+    } finally {
+      giftFeePaymentLock.release();
+    }
+  }
+
   async function mountGiftFeeButtons() {
     if (!refs.giftFeeButtonsMount) return;
-    const checkoutService = createCheckoutService();
-    if (!checkoutService) {
-      setGiftFeeStatus("運費付款功能尚未可用，請稍後再試。");
-      return;
-    }
     refs.giftFeeButtonsMount.innerHTML = "";
     setGiftFeeStatus("");
+    const newebpayButton = document.createElement("button");
+    newebpayButton.type = "button";
+    newebpayButton.className = "btn";
+    newebpayButton.textContent = "信用卡一次付清 NT$44";
+    newebpayButton.addEventListener("click", () => {
+      startNewebpayGiftShippingFee();
+    });
+    refs.giftFeeButtonsMount.appendChild(newebpayButton);
+
+    const checkoutService = createCheckoutService();
+    if (!checkoutService) {
+      setGiftFeeStatus("PayPal 運費付款尚未可用，仍可使用信用卡一次付清。");
+      return;
+    }
+    const paypalMount = document.createElement("div");
+    refs.giftFeeButtonsMount.appendChild(paypalMount);
 
     try {
       const paypal = await loadGiftFeeSdk();
@@ -958,7 +1009,7 @@
           const info = handlers.onError();
           setGiftFeeStatus(info.message);
         }
-      }).render(refs.giftFeeButtonsMount);
+      }).render(paypalMount);
     } catch (error) {
       setGiftFeeStatus(flow.sanitizeUserError(error, "無法載入運費付款按鈕。"));
     }
