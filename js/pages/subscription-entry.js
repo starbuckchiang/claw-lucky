@@ -159,6 +159,9 @@
   let lastKnownPlanCode = null;
   let paypalSdkPromise = null;
   let statusPoller = null;
+  let newebpayReturnKind = "";
+  let newebpayReturnStopped = false;
+  let newebpayReturnRunning = false;
   let giftFeeButtonsMounted = false;
   // WEB-HOME-01A: page-level consent idempotency keys — created once per
   // consent attempt, KEPT across retries (server write is idempotent on
@@ -324,6 +327,7 @@
   }
 
   function stopStatusPolling() {
+    newebpayReturnStopped = true;
     if (statusPoller) {
       statusPoller.stop();
       statusPoller = null;
@@ -402,6 +406,10 @@
 
   function handleStatusRequeryClick() {
     setStatusRequeryVisible(false);
+    if (newebpayReturnKind === "subscription" || newebpayReturnKind === "shipping") {
+      beginNewebpayReturnPolling(newebpayReturnKind);
+      return;
+    }
     beginPaidThroughPolling();
   }
 
@@ -1256,6 +1264,128 @@
     }
   }
 
+  const NEWEBPAY_RETURN_ATTEMPTS = 31;
+  const NEWEBPAY_RETURN_WAIT_MS = 2000;
+
+  function readNewebpayReturnKind() {
+    const kind = new URLSearchParams(window.location.search).get("newebpay_return");
+    if (kind === "subscription" || kind === "shipping") return kind;
+    return "";
+  }
+
+  function clearNewebpayReturnParam() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("newebpay_return")) return;
+    url.searchParams.delete("newebpay_return");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }
+
+  function giftFeeSettled(gift) {
+    const status = String(gift?.status || "");
+    return status === "awaiting_shipment" || status === "shipped" || status === "fee_paid";
+  }
+
+  function showReturnPending(kind) {
+    setStatusActionText("付款結果確認中");
+    if (kind === "shipping") {
+      if (refs.giftPanel) refs.giftPanel.hidden = false;
+      if (refs.giftHeadline) refs.giftHeadline.textContent = "付款結果確認中";
+      if (refs.giftDetail) refs.giftDetail.textContent = "付款結果確認中";
+    }
+  }
+
+  async function queryNewebpayReturnOnce(kind) {
+    if (kind === "shipping") {
+      const result = await createPaypalService().getGiftStatus();
+      if (flow.isAuthExpiredError(result)) return { authExpired: true, settled: false };
+      if (result?.gift) renderGiftStatus(result.gift);
+      const settled = giftFeeSettled(result?.gift);
+      if (!settled) showReturnPending("shipping");
+      return { authExpired: false, settled };
+    }
+    const chosen = await readChosenSubscription();
+    if (chosen.authExpired) return { authExpired: true, settled: false };
+    if (chosen.subscription) renderStatusView(chosen.subscription);
+    const settled = flow.shouldStopStatusPoll(chosen.subscription);
+    if (!settled) showReturnPending("subscription");
+    else if (flow.resolveSubscriptionUiState(chosen.subscription).mode === "active") {
+      setStatusActionText("訂閱使用中");
+    }
+    loadGiftStatus();
+    return { authExpired: false, settled };
+  }
+
+  function beginNewebpayReturnPolling(kind) {
+    stopStatusPolling();
+    newebpayReturnKind = kind;
+    newebpayReturnStopped = false;
+    newebpayReturnRunning = false;
+    setStatusRequeryVisible(false);
+    showReturnPending(kind);
+    if (kind === "shipping" && refs.giftPanel) {
+      refs.giftPanel.scrollIntoView({ block: "start" });
+    }
+    runNewebpayReturnPolling();
+  }
+
+  async function runNewebpayReturnPolling() {
+    if (newebpayReturnRunning) return;
+    newebpayReturnRunning = true;
+    const kind = newebpayReturnKind;
+    try {
+      for (let attempt = 0; attempt < NEWEBPAY_RETURN_ATTEMPTS; attempt += 1) {
+        if (newebpayReturnStopped) return;
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, NEWEBPAY_RETURN_WAIT_MS));
+        }
+        if (newebpayReturnStopped) return;
+        const result = await queryNewebpayReturnOnce(kind);
+        if (result.authExpired) {
+          newebpayReturnKind = "";
+          showAuthExpired();
+          return;
+        }
+        if (result.settled) {
+          newebpayReturnKind = "";
+          setStatusRequeryVisible(false);
+          return;
+        }
+      }
+      setStatusActionText("付款結果尚未確認。請按重新查詢，這不會重新付款。");
+      setStatusRequeryVisible(true);
+    } catch (_error) {
+      setStatusActionText("狀態更新失敗，請點擊下方「重新查詢」再試一次。");
+      setStatusRequeryVisible(true);
+    } finally {
+      newebpayReturnRunning = false;
+    }
+  }
+
+  function watchNewebpayReturnFocus() {
+    let timer = 0;
+    const refresh = () => {
+      if (document.visibilityState === "hidden") return;
+      if (newebpayReturnKind !== "subscription" && newebpayReturnKind !== "shipping") return;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        const kind = newebpayReturnKind;
+        if (kind !== "subscription" && kind !== "shipping") return;
+        try {
+          const result = await queryNewebpayReturnOnce(kind);
+          if (result?.settled) {
+            newebpayReturnKind = "";
+            newebpayReturnStopped = true;
+            setStatusRequeryVisible(false);
+          }
+        } catch (_error) {
+          // The next automatic query or the requery button can try again.
+        }
+      }, 300);
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+  }
+
   function beginPaidThroughPolling() {
     stopStatusPolling();
     setStatusRequeryVisible(false);
@@ -1852,6 +1982,7 @@
     try {
       const { session, user } = await getCurrentSessionAndUser();
       if (!session || !user) {
+        if (readNewebpayReturnKind()) setStatusActionText("請先登入以確認付款結果。");
         if (entryIntent === "member") await handleLoginOnlyClick();
         return;
       }
@@ -1865,6 +1996,12 @@
       if (redirectIfReturnTarget()) return;
 
       updateLoggedInEmailDisplay(user);
+      const returnKind = readNewebpayReturnKind();
+      if (returnKind) {
+        clearNewebpayReturnParam();
+        beginNewebpayReturnPolling(returnKind);
+        return;
+      }
       await refreshStatusFromServer({ startPolling: true });
     } catch (_error) {
       // Soft-fail: plans remain usable.
@@ -2073,6 +2210,8 @@
       handleStatusRequeryClick();
     });
   }
+
+  watchNewebpayReturnFocus();
 
   if (refs.openRefundFormBtn) {
     refs.openRefundFormBtn.addEventListener("click", (event) => {
