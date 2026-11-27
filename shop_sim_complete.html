@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Lucky Shop｜模擬完成</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/shop/good.css?v=20260706" />
+  <link rel="stylesheet" href="./css/shop/shop-sim.css?v=20261127-1" />
+</head>
+<body class="shop-sim-page" data-shop-sim-page="complete">
+  <main class="good-page">
+    <header class="good-nav">
+      <div class="good-logo">Lucky Shop</div>
+      <nav class="good-nav-links">
+        <a href="./orders.html?shopSim=1">訂單查詢</a>
+      </nav>
+    </header>
+
+    <div class="shop-sim-banner">
+      <p>測試模擬：不扣款、不建立正式訂單、不開立發票、不建立物流單。</p>
+    </div>
+
+    <section class="good-section">
+      <h1 class="good-section-title">模擬完成</h1>
+      <p id="simCompleteEmpty" class="good-product-empty" hidden>
+        找不到這筆模擬訂單。<a href="./orders.html?shopSim=1">到訂單查詢</a>
+      </p>
+
+      <div id="simCompleteReady">
+        <dl class="shop-sim-kv">
+          <dt>訂單編號</dt><dd id="simCompleteNo"></dd>
+          <dt>付款</dt><dd id="simCompletePay"></dd>
+          <dt>取貨門市</dt><dd id="simCompleteStore"></dd>
+          <dt>物流</dt><dd id="simCompleteLogistics"></dd>
+          <dt>發票</dt><dd id="simCompleteInvoice"></dd>
+          <dt>合計</dt><dd id="simCompleteTotal"></dd>
+        </dl>
+        <div class="shop-sim-actions">
+          <a class="good-btn good-btn-primary" id="simCompleteOrdersLink" href="./orders.html?shopSim=1">前往訂單查詢</a>
+          <a class="good-btn good-btn-secondary" href="./good.html?shopSim=1">再模擬一筆</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="./js/shop/shop-sim.js?v=20261127-1"></script>
+</body>
+</html>

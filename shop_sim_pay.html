@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Lucky Shop｜藍新付款測試模擬</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/shop/good.css?v=20260706" />
+  <link rel="stylesheet" href="./css/shop/shop-sim.css?v=20261127-1" />
+</head>
+<body class="shop-sim-page" data-shop-sim-page="pay">
+  <main class="good-page">
+    <header class="good-nav">
+      <div class="good-logo">Lucky Shop</div>
+      <nav class="good-nav-links">
+        <a href="./shop_sim_checkout.html">回結帳資料</a>
+      </nav>
+    </header>
+
+    <div class="shop-sim-banner">
+      <p>測試模擬：不扣款、不建立正式訂單、不開立發票、不建立物流單。</p>
+    </div>
+
+    <section class="good-section">
+      <h1 class="good-section-title">藍新付款假頁</h1>
+      <p id="simPayEmpty" class="good-product-empty" hidden>
+        找不到待模擬的結帳資料。<a href="./good.html?shopSim=1">回好運商城</a>
+      </p>
+
+      <div id="simPayReady" class="shop-sim-panel">
+        <p class="shop-sim-warning" id="simPayWarning">測試模擬，不會扣款</p>
+        <p>請不要輸入卡號。這個假頁沒有卡號、有效期限或安全碼欄位，也不會連到藍新。</p>
+        <dl class="shop-sim-kv">
+          <dt>付款方式</dt><dd id="simPayMethod"></dd>
+          <dt>取貨門市</dt><dd id="simPayStore"></dd>
+          <dt>合計</dt><dd id="simPayTotal"></dd>
+        </dl>
+        <p id="simPayHint"></p>
+        <p id="simPayAlert" class="shop-sim-alert" role="alert" hidden></p>
+        <button class="good-btn good-btn-primary" id="simPayButton" type="button" aria-describedby="simPayWarning">
+          模擬付款成功／送出取貨付款訂單
+        </button>
+      </div>
+    </section>
+  </main>
+  <script src="./js/shop/shop-sim.js?v=20261127-1"></script>
+</body>
+</html>

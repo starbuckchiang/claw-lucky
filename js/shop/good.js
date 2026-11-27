@@ -15,6 +15,34 @@
     floatingRobotEl: document.querySelector(".good-floating-robot")
   };
 
+  let loadedProducts = [];
+
+  function isShopSim() {
+    return Boolean(window.ShopSim?.isActive?.());
+  }
+
+  function showSimBanner(extra) {
+    const el = document.getElementById("shopSimBanner");
+    const text = el?.querySelector("[data-sim-banner-text]");
+    if (!el || !text) return;
+    const base = window.ShopSim?.BANNER_TEXT || "測試模擬：不扣款、不建立正式訂單、不開立發票、不建立物流單。";
+    text.textContent = extra ? `${base}${extra}` : base;
+    el.hidden = false;
+  }
+
+  function withTimeout(promise, ms) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("商品列表逾時")), ms);
+      promise.then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      }, (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+    });
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -68,18 +96,25 @@
   }
 
   function buildProductCard(product) {
-    const id = escapeHtml(product?.id || "");
+    const rawId = String(product?.id || "");
+    const id = escapeHtml(rawId);
     const name = escapeHtml(product?.name || product?.title || "未命名商品");
     const subtitle = escapeHtml(product?.subtitle || product?.description || "");
     const badge = escapeHtml(product?.badge || product?.tag || "LIMITED");
     const price = formatPrice(product?.price ?? 0);
     const stock = Number(product?.stock ?? 0);
+    const sim = isShopSim();
 
     const stockText =
       stock > 0 ? `剩餘 ${stock} 件` : "已售完";
 
     const buttonText =
-      stock > 0 ? "查看商品" : "暫時售完";
+      stock > 0 ? (sim ? "加入並結帳" : "查看商品") : "暫時售完";
+    const action = sim ? "sim-checkout" : "view-product";
+    const detailHref = escapeHtml(`./product.html?id=${encodeURIComponent(rawId)}&shopSim=1`);
+    const detailLink = sim && stock > 0
+      ? `<a class="good-sim-detail" href="${detailHref}">商品詳情</a>`
+      : "";
 
     return `
       <article class="good-product-card">
@@ -102,12 +137,13 @@
           <button
             class="good-btn ${stock > 0 ? "good-btn-primary" : "good-btn-secondary"}"
             type="button"
-            data-action="view-product"
+            data-action="${action}"
             data-product-id="${id}"
             ${stock <= 0 ? "disabled" : ""}
           >
             ${buttonText}
           </button>
+          ${detailLink}
         </div>
       </article>
     `;
@@ -130,19 +166,64 @@
     container.innerHTML = products.map(buildProductCard).join("");
   }
 
+  function useDemoProducts(reason) {
+    loadedProducts = window.ShopSim?.getDemoProducts?.() || [];
+    renderProducts(loadedProducts);
+    showSimBanner(reason);
+  }
+
   async function loadProducts() {
     console.log("[good] loadProducts started");
     console.log("[good] ShopApi =", window.ShopApi);
+    const sim = isShopSim();
+
     if (!window.ShopApi?.getProducts) {
+      if (sim) {
+        useDemoProducts("商品服務還沒載入，這次改顯示展示用測試商品。不會寫入正式訂單或庫存。");
+        return;
+      }
       throw new Error("ShopApi.getProducts 尚未載入");
     }
 
-    const products = await window.ShopApi.getProducts();
-    console.log("[good] products =", products);
-    renderProducts(products);
+    try {
+      const request = window.ShopApi.getProducts();
+      const products = sim ? await withTimeout(request, 8000) : await request;
+      console.log("[good] products =", products);
+      if (sim && (!Array.isArray(products) || !products.length)) {
+        useDemoProducts("目前沒有上架商品，這次改顯示展示用測試商品。不會寫入正式訂單或庫存。");
+        return;
+      }
+      loadedProducts = Array.isArray(products) ? products : [];
+      renderProducts(loadedProducts);
+    } catch (error) {
+      if (sim) {
+        console.warn("[good] sim catalog fallback", error);
+        useDemoProducts("商品服務讀取失敗，這次改顯示展示用測試商品。不會寫入正式訂單或庫存。");
+        return;
+      }
+      throw error;
+    }
+  }
+
+  function findLoadedProduct(productId) {
+    return loadedProducts.find((item) => String(item?.id || "") === productId)
+      || window.ShopSim?.getDemoProduct?.(productId)
+      || null;
   }
 
   function handleProductClick(event) {
+    const simButton = event.target.closest("button[data-action='sim-checkout'][data-product-id]");
+    if (simButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const product = findLoadedProduct(simButton.dataset.productId);
+      if (!product || !window.ShopSim?.createDraftFromProduct) return;
+      window.ShopSim.activate?.();
+      window.ShopSim.writeDraft(window.ShopSim.createDraftFromProduct(product, 1));
+      window.location.assign("./shop_sim_checkout.html");
+      return;
+    }
+
     const button = event.target.closest("button[data-action='view-product'][data-product-id]");
     if (!button) return;
 
@@ -176,12 +257,19 @@
     try {
       console.log("[good] initGoodPage started");
       document.body.classList.add("page-ready");
+      window.ShopSim?.activateFromUrl?.(window.location.search);
+      if (isShopSim()) showSimBanner();
 
       if (window.UserStore?.initUser) {
-        try {
-          await window.UserStore.initUser();
-        } catch (error) {
-          console.warn("[good] user init failed, continue loading products", error);
+        const userInit = Promise.resolve()
+          .then(() => window.UserStore.initUser())
+          .catch((error) => {
+            console.warn("[good] user init failed, continue loading products", error);
+          });
+        if (isShopSim()) {
+          userInit.catch(() => {});
+        } else {
+          await userInit;
         }
       }
 

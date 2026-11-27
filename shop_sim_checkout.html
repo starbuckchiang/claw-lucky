@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Lucky Shop｜結帳資料（測試模擬）</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/shop/good.css?v=20260706" />
+  <link rel="stylesheet" href="./css/shop/shop-sim.css?v=20261127-1" />
+</head>
+<body class="shop-sim-page" data-shop-sim-page="checkout">
+  <main class="good-page">
+    <header class="good-nav">
+      <div class="good-logo">Lucky Shop</div>
+      <nav class="good-nav-links">
+        <a href="./good.html?shopSim=1">回商城</a>
+      </nav>
+    </header>
+
+    <div class="shop-sim-banner">
+      <p>測試模擬：不扣款、不建立正式訂單、不開立發票、不建立物流單。下面是預填的假資料，不是真實客戶。</p>
+    </div>
+
+    <section class="good-section">
+      <h1 class="good-section-title">結帳資料</h1>
+      <p class="good-section-desc">確認數量與收件資訊後，會進入藍新付款假頁。這一步不會送出任何金流或物流請求。</p>
+
+      <div id="simCheckoutEmpty" class="good-product-empty" hidden>
+        還沒有模擬商品。<a href="./good.html?shopSim=1">回好運商城加入商品</a>
+      </div>
+
+      <form id="shopSimCheckoutForm" class="shop-sim-form" action="./shop_sim_pay.html" autocomplete="off">
+        <p id="simCheckoutAlert" class="shop-sim-alert" role="alert" hidden></p>
+
+        <div id="simSummaryLines"></div>
+
+        <div class="shop-sim-qty" aria-label="數量">
+          <button class="good-btn good-btn-secondary" id="simQtyMinus" type="button" aria-label="減少數量">−</button>
+          <strong id="simQtyValue">1</strong>
+          <button class="good-btn good-btn-secondary" id="simQtyPlus" type="button" aria-label="增加數量">+</button>
+          <span>最多 5 件，也不會超過展示庫存。</span>
+        </div>
+
+        <fieldset>
+          <legend>收件人（測試資料）</legend>
+          <label class="shop-sim-field">
+            <span>收件人</span>
+            <input id="simRecipient" name="recipientName" type="text" maxlength="40" required autocomplete="off" placeholder="測試人員" />
+          </label>
+          <label class="shop-sim-field">
+            <span>手機</span>
+            <input id="simPhone" name="phone" type="tel" inputmode="numeric" maxlength="10" required autocomplete="off" placeholder="0912000000" pattern="09[0-9]{8}" />
+          </label>
+          <label class="shop-sim-field">
+            <span>電子郵件</span>
+            <input id="simEmail" name="email" type="email" required autocomplete="off" placeholder="shop-sim@example.com" />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>超商門市（模擬）</legend>
+          <label class="shop-sim-field">
+            <span>取貨門市</span>
+            <select id="simStore" name="storeId" required>
+              <option value="711-xinyi-sim">7-ELEVEN 測試門市｜台北信義（模擬）</option>
+              <option value="fami-daan-sim">全家 測試門市｜台北大安（模擬）</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>付款方式（只進假頁）</legend>
+          <div class="shop-sim-choices">
+            <label class="shop-sim-choice">
+              <input type="radio" name="paymentMethod" value="card_cvs_nopay" checked required />
+              <span>藍新信用卡預付＋超商取貨不付款</span>
+            </label>
+            <label class="shop-sim-choice">
+              <input type="radio" name="paymentMethod" value="cvs_cod" />
+              <span>超商取貨付款</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>發票（模擬，不開立）</legend>
+          <div class="shop-sim-choices">
+            <label class="shop-sim-choice">
+              <input type="radio" name="invoiceOption" value="donate" checked required />
+              <span>捐贈（模擬，不開立）</span>
+            </label>
+            <label class="shop-sim-choice">
+              <input type="radio" name="invoiceOption" value="carrier" />
+              <span>個人載具（模擬，不開立）</span>
+            </label>
+            <label class="shop-sim-choice">
+              <input type="radio" name="invoiceOption" value="company" />
+              <span>公司統編（模擬，不開立）</span>
+            </label>
+          </div>
+          <label class="shop-sim-field" id="simTaxRow" hidden>
+            <span>統一編號（測試用 8 碼）</span>
+            <input id="simTaxId" name="taxId" type="text" inputmode="numeric" maxlength="8" placeholder="00000000" pattern="[0-9]{8}" />
+          </label>
+        </fieldset>
+
+        <div class="shop-sim-total"><span>商品小計</span><strong id="simSummarySubtotal">NT$ 0</strong></div>
+        <div class="shop-sim-total"><span>運費（模擬，未建立物流單）</span><strong id="simSummaryShipping">NT$ 0</strong></div>
+        <div class="shop-sim-total"><span>合計</span><strong id="simSummaryTotal">NT$ 0</strong></div>
+
+        <button class="good-btn good-btn-primary" type="submit">前往藍新付款假頁</button>
+      </form>
+    </section>
+  </main>
+  <script src="./js/shop/shop-sim.js?v=20261127-1"></script>
+</body>
+</html>
