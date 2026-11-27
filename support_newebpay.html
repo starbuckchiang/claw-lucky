@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>請我們喝杯咖啡｜Claw Lucky</title>
+
+<link rel="stylesheet" href="./css/base.css" />
+<link rel="stylesheet" href="./css/layout.css" />
+<link rel="stylesheet" href="./css/components.css" />
+<link rel="stylesheet" href="./css/pages/support.css" />
+</head>
+<body>
+<main class="page-wrap support-page">
+  <section class="section">
+    <div class="panel support-topbar">
+      <a class="support-back-link" href="./index.html">← 回首頁</a>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="hero-card support-hero">
+      <span class="support-kicker">Buy Us a Coffee</span>
+      <h1 class="support-title">請我們喝杯咖啡</h1>
+      <p class="support-desc">
+        如果你喜歡 Claw Lucky，可以透過信用卡一次付清請我們喝杯咖啡，支持網站持續營運與內容開發。
+      </p>
+      <p class="support-disclosure" role="note">
+        這是單次支持，不會自動續訂，也不包含月訂或年訂權益。
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="panel support-intro">
+      <h2 class="support-section-title">這杯咖啡會變成什麼？</h2>
+      <p class="support-text">
+        這不是商品訂單，也不是訂閱方案。每一杯咖啡都是單次支持，
+        用來幫忙持續整理內容、準備活動，以及把小驚喜慢慢做出來。
+      </p>
+    </div>
+  </section>
+
+  <section class="section section-lg" aria-labelledby="coffee-support-heading">
+    <h2 id="coffee-support-heading" class="visually-hidden">單次支持選項</h2>
+    <div class="support-plan-grid">
+      <article class="panel support-plan-card">
+        <div class="support-plan-head">
+          <span class="support-plan-badge">Coffee A</span>
+          <h3 class="support-plan-title">小杯咖啡</h3>
+          <p class="support-plan-price">NT$90</p>
+        </div>
+
+        <p class="support-plan-desc">請一杯小咖啡</p>
+
+        <ul class="support-plan-list">
+          <li>適合輕輕支持一下</li>
+          <li>單次付款，不會自動續訂</li>
+          <li>不包含訂閱權益</li>
+        </ul>
+
+        <button
+          class="btn btn-support"
+          type="button"
+          aria-label="使用信用卡一次付清支持 NT$90"
+          data-support-amount="90"
+        >
+          使用信用卡一次付清 NT$90
+        </button>
+      </article>
+
+      <article class="panel support-plan-card support-plan-card--featured">
+        <div class="support-plan-head">
+          <span class="support-plan-badge">Coffee B</span>
+          <h3 class="support-plan-title">暖暖咖啡</h3>
+          <p class="support-plan-price">NT$150</p>
+        </div>
+
+        <p class="support-plan-desc">送上一杯暖暖咖啡</p>
+
+        <ul class="support-plan-list">
+          <li>適合喜歡這個小計畫的你</li>
+          <li>單次付款，不會自動續訂</li>
+          <li>不包含訂閱權益</li>
+        </ul>
+
+        <button
+          class="btn btn-support"
+          type="button"
+          aria-label="使用信用卡一次付清支持 NT$150"
+          data-support-amount="150"
+        >
+          使用信用卡一次付清 NT$150
+        </button>
+      </article>
+
+      <article class="panel support-plan-card">
+        <div class="support-plan-head">
+          <span class="support-plan-badge">Coffee C</span>
+          <h3 class="support-plan-title">大杯咖啡</h3>
+          <p class="support-plan-price">NT$300</p>
+        </div>
+
+        <p class="support-plan-desc">請我們喝一杯大咖啡</p>
+
+        <ul class="support-plan-list">
+          <li>適合想多給一點鼓勵的人</li>
+          <li>單次付款，不會自動續訂</li>
+          <li>不包含訂閱權益</li>
+        </ul>
+
+        <button
+          class="btn btn-support"
+          type="button"
+          aria-label="使用信用卡一次付清支持 NT$300"
+          data-support-amount="300"
+        >
+          使用信用卡一次付清 NT$300
+        </button>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="panel support-notes">
+      <h2 class="support-section-title">小提醒</h2>
+      <ul class="support-note-list">
+        <li>這裡是單次支持入口，使用信用卡一次付清。</li>
+        <li>按下按鈕不代表已付款成功；完成與否以付款結果為準。</li>
+        <li>此支持不會自動續訂，也不會開啟月訂或年訂權益。</li>
+      </ul>
+      <p id="support-pay-status" role="status"></p>
+      <button id="support-pay-requery" class="btn btn-secondary" type="button" hidden>重新查詢</button>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="panel support-actions">
+      <a class="btn btn-secondary" href="./index.html">回首頁</a>
+      <a class="btn btn-support" href="./gift.html">看看活動頁</a>
+    </div>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js?v=20261127-support"></script>
+<script>
+(function () {
+  var GATEWAY = "https://core.newebpay.com/MPG/mpg_gateway";
+  var STORAGE = "support_card_order";
+  var statusNode = document.getElementById("support-pay-status");
+  var requery = document.getElementById("support-pay-requery");
+  var timer = 0;
+  var attempts = 0;
+
+  function say(text) {
+    if (statusNode) statusNode.textContent = text;
+  }
+
+  function client() {
+    return window.supabaseClient || null;
+  }
+
+  function allowedAmount(value) {
+    return value === 90 || value === 150 || value === 300;
+  }
+
+  function fieldsSafe(fields) {
+    var names = Object.keys(fields || {});
+    if (names.length !== 4 || !fields.MerchantID || !fields.TradeInfo || !fields.TradeSha || fields.Version !== "2.0") return false;
+    var packed = JSON.stringify(fields).toLowerCase();
+    return packed.indexOf("hashkey") < 0 && packed.indexOf("hashiv") < 0 && packed.indexOf("period") < 0;
+  }
+
+  async function sessionReady() {
+    var supabase = client();
+    if (!supabase) return null;
+    var session = await supabase.auth.getSession();
+    return session && session.data && session.data.session ? supabase : null;
+  }
+
+  async function createPayment(amount) {
+    var supabase = await sessionReady();
+    if (!supabase) {
+      say("請先登入後再付款。");
+      return;
+    }
+    say("正在建立付款…");
+    var result = await supabase.functions.invoke("newebpay-support-checkout", {
+      body: { action: "create", amount: amount }
+    });
+    var body = result.data;
+    if (result.error || !body || !body.ok || !body.fields || !body.mer_order_no) {
+      say("無法建立付款。");
+      return;
+    }
+    if (body.action_url !== GATEWAY || body.amount !== amount || !fieldsSafe(body.fields)) {
+      say("付款網址或金額與設定不符，已停止。");
+      return;
+    }
+    sessionStorage.setItem(STORAGE, body.mer_order_no);
+    var form = document.createElement("form");
+    form.method = "POST";
+    form.action = body.action_url;
+    Object.keys(body.fields).forEach(function (name) {
+      var input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = body.fields[name];
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  function stopPoll() {
+    if (timer) window.clearInterval(timer);
+    timer = 0;
+  }
+
+  async function queryOnce() {
+    var supabase = await sessionReady();
+    var order = sessionStorage.getItem(STORAGE) || "";
+    if (!supabase) {
+      say("請先登入以確認付款結果。");
+      stopPoll();
+      return true;
+    }
+    if (!order) {
+      say("找不到這次付款的訂單編號。");
+      return false;
+    }
+    var result = await supabase.functions.invoke("newebpay-support-checkout", {
+      body: { action: "status", mer_order_no: order }
+    });
+    var body = result.data;
+    if (body && body.ok && body.status === "PAID" && allowedAmount(body.amount)) {
+      say("付款已完成。金額 NT$" + body.amount + "。");
+      if (requery) requery.hidden = true;
+      stopPoll();
+      return true;
+    }
+    if (body && body.ok && body.status === "FAILED") {
+      say("這筆付款沒有成功。");
+      if (requery) requery.hidden = true;
+      stopPoll();
+      return true;
+    }
+    return false;
+  }
+
+  function startPoll() {
+    stopPoll();
+    attempts = 0;
+    if (requery) requery.hidden = true;
+    say("付款結果確認中");
+    queryOnce();
+    timer = window.setInterval(function () {
+      attempts += 1;
+      if (attempts >= 30) {
+        stopPoll();
+        say("付款結果確認中。若已完成付款，請按重新查詢。");
+        if (requery) requery.hidden = false;
+        return;
+      }
+      queryOnce();
+    }, 2000);
+  }
+
+  document.querySelectorAll("[data-support-amount]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var amount = Number(button.getAttribute("data-support-amount"));
+      if (!allowedAmount(amount)) {
+        say("金額不正確。");
+        return;
+      }
+      createPayment(amount);
+    });
+  });
+
+  if (requery) {
+    requery.addEventListener("click", function () {
+      startPoll();
+    });
+  }
+
+  window.addEventListener("focus", function () {
+    if (new URLSearchParams(window.location.search).get("support_return") === "1") queryOnce();
+  });
+
+  if (new URLSearchParams(window.location.search).get("support_return") === "1") startPoll();
+})();
+</script>
+</body>
+</html>
