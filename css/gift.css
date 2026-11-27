@@ -198,7 +198,8 @@ img {
   box-shadow: 0 8px 18px rgba(39, 64, 55, 0.2);
 }
 
-.gift-hero .gift-primary-button:nth-child(2) {
+.gift-hero .gift-primary-button:nth-child(2),
+.gift-hero .gift-primary-button:nth-child(3) {
   background: rgba(255, 248, 232, 0.86);
   color: var(--gift-green-dark);
   border-color: rgba(39, 64, 55, 0.46);
@@ -218,7 +219,8 @@ img {
   filter: brightness(1.03);
 }
 
-.gift-hero .gift-primary-button:nth-child(2):hover {
+.gift-hero .gift-primary-button:nth-child(2):hover,
+.gift-hero .gift-primary-button:nth-child(3):hover {
   background: rgba(255, 248, 232, 0.98);
   border-color: rgba(39, 64, 55, 0.62);
 }
