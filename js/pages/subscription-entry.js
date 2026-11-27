@@ -428,7 +428,11 @@
         refs.statusBadge.textContent = statusBadgeLabel(ui);
       }
       if (refs.statusHeadline) refs.statusHeadline.textContent = ui.headline;
-      if (refs.statusDetail) refs.statusDetail.textContent = ui.detail;
+      if (refs.statusDetail) {
+        refs.statusDetail.textContent = subscription?.cancel_requested && ui.mode === "active"
+          ? `${ui.detail} 已收到取消申請，藍新尚未停止續扣，目前仍可使用至已付款期間結束。`
+          : ui.detail;
+      }
       if (refs.statusMeta) {
         const showMeta = Boolean(ui.planCode || ui.status || ui.paidThroughLocal || ui.nextBillingLocal);
         refs.statusMeta.hidden = !showMeta;
