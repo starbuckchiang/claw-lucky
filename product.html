@@ -8,10 +8,15 @@
 
   <link rel="stylesheet" href="./css/base.css" />
   <link rel="stylesheet" href="./css/shop/product.css?v=20260706" />
+  <link rel="stylesheet" href="./css/shop/shop-sim.css?v=20261127-1" />
 </head>
 
 <body>
   <main class="product-page">
+    <div id="shopSimBanner" class="shop-sim-banner" hidden>
+      <p>測試模擬：不扣款、不建立正式訂單、不開立發票、不建立物流單。加入商品只會進入模擬結帳。</p>
+    </div>
+
     <header class="product-nav">
       <a class="product-back" href="./good.html">← 回 Lucky Shop</a>
       <a class="product-nav-link" href="./mascot-collection.html">我的收藏</a>
@@ -112,9 +117,12 @@
   <script src="./js/api.js?v=20260817-1"></script>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
   <script src="./js/user.js?v=20260710-2"></script>
+  <script src="./js/shop/shop-sim.js?v=20261127-1"></script>
   <script src="./js/shop/shop-api.js?v=20260817-1"></script>
   <script>
     (function () {
+      let currentProduct = null;
+
       function getProductId() {
         const id = new URLSearchParams(location.search).get("id");
         return String(id || "").trim();
@@ -124,6 +132,14 @@
         const id = getProductId();
         if (!id) {
           console.warn("[product] no product id found");
+          return;
+        }
+
+        if (window.ShopSim?.isActive?.()) {
+          if (!currentProduct || !window.ShopSim.createDraftFromProduct) return;
+          window.ShopSim.activate?.();
+          window.ShopSim.writeDraft(window.ShopSim.createDraftFromProduct(currentProduct, 1));
+          window.location.assign("./shop_sim_checkout.html");
           return;
         }
 
@@ -181,6 +197,15 @@
       }
 
       async function renderProduct() {
+        window.ShopSim?.activateFromUrl?.(location.search);
+        const sim = Boolean(window.ShopSim?.isActive?.());
+        const banner = document.getElementById("shopSimBanner");
+        const addToCartBtn = document.getElementById("addToCartBtn");
+        if (sim && banner) banner.hidden = false;
+        if (sim && addToCartBtn) addToCartBtn.textContent = "加入並前往結帳";
+        const backLink = document.querySelector(".product-back");
+        if (sim && backLink) backLink.href = "./good.html?shopSim=1";
+
         const id = getProductId();
         const titleEl = document.querySelector(".product-title");
         const descEl = document.querySelector(".product-desc");
@@ -195,18 +220,30 @@
           return;
         }
 
-        if (!window.ShopApi?.getProduct) {
+        if (!window.ShopApi?.getProduct && !sim) {
           if (titleEl) titleEl.textContent = "商品載入失敗";
           return;
         }
 
         try {
-          const product = await window.ShopApi.getProduct(id);
+          let product = null;
+          if (window.ShopApi?.getProduct) {
+            try {
+              product = await window.ShopApi.getProduct(id);
+            } catch (error) {
+              if (!sim) throw error;
+              console.warn("[product] sim catalog fallback", error);
+            }
+          }
+          if (!product && sim) product = window.ShopSim.getDemoProduct(id);
 
           if (!product) {
             if (titleEl) titleEl.textContent = "找不到商品";
             return;
           }
+
+          currentProduct = product;
+          if (sim && addToCartBtn) addToCartBtn.disabled = Number(product.stock || 0) <= 0;
 
           if (titleEl) titleEl.textContent = product.name || "未命名商品";
           if (descEl) descEl.textContent = product.description || product.subtitle || "";

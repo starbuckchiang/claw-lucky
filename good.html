@@ -8,10 +8,15 @@
 
   <link rel="stylesheet" href="./css/base.css" />
   <link rel="stylesheet" href="./css/shop/good.css?v=20260706" />
+  <link rel="stylesheet" href="./css/shop/shop-sim.css?v=20261127-1" />
 </head>
 
 <body>
   <main class="good-page">
+    <div id="shopSimBanner" class="shop-sim-banner" hidden>
+      <p data-sim-banner-text>測試模擬：不扣款、不建立正式訂單、不開立發票、不建立物流單。資料只留在這台瀏覽器。</p>
+      <a href="./orders.html?shopSim=1">查看模擬訂單</a>
+    </div>
 
     <header class="good-nav">
       <div class="good-logo">Lucky Shop</div>
@@ -159,7 +164,8 @@
 
 <!-- Shop -->
     <script src="./js/shop/shop-api.js?v=20260817-1"></script>
-    <script src="./js/shop/good.js?v=20260706"></script>
+    <script src="./js/shop/shop-sim.js?v=20261127-1"></script>
+    <script src="./js/shop/good.js?v=20261127-2"></script>
 
   </main>
 </body>

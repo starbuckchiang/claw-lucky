@@ -7,8 +7,9 @@
   <link rel="stylesheet" href="./css/base.css" />
   <link rel="stylesheet" href="./css/shop/product.css?v=20260709" />
   <link rel="stylesheet" href="./css/shop/orders.css?v=20260709" />
+  <link rel="stylesheet" href="./css/shop/shop-sim.css?v=20261127-1" />
 </head>
-<body>
+<body data-shop-sim-page="orders">
   <main class="product-page">
     <header class="product-nav">
       <a class="product-back" href="./good.html">← 回 Lucky Shop</a>
@@ -19,6 +20,19 @@
         <div class="product-kicker">🍀 好運紀錄</div>
         <h1 class="product-title">你的好運回憶</h1>
         <p class="product-desc">查看你曾經帶回家的每一份好運。</p>
+      </div>
+    </section>
+
+    <section class="product-section" id="shopSimOrdersSection">
+      <h2>測試模擬訂單</h2>
+      <div class="shop-sim-banner">
+        <p>測試模擬：不扣款、不建立正式訂單、不開立發票、不建立物流單。這裡只顯示這台瀏覽器的模擬訂單，重新整理後還在，清除後可重跑。</p>
+      </div>
+      <div id="simOrdersList"></div>
+      <div class="shop-sim-actions">
+        <button class="shop-sim-button" id="simOrdersClear" type="button">清除模擬訂單並重跑</button>
+        <a class="shop-sim-button" href="./member_flow.html">回會員入口</a>
+        <a href="./good.html?shopSim=1">回好運商城</a>
       </div>
     </section>
 
@@ -34,6 +48,7 @@
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
   <script src="./js/user.js?v=20260710-2"></script>
   <script src="./js/shop/shop-api.js?v=20260817-1"></script>
+  <script src="./js/shop/shop-sim.js?v=20261127-1"></script>
   <script src="./js/shop/orders.js?v=20260709"></script>
 </body>
 </html>

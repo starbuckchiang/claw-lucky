@@ -1,0 +1,288 @@
+/* Day 1 實體商品模擬結帳。只影響 .shop-sim-* 與會員入口的分支按鈕。 */
+
+.shop-sim-banner {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #fff4d6;
+  color: #6a3b16;
+  border: 2px dashed #c4843a;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.shop-sim-banner p {
+  margin: 0 0 8px;
+}
+
+.shop-sim-banner a,
+.shop-sim-links a {
+  color: #7a3f22;
+  font-weight: 900;
+}
+
+.shop-sim-form,
+.shop-sim-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.shop-sim-form fieldset {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(77, 43, 24, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 248, 236, 0.72);
+}
+
+.shop-sim-form legend {
+  padding: 0 6px;
+  color: #321b10;
+  font-weight: 900;
+}
+
+.shop-sim-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.shop-sim-field span,
+.shop-sim-choice span {
+  font-weight: 800;
+}
+
+.shop-sim-form input,
+.shop-sim-form select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(77, 43, 24, 0.28);
+  background: #fffaf1;
+  color: #3e2417;
+  font: inherit;
+  font-size: 16px;
+}
+
+.shop-sim-choices {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.shop-sim-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(77, 43, 24, 0.18);
+  background: #fffaf1;
+  cursor: pointer;
+}
+
+.shop-sim-choice input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.2rem;
+  accent-color: #9c513d;
+}
+
+.shop-sim-choice:has(input:checked) {
+  border-color: #9c513d;
+  background: #fff4d6;
+}
+
+.shop-sim-qty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shop-sim-qty strong {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 18px;
+}
+
+.shop-sim-line {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.shop-sim-line img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #f7e6c0;
+}
+
+.shop-sim-line h3,
+.shop-sim-line p {
+  margin: 0;
+}
+
+.shop-sim-line p {
+  color: #76543d;
+  font-size: 13px;
+}
+
+.shop-sim-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 18px;
+}
+
+.shop-sim-alert {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fde8df;
+  color: #7a2e1e;
+  font-weight: 800;
+}
+
+.shop-sim-warning {
+  margin: 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: #fff4d6;
+  border: 2px solid #c4843a;
+  color: #6a3b16;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+.shop-sim-kv {
+  display: grid;
+  grid-template-columns: 6.5em 1fr;
+  gap: 6px 10px;
+  margin: 12px 0;
+}
+
+.shop-sim-kv dt {
+  margin: 0;
+  font-weight: 900;
+}
+
+.shop-sim-kv dd {
+  margin: 0;
+}
+
+.shop-sim-order {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 250, 240, 0.95);
+  border: 2px solid #8a5a2b;
+}
+
+.shop-sim-order.is-current {
+  outline: 3px solid #d9a441;
+}
+
+.shop-sim-order h3,
+.shop-sim-order p {
+  margin: 0 0 6px;
+}
+
+.shop-sim-pill {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 0 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #9c513d;
+  color: #fff8e7;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.shop-sim-order-items {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.shop-sim-actions,
+.shop-sim-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.shop-sim-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(77, 43, 24, 0.28);
+  background: #fff8e7;
+  color: #321b10;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.good-sim-detail {
+  display: inline-block;
+  margin-top: 8px;
+  color: #5a321f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.shop-sim-form button:focus-visible,
+.shop-sim-form input:focus-visible,
+.shop-sim-form select:focus-visible,
+.shop-sim-form a:focus-visible,
+.shop-sim-actions a:focus-visible,
+.shop-sim-actions button:focus-visible,
+.shop-sim-banner a:focus-visible,
+.good-sim-detail:focus-visible,
+.member-step-choices a:focus-visible {
+  outline: 3px solid #fff1d8;
+  outline-offset: 2px;
+}
+
+.shop-sim-page .shop-sim-form button:focus-visible,
+.shop-sim-page .shop-sim-form input:focus-visible,
+.shop-sim-page .shop-sim-form select:focus-visible,
+.shop-sim-page a:focus-visible {
+  outline-color: #9c513d;
+}
+
+.member-step-split {
+  align-items: flex-start;
+}
+
+.member-step-split .beta-step-index {
+  margin-top: 16px;
+}
+
+.member-step-choices {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .shop-sim-line {
+    grid-template-columns: 56px 1fr;
+  }
+
+  .shop-sim-line strong {
+    grid-column: 2;
+  }
+}
