@@ -20,7 +20,7 @@
           <button type="button" class="text-btn" id="adminLogoutBtn" hidden>登出</button>
         </div>
         <h1>管理後台（最小版）</h1>
-        <p class="subscription-status-text">退款審核／確認、實體贈品出貨。每個動作皆由後端重新檢查管理員權限，並留下稽核紀錄。</p>
+        <p class="subscription-status-text">退款審核／確認、實體贈品出貨、藍新終止委託。每個動作皆由後端重新檢查管理員權限，並留下稽核紀錄。</p>
         <p class="subscription-status-text" id="adminAuthStatus"></p>
         <div id="adminContent" hidden>
           <div class="button-row">
@@ -29,6 +29,10 @@
 
           <h2 class="section-title">待審核退款申請</h2>
           <ul id="refundList" class="admin-list"></ul>
+
+          <h2 class="section-title">待處理的藍新終止委託</h2>
+          <p class="subscription-status-text">會員已按取消，但藍新尚未確認停止續扣。請到藍新「查詢定期定額委託單」，對同一筆商店訂單編號按下「終止委託」。確認委託不再扣款後，再按這裡的按鈕。這個按鈕不退款、不改已付款期限，也不會再呼叫藍新。</p>
+          <ul id="newebpayCancelList" class="admin-list"></ul>
 
           <h2 class="section-title">待出貨實體贈品</h2>
           <ul id="giftList" class="admin-list"></ul>
@@ -45,6 +49,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./config.js?v=20261011-1"></script>
-  <script src="./js/pages/admin.js?v=20261014-2"></script>
+  <script src="./js/pages/admin.js?v=20261127-1"></script>
 </body>
 </html>

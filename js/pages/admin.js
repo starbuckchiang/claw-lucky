@@ -13,6 +13,7 @@
     content: document.getElementById("adminContent"),
     refundList: document.getElementById("refundList"),
     giftList: document.getElementById("giftList"),
+    newebpayCancelList: document.getElementById("newebpayCancelList"),
     refreshBtn: document.getElementById("refreshBtn"),
     loggedInEmailText: document.getElementById("adminLoggedInEmailText"),
     logoutBtn: document.getElementById("adminLogoutBtn")
@@ -95,9 +96,32 @@
     return li;
   }
 
+  function renderNewebpayCancelRow(row) {
+    const li = el("li", { className: "admin-row" });
+    const when = row.cancel_requested_at ? new Date(row.cancel_requested_at).toLocaleString("zh-TW") : "";
+    const until = row.paid_through ? new Date(row.paid_through).toLocaleString("zh-TW") : "—";
+    li.appendChild(el("div", {
+      textContent: `${row.plan_code || ""} ${row.recurring_amount ?? "—"} ${row.currency || "TWD"}｜可使用至 ${until}｜申請時間 ${when}｜商店訂單編號 ${row.mer_order_no || "—"}｜委託單號 ${row.period_no || "—"}｜藍新回應 ${row.cancel_api_status || "—"}`
+    }));
+    const confirmBtn = el("button", { className: "btn", textContent: "已在藍新按下終止委託" });
+    confirmBtn.addEventListener("click", async () => {
+      const confirmed = window.confirm("請確認已經在藍新後台對這一筆按下「終止委託」，而且委託狀態不再是扣款中。這個按鈕只更新 Claw Lucky，不退款，已付款期間仍可使用，也不會再呼叫藍新。");
+      if (!confirmed) return;
+      const result = await invokeAdminOps({
+        action: "confirm_newebpay_mandate_terminated",
+        subscriptionId: row.subscription_id
+      });
+      alert(result?.ok ? "已在 Claw Lucky 停止後續續訂，已付款期間不變。" : (result?.error?.message || "操作失敗"));
+      if (result?.ok) loadAll();
+    });
+    li.appendChild(confirmBtn);
+    return li;
+  }
+
   async function loadAll() {
     refs.refundList.innerHTML = "";
     refs.giftList.innerHTML = "";
+    if (refs.newebpayCancelList) refs.newebpayCancelList.innerHTML = "";
 
     const refunds = await invokeAdminOps({ action: "list_pending_refunds" });
     if (!refunds?.ok) {
@@ -112,6 +136,17 @@
       refs.refundList.appendChild(el("li", { textContent: "目前沒有待審核退款申請。" }));
     } else {
       refunds.refund_requests.forEach((row) => refs.refundList.appendChild(renderRefundRow(row)));
+    }
+
+    const cancels = await invokeAdminOps({ action: "list_newebpay_cancel_requests" });
+    if (refs.newebpayCancelList) {
+      if (!cancels?.ok) {
+        refs.newebpayCancelList.appendChild(el("li", { textContent: "取消申請清單暫時無法載入。" }));
+      } else if (!cancels.cancel_requests.length) {
+        refs.newebpayCancelList.appendChild(el("li", { textContent: "目前沒有待處理的藍新取消申請。" }));
+      } else {
+        cancels.cancel_requests.forEach((row) => refs.newebpayCancelList.appendChild(renderNewebpayCancelRow(row)));
+      }
     }
 
     const gifts = await invokeAdminOps({ action: "list_shippable_gifts" });
